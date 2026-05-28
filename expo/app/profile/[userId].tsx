@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
+import { useUser } from '@/providers/UserProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { MOCK_LEAGUE_MEMBERS } from '@/constants/mock-members';
 
@@ -101,7 +102,8 @@ async function fetchFromSupabase(userId: string): Promise<ProfileData | null> {
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { getLeagueMembers, fetchGlobalLeaderboard } = useGame();
+  const { getLeagueMembers, fetchGlobalLeaderboard, leagues, predictions } = useGame();
+  const { profile: currentUserProfile } = useUser();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -115,6 +117,28 @@ export default function ProfileScreen() {
 
     const load = async () => {
       setLoading(true);
+
+      // 0. If viewing your own profile, use the local UserProvider data immediately
+      if (currentUserProfile && currentUserProfile.id === userId && currentUserProfile.id !== 'guest') {
+        const predictionsMade = predictions.filter((p) => (p.top10?.length ?? 0) > 0 || p.fastestLap || p.dnf).length;
+        setProfile({
+          id: currentUserProfile.id,
+          username: currentUserProfile.username,
+          displayName: currentUserProfile.displayName,
+          firstName: currentUserProfile.firstName,
+          lastName: currentUserProfile.lastName,
+          country: currentUserProfile.country,
+          totalPoints: currentUserProfile.totalPoints,
+          globalRank: currentUserProfile.rank,
+          leaguesJoined: leagues.length,
+          predictionsMade,
+        });
+        setLoading(false);
+        // Still try Supabase to enrich with accurate global rank
+        const sb = await fetchFromSupabase(userId);
+        if (!cancelled && sb) setProfile(sb);
+        return;
+      }
 
       // 1. Try Supabase first
       const supabaseProfile = await fetchFromSupabase(userId);
@@ -169,7 +193,7 @@ export default function ProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId, fetchGlobalLeaderboard, getLeagueMembers]);
+  }, [userId, fetchGlobalLeaderboard, getLeagueMembers, currentUserProfile, leagues, predictions]);
 
   useEffect(() => {
     if (!loading) {
