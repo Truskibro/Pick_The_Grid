@@ -160,12 +160,13 @@ export default function LeagueDetailScreen() {
     const medalColor = getMedalColor(index);
 
     return (
-      <Animated.View
+      <AnimatedPressable
         style={[
           styles.memberCard,
           isTop3 && styles.memberCardTop,
           { opacity: fadeAnim },
         ]}
+        onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
         {/* Rank */}
         <View style={[styles.rankCol, isTop3 && { backgroundColor: medalColor + '18' }]}>
@@ -202,7 +203,7 @@ export default function LeagueDetailScreen() {
           <Text style={styles.pointsValue}>{item.points}</Text>
           <Text style={styles.pointsLabel}>pts</Text>
         </View>
-      </Animated.View>
+      </AnimatedPressable>
     );
   };
 

@@ -80,6 +80,12 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="profile/[userId]"
+        options={{
+          title: "Profile",
+        }}
+      />
+      <Stack.Screen
         name="auth"
         options={{
           presentation: "modal",

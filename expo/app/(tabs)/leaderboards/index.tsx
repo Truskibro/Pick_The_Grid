@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Animated, ActivityIndicator } from 'react-native';
+import { useRouter } from 'expo-router';
 import { Trophy, TrendingUp, TrendingDown, Minus, Users, Shield } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
@@ -16,6 +17,7 @@ interface LeagueRanking {
 }
 
 export default function LeaderboardsScreen() {
+  const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -116,7 +118,7 @@ export default function LeaderboardsScreen() {
                   if (!entry) return null;
                   const initials = (entry.displayName || '??').split(' ').map(w => w[0]).join('').substring(0, 2);
                   return (
-                    <View key={entry.userId} style={styles.podiumItem}>
+                    <AnimatedPressable key={entry.userId} style={styles.podiumItem} onPress={() => router.push(`/profile/${entry.userId}` as any)}>
                       <View style={[styles.podiumAvatar, { width: podiumSizeOrder[i], height: podiumSizeOrder[i], borderColor: podiumColorOrder[i] }]}>
                         <Text style={[styles.podiumInitials, { fontSize: podiumSizeOrder[i] * 0.3 }]}>{initials}</Text>
                       </View>
@@ -125,14 +127,17 @@ export default function LeaderboardsScreen() {
                       <View style={[styles.podiumBar, { height: podiumHeights[i], backgroundColor: `${podiumColorOrder[i]}30` }]}>
                         <Text style={[styles.podiumRank, { color: podiumColorOrder[i] }]}>#{entry.rank}</Text>
                       </View>
-                    </View>
+                    </AnimatedPressable>
                   );
                 })}
               </View>
             ) : null
           }
           renderItem={({ item }) => (
-            <View style={styles.rankRow}>
+            <AnimatedPressable
+              style={styles.rankRow}
+              onPress={() => router.push(`/profile/${item.userId}` as any)}
+            >
               <Text style={styles.rankNumber}>{item.rank}</Text>
               <View style={styles.rankAvatar}>
                 <Text style={styles.rankInitials}>
@@ -147,7 +152,7 @@ export default function LeaderboardsScreen() {
                 <Text style={styles.rankPoints}>{item.totalPoints}</Text>
                 {renderTrendIcon(item)}
               </View>
-            </View>
+            </AnimatedPressable>
           )}
           ListEmptyComponent={
             loadingLeaderboard ? null : top3.length === 0 ? (
