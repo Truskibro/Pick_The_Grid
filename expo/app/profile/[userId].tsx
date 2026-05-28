@@ -12,19 +12,17 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Trophy,
   Users,
-  TrendingUp,
-  Flag,
-  Hash,
-  MapPin,
   BarChart3,
   Zap,
-  Medal,
+  MapPin,
+  Shield,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { MOCK_LEAGUE_MEMBERS } from '@/constants/mock-members';
 
-interface PublicProfile {
+interface ProfileData {
   id: string;
   username: string;
   displayName: string;
@@ -37,7 +35,22 @@ interface PublicProfile {
   predictionsMade: number;
 }
 
-async function fetchUserProfile(userId: string): Promise<PublicProfile | null> {
+function buildFallbackProfile(userId: string): ProfileData {
+  return {
+    id: userId,
+    username: 'player',
+    displayName: 'Unknown Player',
+    firstName: '',
+    lastName: '',
+    country: '',
+    totalPoints: 0,
+    globalRank: 0,
+    leaguesJoined: 0,
+    predictionsMade: 0,
+  };
+}
+
+async function fetchFromSupabase(userId: string): Promise<ProfileData | null> {
   if (!isSupabaseConfigured) return null;
 
   try {
@@ -45,10 +58,10 @@ async function fetchUserProfile(userId: string): Promise<PublicProfile | null> {
       .from('profiles')
       .select('id, username, display_name, first_name, last_name, country, total_points')
       .eq('id', userId)
-      .single();
+      .maybeSingle();
 
     if (error || !profile) {
-      console.log('fetchUserProfile: profile not found', error?.message);
+      console.log('fetchFromSupabase: not found for', userId, error?.message || '');
       return null;
     }
 
@@ -71,27 +84,27 @@ async function fetchUserProfile(userId: string): Promise<PublicProfile | null> {
     return {
       id: profile.id,
       username: profile.username?.trim() || 'unknown',
-      displayName: profile.display_name?.trim() || profile.username?.trim() || 'Unknown',
-      firstName: profile.first_name?.trim() || '',
-      lastName: profile.last_name?.trim() || '',
-      country: profile.country?.trim() || '',
+      displayName: profile.display_name?.trim() || profile.username?.trim() || 'Player',
+      firstName: (profile.first_name || '').trim(),
+      lastName: (profile.last_name || '').trim(),
+      country: (profile.country || '').trim(),
       totalPoints: profile.total_points ?? 0,
       globalRank: (rankData ?? 0) + 1,
       leaguesJoined: leaguesData ?? 0,
       predictionsMade: predsData ?? 0,
     };
   } catch (e) {
-    console.log('fetchUserProfile: error', e);
+    console.log('fetchFromSupabase: error', e);
     return null;
   }
 }
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { fetchGlobalLeaderboard } = useGame();
-  const [profile, setProfile] = useState<PublicProfile | null>(null);
+  const { getLeagueMembers, fetchGlobalLeaderboard } = useGame();
+
+  const [profile, setProfile] = useState<ProfileData | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
-  const [error, setError] = useState<string | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
@@ -99,21 +112,64 @@ export default function ProfileScreen() {
     if (!userId) return;
 
     let cancelled = false;
+
     const load = async () => {
       setLoading(true);
-      const data = await fetchUserProfile(userId);
+
+      // 1. Try Supabase first
+      const supabaseProfile = await fetchFromSupabase(userId);
       if (cancelled) return;
-      if (data) {
-        setProfile(data);
-      } else {
-        setError('User not found.');
+
+      if (supabaseProfile) {
+        setProfile(supabaseProfile);
+        setLoading(false);
+        return;
       }
+
+      // 2. Try leaderboard data
+      try {
+        const leaderboard = await fetchGlobalLeaderboard();
+        const lbEntry = leaderboard.find((e) => e.userId === userId);
+        if (lbEntry) {
+          setProfile({
+            ...buildFallbackProfile(userId),
+            username: lbEntry.username,
+            displayName: lbEntry.displayName,
+            totalPoints: lbEntry.totalPoints,
+            globalRank: lbEntry.rank,
+          });
+          setLoading(false);
+          return;
+        }
+      } catch (e) {
+        console.log('Leaderboard search skipped:', e);
+      }
+
+      // 3. Try mock members (Sainz4Ever55, Whitney etc.)
+      const mockMember = MOCK_LEAGUE_MEMBERS.find((m) => m.userId === userId);
+      if (mockMember) {
+        setProfile({
+          ...buildFallbackProfile(userId),
+          username: mockMember.username,
+          displayName: mockMember.displayName,
+          totalPoints: 0,
+          globalRank: 0,
+        });
+        setLoading(false);
+        return;
+      }
+
+      // 4. Show a limited fallback view — don't just say "not found"
+      const fallback = buildFallbackProfile(userId);
+      setProfile(fallback);
       setLoading(false);
     };
 
     void load();
-    return () => { cancelled = true; };
-  }, [userId]);
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, fetchGlobalLeaderboard, getLeagueMembers]);
 
   useEffect(() => {
     if (!loading) {
@@ -122,7 +178,7 @@ export default function ProfileScreen() {
         Animated.timing(slideAnim, { toValue: 0, duration: 400, useNativeDriver: true }),
       ]).start();
     }
-  }, [loading]);
+  }, [loading, fadeAnim, slideAnim]);
 
   if (loading) {
     return (
@@ -134,27 +190,27 @@ export default function ProfileScreen() {
     );
   }
 
-  if (error || !profile) {
+  if (!profile) {
     return (
       <View style={styles.loadingContainer}>
         <Stack.Screen options={{ title: 'Profile' }} />
-        <Text style={styles.errorText}>{error || 'Profile not found.'}</Text>
+        <Text style={styles.errorText}>Could not load this profile.</Text>
       </View>
     );
   }
 
+  const hasFullData = profile.displayName !== 'Unknown Player' && profile.username !== 'player';
   const initials = profile.displayName
     .split(/\s+/)
-    .map(s => s.charAt(0))
+    .map((s) => s.charAt(0))
     .join('')
     .substring(0, 2)
-    .toUpperCase();
-
+    .toUpperCase() || '??';
   const fullName = [profile.firstName, profile.lastName].filter(Boolean).join(' ') || null;
 
   return (
     <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
-      <Stack.Screen options={{ title: profile.displayName }} />
+      <Stack.Screen options={{ title: hasFullData ? profile.displayName : 'Profile' }} />
       <ScrollView
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
@@ -171,8 +227,10 @@ export default function ProfileScreen() {
             locations={[0, 0.5, 1]}
             style={styles.heroGradient}
           >
-            <View style={styles.avatarLarge}>
-              <Text style={styles.avatarLargeText}>{initials}</Text>
+            <View style={[styles.avatarLarge, !hasFullData && styles.avatarLimited]}>
+              <Text style={[styles.avatarLargeText, !hasFullData && styles.avatarLimitedText]}>
+                {initials}
+              </Text>
             </View>
             <Text style={styles.displayName}>{profile.displayName}</Text>
             <Text style={styles.username}>@{profile.username}</Text>
@@ -191,8 +249,20 @@ export default function ProfileScreen() {
             {/* Points badge */}
             <View style={styles.pointsBadge}>
               <Trophy size={16} color={Colors.warning} />
-              <Text style={styles.pointsText}>{profile.totalPoints.toLocaleString()} pts</Text>
+              <Text style={styles.pointsText}>
+                {profile.totalPoints.toLocaleString()} pts
+              </Text>
             </View>
+
+            {/* Limited-data notice */}
+            {!hasFullData && (
+              <View style={styles.limitedNotice}>
+                <Shield size={13} color={Colors.textMuted} />
+                <Text style={styles.limitedNoticeText}>
+                  Limited profile — this player hasn&apos;t created a full profile yet.
+                </Text>
+              </View>
+            )}
           </LinearGradient>
         </Animated.View>
 
@@ -207,7 +277,9 @@ export default function ProfileScreen() {
             <View style={[styles.statIconShell, { backgroundColor: 'rgba(255,214,10,0.1)' }]}>
               <Trophy size={18} color={Colors.warning} />
             </View>
-            <Text style={styles.statValue}>#{profile.globalRank}</Text>
+            <Text style={styles.statValue}>
+              {profile.globalRank > 0 ? `#${profile.globalRank}` : '—'}
+            </Text>
             <Text style={styles.statLabel}>Global Rank</Text>
           </Animated.View>
 
@@ -238,7 +310,7 @@ export default function ProfileScreen() {
           </Animated.View>
         </View>
 
-        {/* Accuracy */}
+        {/* Performance Card */}
         <Animated.View
           style={[
             styles.detailCard,
@@ -334,6 +406,13 @@ const styles = StyleSheet.create({
     fontSize: 28,
     fontWeight: '800' as const,
   },
+  avatarLimited: {
+    borderColor: Colors.textMuted,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+  },
+  avatarLimitedText: {
+    color: Colors.textMuted,
+  },
   displayName: {
     color: Colors.text,
     fontSize: 22,
@@ -375,6 +454,22 @@ const styles = StyleSheet.create({
     color: Colors.warning,
     fontSize: 16,
     fontWeight: '700' as const,
+  },
+  limitedNotice: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    marginTop: 4,
+  },
+  limitedNoticeText: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    flexShrink: 1,
+    textAlign: 'center',
   },
 
   /* ── Stats Grid ── */
