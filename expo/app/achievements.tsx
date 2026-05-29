@@ -6,6 +6,8 @@ import {
   ScrollView,
   Animated,
   TouchableOpacity,
+  Modal,
+  Pressable,
   useWindowDimensions,
 } from 'react-native';
 import { Stack } from 'expo-router';
@@ -47,7 +49,13 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   league: 'League',
 };
 
-/** Resolve a Lucide icon component by kebab-case name. */
+const TIER_ICONS: Record<AchievementTier, string> = {
+  bronze: 'Medal',
+  silver: 'Medal',
+  gold: 'Medal',
+  platinum: 'Diamond',
+};
+
 function resolveIcon(iconName: string): React.ComponentType<any> {
   const pascal = iconName
     .split('-')
@@ -57,7 +65,6 @@ function resolveIcon(iconName: string): React.ComponentType<any> {
 }
 
 export default function AchievementsScreen() {
-  const { width: screenWidth } = useWindowDimensions();
   const {
     state,
     isLoaded,
@@ -70,7 +77,7 @@ export default function AchievementsScreen() {
   const { totalPoints } = useGame();
 
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
-  const scrollX = useRef(new Animated.Value(0)).current;
+  const [selectedDef, setSelectedDef] = useState<AchievementDefinition | null>(null);
 
   const filteredAchievements = useMemo(() => {
     let list: AchievementDefinition[];
@@ -96,7 +103,6 @@ export default function AchievementsScreen() {
       default:
         list = [...ALL_ACHIEVEMENTS];
     }
-    // Put unlocked first within each category
     return list.sort((a, b) => {
       const aUnlocked = (state[a.id]?.unlockedTiers.length ?? 0) > 0 ? 0 : 1;
       const bUnlocked = (state[b.id]?.unlockedTiers.length ?? 0) > 0 ? 0 : 1;
@@ -104,6 +110,7 @@ export default function AchievementsScreen() {
     });
   }, [activeFilter, state]);
 
+  const selectedProgress = selectedDef ? state[selectedDef.id] : undefined;
   const currentToast = unlockQueue.length > 0 && !unlockQueue[0].dismissed ? unlockQueue[0] : null;
 
   if (!isLoaded) {
@@ -149,9 +156,8 @@ export default function AchievementsScreen() {
               <Text style={styles.progressStatLabel}>Points</Text>
             </View>
           </View>
-          {/* Progress bar */}
           <View style={styles.progressBarTrack}>
-            <Animated.View
+            <View
               style={[
                 styles.progressBarFill,
                 {
@@ -166,36 +172,42 @@ export default function AchievementsScreen() {
       </View>
 
       {/* Filter tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.filterScroll}
-        contentContainerStyle={styles.filterContent}
-        onScroll={Animated.event(
-          [{ nativeEvent: { contentOffset: { x: scrollX } } }],
-          { useNativeDriver: false },
-        )}
-        scrollEventThrottle={16}
-      >
-        {FILTER_TABS.map((tab) => {
-          const isActive = activeFilter === tab.key;
-          return (
-            <TouchableOpacity
-              key={tab.key}
-              activeOpacity={0.7}
-              onPress={() => {
-                Haptics.selectionAsync();
-                setActiveFilter(tab.key);
-              }}
-              style={[styles.filterTab, isActive && styles.filterTabActive]}
-            >
-              <Text style={[styles.filterTabText, isActive && styles.filterTabTextActive]}>
-                {tab.label}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-      </ScrollView>
+      <View style={styles.filterBar}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.filterContent}
+        >
+          {FILTER_TABS.map((tab) => {
+            const isActive = activeFilter === tab.key;
+            return (
+              <TouchableOpacity
+                key={tab.key}
+                activeOpacity={0.7}
+                onPress={() => {
+                  void Haptics.selectionAsync();
+                  setActiveFilter(tab.key);
+                }}
+                style={[styles.filterTab, isActive && styles.filterTabActive]}
+              >
+                {isActive && (
+                  <LinearGradient
+                    colors={['#E10600', '#B30500']}
+                    style={StyleSheet.absoluteFill as any}
+                    start={{ x: 0, y: 0 }}
+                    end={{ x: 1, y: 1 }}
+                  />
+                )}
+                <Text
+                  style={[styles.filterTabText, isActive && styles.filterTabTextActive]}
+                >
+                  {tab.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
+      </View>
 
       {/* Badge grid */}
       <ScrollView
@@ -214,6 +226,10 @@ export default function AchievementsScreen() {
                 key={def.id}
                 def={def}
                 progress={state[def.id]}
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedDef(def);
+                }}
               />
             ))}
           </View>
@@ -221,6 +237,14 @@ export default function AchievementsScreen() {
 
         <View style={{ height: 40 }} />
       </ScrollView>
+
+      {/* Detail modal */}
+      <AchievementDetailModal
+        def={selectedDef}
+        progress={selectedProgress}
+        visible={!!selectedDef}
+        onClose={() => setSelectedDef(null)}
+      />
 
       {/* Unlock toast overlay */}
       <AchievementUnlockToast
@@ -240,15 +264,16 @@ export default function AchievementsScreen() {
 function AchievementCard({
   def,
   progress,
+  onPress,
 }: {
   def: AchievementDefinition;
   progress: AchievementProgress | undefined;
+  onPress: () => void;
 }) {
   const Icon = resolveIcon(def.icon);
   const isUnlocked = (progress?.unlockedTiers.length ?? 0) > 0;
   const isHidden = def.isHidden && !isUnlocked;
 
-  // Determine the highest unlocked tier for visual accent
   const highestTier: AchievementTier | null =
     progress?.unlockedTiers.length
       ? progress.unlockedTiers[progress.unlockedTiers.length - 1]
@@ -256,7 +281,11 @@ function AchievementCard({
   const accentColor = highestTier ? TIER_COLORS[highestTier].primary : Colors.textMuted;
 
   return (
-    <View style={[styles.card, isUnlocked && { borderColor: accentColor + '30' }]}>
+    <TouchableOpacity
+      activeOpacity={0.85}
+      onPress={onPress}
+      style={[styles.card, isUnlocked && { borderColor: accentColor + '30' }]}
+    >
       {isUnlocked && highestTier && (
         <LinearGradient
           colors={[TIER_COLORS[highestTier].glow, 'transparent']}
@@ -345,7 +374,6 @@ function AchievementCard({
             );
           })}
 
-          {/* Progress text */}
           <Text style={styles.tierProgressText}>
             {progress?.currentValue ?? 0}
             {def.tiers && def.tiers.length > 0 && progress && (
@@ -362,7 +390,235 @@ function AchievementCard({
           <Text style={styles.revealedDesc}>{def.description}</Text>
         </View>
       )}
-    </View>
+    </TouchableOpacity>
+  );
+}
+
+/* ────────────────────────────────────────────── */
+/*  Achievement Detail Modal                       */
+/* ────────────────────────────────────────────── */
+
+function AchievementDetailModal({
+  def,
+  progress,
+  visible,
+  onClose,
+}: {
+  def: AchievementDefinition | null;
+  progress: AchievementProgress | undefined;
+  visible: boolean;
+  onClose: () => void;
+}) {
+  if (!def) return null;
+
+  const Icon = resolveIcon(def.icon);
+  const isHidden = def.isHidden;
+  const isHiddenUnlocked = isHidden && (progress?.unlockedTiers.length ?? 0) > 0;
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="fade"
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.modalBackdrop} onPress={onClose}>
+        <Pressable style={styles.modalSheet} onPress={() => {}}>
+          {/* Drag indicator */}
+          <View style={styles.modalHandle} />
+
+          <ScrollView
+            showsVerticalScrollIndicator={false}
+            bounces={false}
+            contentContainerStyle={styles.modalScrollContent}
+          >
+            {/* Header */}
+            <View style={styles.modalHeader}>
+              <View
+                style={[
+                  styles.modalIconShell,
+                  (isHidden && !isHiddenUnlocked)
+                    ? { backgroundColor: 'rgba(255,255,255,0.04)' }
+                    : { backgroundColor: 'rgba(225,6,0,0.08)' },
+                ]}
+              >
+                {isHidden && !isHiddenUnlocked ? (
+                  <icons.EyeOff size={28} color={Colors.textMuted} />
+                ) : (
+                  <Icon size={28} color={isHiddenUnlocked ? Colors.warning : Colors.f1Red} />
+                )}
+              </View>
+
+              <Text style={styles.modalName}>
+                {isHidden && !isHiddenUnlocked ? 'Hidden Badge' : def.name}
+              </Text>
+              <Text style={styles.modalCategoryBadge}>
+                {CATEGORY_LABELS[def.category]}
+              </Text>
+              <Text style={styles.modalDesc}>
+                {isHidden && !isHiddenUnlocked
+                  ? 'Complete a secret objective to reveal this badge.'
+                  : def.description}
+              </Text>
+
+              {/* Progress bar for tiered achievements */}
+              {!isHidden && def.tiers && progress && (
+                <View style={styles.modalProgressTrack}>
+                  <View
+                    style={[
+                      styles.modalProgressFill,
+                      {
+                        width: def.tiers.length > 0
+                          ? `${Math.min(100, Math.round((progress.currentValue / def.tiers[def.tiers.length - 1].value) * 100))}%`
+                          : '0%',
+                      },
+                    ]}
+                  />
+                </View>
+              )}
+
+              {!isHidden && def.tiers && progress && (
+                <Text style={styles.modalProgressLabel}>
+                  Progress: {progress.currentValue} / {def.tiers[def.tiers.length - 1].value}
+                </Text>
+              )}
+            </View>
+
+            {/* Tiers section */}
+            {def.tiers ? (
+              <View style={styles.tiersSection}>
+                <Text style={styles.tiersSectionTitle}>TIER REQUIREMENTS</Text>
+                {def.tiers.map((tierDef, idx) => {
+                  const isUnlocked = progress?.unlockedTiers.includes(tierDef.tier) ?? false;
+                  const tColors = TIER_COLORS[tierDef.tier];
+                  const prevUnlocked =
+                    idx === 0 || (progress?.unlockedTiers.includes(def.tiers![idx - 1].tier) ?? false);
+                  const isNextTier = !isUnlocked && prevUnlocked;
+
+                  return (
+                    <View
+                      key={tierDef.tier}
+                      style={[
+                        styles.tierCard,
+                        isUnlocked && { borderColor: tColors.primary + '40', backgroundColor: tColors.glow + '15' },
+                        isNextTier && { borderColor: tColors.primary + '60' },
+                      ]}
+                    >
+                      {/* Tier header */}
+                      <View style={styles.tierCardHeader}>
+                        <View
+                          style={[
+                            styles.tierBadge,
+                            isUnlocked
+                              ? { backgroundColor: tColors.primary }
+                              : isNextTier
+                              ? { borderColor: tColors.primary, borderWidth: 2, backgroundColor: 'transparent' }
+                              : { borderColor: Colors.border, borderWidth: 1.5, backgroundColor: 'transparent' },
+                          ]}
+                        >
+                          {isUnlocked ? (
+                            <icons.Check size={14} color="#000" strokeWidth={3} />
+                          ) : (
+                            <Text
+                              style={[
+                                styles.tierBadgeText,
+                                isNextTier
+                                  ? { color: tColors.primary }
+                                  : { color: Colors.textMuted },
+                              ]}
+                            >
+                              {idx + 1}
+                            </Text>
+                          )}
+                        </View>
+
+                        <View style={styles.tierCardTitleBlock}>
+                          <Text
+                            style={[
+                              styles.tierCardLabel,
+                              isUnlocked && { color: tColors.primary },
+                              !isUnlocked && !isNextTier && { color: Colors.textMuted },
+                            ]}
+                          >
+                            {TIER_LABELS[tierDef.tier]}
+                          </Text>
+                          <Text
+                            style={[
+                              styles.tierCardReq,
+                              !isUnlocked && !isNextTier && { color: Colors.textMuted },
+                            ]}
+                          >
+                            {tierDef.requirement}
+                          </Text>
+                        </View>
+
+                        {isUnlocked ? (
+                          <View style={[styles.tierStatusBadge, { backgroundColor: tColors.glow, borderColor: tColors.primary }]}>
+                            <icons.CheckCircle size={12} color={tColors.primary} />
+                            <Text style={[styles.tierStatusText, { color: tColors.primary }]}>
+                              Unlocked
+                            </Text>
+                          </View>
+                        ) : isNextTier ? (
+                          <View style={[styles.tierStatusBadge, { backgroundColor: tColors.glow, borderColor: tColors.primary }]}>
+                            <Text style={[styles.tierStatusText, { color: tColors.primary }]}>
+                              {progress ? `${progress.currentValue}/${tierDef.value}` : `0/${tierDef.value}`}
+                            </Text>
+                          </View>
+                        ) : (
+                          <icons.Lock size={14} color={Colors.textMuted} />
+                        )}
+                      </View>
+
+                      {/* Progress fill for in-progress tier */}
+                      {isNextTier && progress && (
+                        <View style={styles.tierProgressTrack}>
+                          <View
+                            style={[
+                              styles.tierProgressFill,
+                              {
+                                width: `${Math.min(100, Math.round((progress.currentValue / tierDef.value) * 100))}%`,
+                                backgroundColor: tColors.primary,
+                              },
+                            ]}
+                          />
+                        </View>
+                      )}
+                    </View>
+                  );
+                })}
+              </View>
+            ) : (
+              /* Hidden achievement pre-unlock */
+              !isHiddenUnlocked && def.unlockHint && (
+                <View style={styles.tiersSection}>
+                  <Text style={styles.tiersSectionTitle}>UNLOCK CONDITION</Text>
+                  <View style={styles.hiddenConditionCard}>
+                    <icons.HelpCircle size={18} color={Colors.warning} />
+                    <Text style={styles.hiddenConditionText}>{def.unlockHint}</Text>
+                  </View>
+                </View>
+              )
+            )}
+
+            {/* Hidden achievement post-unlock */}
+            {isHiddenUnlocked && (
+              <View style={styles.tiersSection}>
+                <Text style={styles.tiersSectionTitle}>HOW YOU UNLOCKED IT</Text>
+                <View style={styles.hiddenConditionCardUnlocked}>
+                  <icons.CheckCircle size={18} color={Colors.success} />
+                  <Text style={styles.hiddenConditionTextUnlocked}>
+                    {def.unlockHint ?? def.description}
+                  </Text>
+                </View>
+              </View>
+            )}
+
+            <View style={{ height: 40 }} />
+          </ScrollView>
+        </Pressable>
+      </Pressable>
+    </Modal>
   );
 }
 
@@ -438,40 +694,42 @@ const styles = StyleSheet.create({
   },
 
   /* Filter tabs */
-  filterScroll: {
-    maxHeight: 52,
+  filterBar: {
     marginTop: 14,
+    marginBottom: 4,
   },
   filterContent: {
     paddingHorizontal: 16,
     gap: 8,
-    alignItems: 'center' as const,
   },
   filterTab: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+    paddingHorizontal: 18,
+    paddingVertical: 10,
     borderRadius: 100,
     backgroundColor: Colors.surface,
     borderWidth: 1,
     borderColor: Colors.border,
+    overflow: 'hidden' as const,
   },
   filterTabActive: {
-    backgroundColor: Colors.f1Red,
     borderColor: Colors.f1Red,
   },
   filterTabText: {
     color: Colors.textSecondary,
     fontSize: 13,
     fontWeight: '600' as const,
+    position: 'relative' as const,
+    zIndex: 1,
   },
   filterTabTextActive: {
     color: '#FFF',
+    fontWeight: '700' as const,
   },
 
   /* Grid */
   gridContent: {
     paddingHorizontal: 16,
-    paddingTop: 16,
+    paddingTop: 12,
   },
   grid: {
     gap: 10,
@@ -612,5 +870,201 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
+  },
+
+  /* ── Modal ── */
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.7)',
+    justifyContent: 'flex-end' as const,
+  },
+  modalSheet: {
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 24,
+    borderTopRightRadius: 24,
+    maxHeight: '85%' as any,
+    borderTopWidth: 1,
+    borderColor: Colors.border,
+  },
+  modalHandle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.borderLight,
+    alignSelf: 'center' as const,
+    marginTop: 12,
+    marginBottom: 8,
+  },
+  modalScrollContent: {
+    paddingHorizontal: 20,
+  },
+
+  /* Modal header */
+  modalHeader: {
+    alignItems: 'center' as const,
+    paddingTop: 16,
+    paddingBottom: 4,
+    gap: 8,
+  },
+  modalIconShell: {
+    width: 64,
+    height: 64,
+    borderRadius: 20,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  modalName: {
+    color: Colors.text,
+    fontSize: 22,
+    fontWeight: '800' as const,
+    letterSpacing: -0.3,
+    textAlign: 'center' as const,
+  },
+  modalCategoryBadge: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 1,
+    backgroundColor: Colors.surfaceHighlight,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+    borderRadius: 6,
+    overflow: 'hidden' as const,
+  },
+  modalDesc: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: 'center' as const,
+    paddingHorizontal: 12,
+  },
+  modalProgressTrack: {
+    width: '100%' as any,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: Colors.surfaceHighlight,
+    overflow: 'hidden' as const,
+    marginTop: 4,
+  },
+  modalProgressFill: {
+    height: '100%' as any,
+    borderRadius: 2,
+    backgroundColor: Colors.f1Red,
+  },
+  modalProgressLabel: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+
+  /* Tiers section */
+  tiersSection: {
+    marginTop: 24,
+    gap: 10,
+  },
+  tiersSectionTitle: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+    marginBottom: 2,
+  },
+  tierCard: {
+    backgroundColor: Colors.surfaceElevated,
+    borderRadius: 14,
+    padding: 14,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tierCardHeader: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 12,
+  },
+  tierBadge: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  tierBadgeText: {
+    fontSize: 13,
+    fontWeight: '800' as const,
+  },
+  tierCardTitleBlock: {
+    flex: 1,
+    gap: 2,
+  },
+  tierCardLabel: {
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  tierCardReq: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    lineHeight: 16,
+  },
+  tierStatusBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    borderWidth: 1,
+  },
+  tierStatusText: {
+    fontSize: 11,
+    fontWeight: '700' as const,
+  },
+  tierProgressTrack: {
+    height: 3,
+    borderRadius: 2,
+    backgroundColor: Colors.surfaceHighlight,
+    overflow: 'hidden' as const,
+    marginTop: 10,
+  },
+  tierProgressFill: {
+    height: '100%' as any,
+    borderRadius: 2,
+  },
+
+  /* Hidden condition */
+  hiddenConditionCard: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 12,
+    backgroundColor: 'rgba(255,214,10,0.06)',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.15)',
+  },
+  hiddenConditionText: {
+    color: Colors.warning,
+    fontSize: 13,
+    lineHeight: 19,
+    flex: 1,
+    fontWeight: '600' as const,
+  },
+  hiddenConditionCardUnlocked: {
+    flexDirection: 'row' as const,
+    alignItems: 'flex-start' as const,
+    gap: 12,
+    backgroundColor: 'rgba(48,209,88,0.06)',
+    borderRadius: 14,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: 'rgba(48,209,88,0.15)',
+  },
+  hiddenConditionTextUnlocked: {
+    color: Colors.success,
+    fontSize: 13,
+    lineHeight: 19,
+    flex: 1,
+    fontWeight: '600' as const,
   },
 });
