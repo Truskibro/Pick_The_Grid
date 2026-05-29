@@ -19,6 +19,8 @@ import {
   Shield,
   AtSign,
   Eye,
+  Award,
+  ChevronDown,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -27,11 +29,13 @@ import { useGame } from '@/providers/GameProvider';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
 import { COUNTRIES } from '@/constants/countries';
+import { useAchievements } from '@/providers/AchievementProvider';
 
 export default function SettingsScreen() {
   const router = useRouter();
   const { profile, isGuest, notifications, updateProfile, updateNotifications, signOut } = useUser();
   const { leagues, totalPoints, predictions } = useGame();
+  const { unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
 
   const [editorOpen, setEditorOpen] = useState<boolean>(false);
   const [firstName, setFirstName] = useState<string>(profile.firstName);
@@ -222,6 +226,31 @@ export default function SettingsScreen() {
         {/* Plaque */}
         <Text style={styles.sectionLabel}>Plaque</Text>
         <View style={styles.card}>
+          <AnimatedPressable
+            onPress={() => {
+              if (isGuest) {
+                router.push('/auth' as any);
+                return;
+              }
+              Haptics.selectionAsync();
+              router.push('/achievements' as any);
+            }}
+            style={styles.row}
+          >
+            <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,214,10,0.12)' }]}>
+              <Award size={16} color={Colors.warning} />
+            </View>
+            <View style={styles.rowContent}>
+              <Text style={styles.rowLabel}>Grid Badges</Text>
+              <Text style={styles.rowValue} numberOfLines={1}>
+                {unlockedTiersCount}/{totalTiersCount} tiers · {unlockedCount} badges unlocked
+              </Text>
+            </View>
+            <ChevronRight size={18} color={Colors.textMuted} />
+          </AnimatedPressable>
+
+          <View style={styles.divider} />
+
           <AnimatedPressable
             onPress={() => {
               if (isGuest) {

@@ -19,12 +19,23 @@ import {
   Award,
   Sparkles,
   Flag,
+  Lock,
+  EyeOff,
+  CheckCircle,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
+import { useAchievements } from '@/providers/AchievementProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { MOCK_LEAGUE_MEMBERS } from '@/constants/mock-members';
+import {
+  VISIBLE_ACHIEVEMENTS,
+  HIDDEN_ACHIEVEMENTS,
+  TIER_COLORS,
+  TIER_LABELS,
+  type AchievementTier,
+} from '@/constants/achievements';
 
 interface ProfileData {
   id: string;
@@ -369,7 +380,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        {/* Achievements (Plaque) */}
+        {/* Achievements (Plaque) — real data */}
         <Animated.View
           style={[
             styles.achievementsCard,
@@ -392,28 +403,9 @@ export default function ProfileScreen() {
               </View>
             </View>
 
-            {/* Coming Soon preview */}
-            <View style={styles.comingSoonBanner}>
-              <Sparkles size={12} color={Colors.warning} />
-              <Text style={styles.comingSoonLabel}>Coming Soon</Text>
-            </View>
-            <Text style={styles.comingSoonBody}>
-              Achievements will be available soon — race wins, league championships, podium streaks, prediction milestones and more.
-            </Text>
-            <View style={styles.previewBadges}>
-              <View style={styles.previewBadge}>
-                <Trophy size={14} color={Colors.warning} />
-                <Text style={styles.previewBadgeText}>League Champion</Text>
-              </View>
-              <View style={styles.previewBadge}>
-                <Flag size={14} color={Colors.info} />
-                <Text style={styles.previewBadgeText}>Perfect Podium</Text>
-              </View>
-              <View style={styles.previewBadge}>
-                <Sparkles size={14} color={Colors.f1Red} />
-                <Text style={styles.previewBadgeText}>Hot Streak</Text>
-              </View>
-            </View>
+            <ProfileAchievements
+              isOwnProfile={!!currentUserProfile && currentUserProfile.id === userId}
+            />
           </LinearGradient>
         </Animated.View>
 
@@ -423,6 +415,229 @@ export default function ProfileScreen() {
     </Animated.View>
   );
 }
+
+/* ─────────────────────────────────────────────── */
+/*  ProfileAchievements — shows badge progress     */
+/* ─────────────────────────────────────────────── */
+
+function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
+  const { state, unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
+
+  // Collect unlocked visible achievements
+  const unlockedVisible = VISIBLE_ACHIEVEMENTS.filter((def) => {
+    const prog = state[def.id];
+    return prog && prog.unlockedTiers.length > 0;
+  });
+
+  // Collect unlocked hidden achievements
+  const unlockedHidden = HIDDEN_ACHIEVEMENTS.filter((def) => {
+    const prog = state[def.id];
+    return prog && prog.unlockedTiers.length > 0;
+  });
+
+  const hasAnyUnlocked = unlockedVisible.length > 0 || unlockedHidden.length > 0;
+
+  if (!hasAnyUnlocked) {
+    return (
+      <View style={paStyles.emptyState}>
+        <View style={paStyles.emptyIconShell}>
+          <Lock size={16} color={Colors.textMuted} />
+        </View>
+        <Text style={paStyles.emptyTitle}>No badges yet</Text>
+        <Text style={paStyles.emptyBody}>
+          Predict races and compete in leagues to earn Grid Badges.
+        </Text>
+      </View>
+    );
+  }
+
+  return (
+    <View style={paStyles.container}>
+      {/* Summary row */}
+      <View style={paStyles.summary}>
+        <View style={paStyles.summaryStat}>
+          <Text style={paStyles.summaryValue}>{unlockedCount}</Text>
+          <Text style={paStyles.summaryLabel}>Badges</Text>
+        </View>
+        <View style={paStyles.summaryDivider} />
+        <View style={paStyles.summaryStat}>
+          <Text style={paStyles.summaryValue}>
+            {unlockedTiersCount}/{totalTiersCount}
+          </Text>
+          <Text style={paStyles.summaryLabel}>Tiers</Text>
+        </View>
+      </View>
+
+      {/* Unlocked visible badges */}
+      {unlockedVisible.length > 0 && (
+        <View style={paStyles.section}>
+          <Text style={paStyles.sectionLabel}>Earned Badges</Text>
+          <View style={paStyles.badgeRow}>
+            {unlockedVisible.map((def) => {
+              const prog = state[def.id];
+              const highestTier = prog?.unlockedTiers[prog.unlockedTiers.length - 1] ?? 'bronze';
+              const tierColors = TIER_COLORS[highestTier as AchievementTier];
+              return (
+                <View
+                  key={def.id}
+                  style={[paStyles.badgeChip, { borderColor: tierColors.primary + '40' }]}
+                >
+                  <View
+                    style={[
+                      paStyles.badgeChipDot,
+                      { backgroundColor: tierColors.primary },
+                    ]}
+                  />
+                  <Text style={paStyles.badgeChipName} numberOfLines={1}>
+                    {def.name}
+                  </Text>
+                  <Text
+                    style={[paStyles.badgeChipTier, { color: tierColors.primary }]}
+                  >
+                    {TIER_LABELS[highestTier as AchievementTier]}
+                  </Text>
+                </View>
+              );
+            })}
+          </View>
+        </View>
+      )}
+
+      {/* Unlocked hidden badges */}
+      {unlockedHidden.length > 0 && (
+        <View style={paStyles.section}>
+          <Text style={paStyles.sectionLabel}>Secret Badges</Text>
+          <View style={paStyles.badgeRow}>
+            {unlockedHidden.map((def) => (
+              <View key={def.id} style={paStyles.hiddenBadgeChip}>
+                <EyeOff size={12} color={Colors.warning} />
+                <Text style={paStyles.hiddenBadgeName} numberOfLines={1}>
+                  {def.name}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      )}
+    </View>
+  );
+}
+
+const paStyles = StyleSheet.create({
+  container: {
+    gap: 14,
+  },
+  emptyState: {
+    alignItems: 'center' as const,
+    paddingVertical: 20,
+    gap: 8,
+  },
+  emptyIconShell: {
+    width: 44,
+    height: 44,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    alignItems: 'center' as const,
+    justifyContent: 'center' as const,
+  },
+  emptyTitle: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  emptyBody: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    textAlign: 'center' as const,
+    lineHeight: 17,
+    paddingHorizontal: 12,
+  },
+  summary: {
+    flexDirection: 'row' as const,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderRadius: 12,
+    paddingVertical: 12,
+  },
+  summaryStat: {
+    flex: 1,
+    alignItems: 'center' as const,
+    gap: 2,
+  },
+  summaryValue: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '800' as const,
+  },
+  summaryLabel: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '600' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  summaryDivider: {
+    width: 1,
+    backgroundColor: Colors.border,
+    marginVertical: 4,
+  },
+  section: {
+    gap: 8,
+  },
+  sectionLabel: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    textTransform: 'uppercase' as const,
+    letterSpacing: 0.5,
+  },
+  badgeRow: {
+    flexDirection: 'row' as const,
+    flexWrap: 'wrap' as const,
+    gap: 6,
+  },
+  badgeChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 100,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+  },
+  badgeChipDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  badgeChipName: {
+    color: Colors.text,
+    fontSize: 11,
+    fontWeight: '600' as const,
+    maxWidth: 110,
+  },
+  badgeChipTier: {
+    fontSize: 10,
+    fontWeight: '700' as const,
+    letterSpacing: 0.3,
+  },
+  hiddenBadgeChip: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,214,10,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.2)',
+  },
+  hiddenBadgeName: {
+    color: Colors.warning,
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {

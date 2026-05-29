@@ -8,6 +8,7 @@ import Colors from "@/constants/colors";
 import { UserProvider } from "@/providers/UserProvider";
 import { GameProvider } from "@/providers/GameProvider";
 import { F1DataProvider } from "@/providers/F1DataProvider";
+import { AchievementProvider } from "@/providers/AchievementProvider";
 import ScoringBridge from "@/components/ScoringBridge";
 
 void SplashScreen.preventAutoHideAsync();
@@ -86,6 +87,12 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="achievements"
+        options={{
+          title: "Grid Badges",
+        }}
+      />
+      <Stack.Screen
         name="auth"
         options={{
           presentation: "modal",
@@ -108,9 +115,11 @@ export default function RootLayout() {
         <UserProvider>
           <F1DataProvider>
             <GameProvider>
-              <ScoringBridge />
-              <StatusBar style="light" />
-              <RootLayoutNav />
+              <AchievementProvider>
+                <ScoringBridge />
+                <StatusBar style="light" />
+                <RootLayoutNav />
+              </AchievementProvider>
             </GameProvider>
           </F1DataProvider>
         </UserProvider>
