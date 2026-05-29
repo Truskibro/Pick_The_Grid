@@ -16,6 +16,9 @@ import {
   Zap,
   MapPin,
   Shield,
+  Award,
+  Sparkles,
+  Flag,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
@@ -366,6 +369,54 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
+        {/* Achievements (Plaque) */}
+        <Animated.View
+          style={[
+            styles.achievementsCard,
+            { opacity: fadeAnim, transform: [{ translateY: slideAnim }] },
+          ]}
+        >
+          <LinearGradient
+            colors={['rgba(255,214,10,0.06)', 'rgba(255,214,10,0.01)']}
+            style={styles.achievementsInner}
+          >
+            <View style={styles.achievementsHeader}>
+              <View style={[styles.achievementsIconShell]}>
+                <Award size={18} color={Colors.warning} />
+              </View>
+              <View style={{ flex: 1 }}>
+                <Text style={styles.achievementsTitle}>Achievements</Text>
+                <Text style={styles.achievementsSubtitle}>
+                  Badges and milestones pinned to this player&apos;s plaque
+                </Text>
+              </View>
+            </View>
+
+            {/* Coming Soon preview */}
+            <View style={styles.comingSoonBanner}>
+              <Sparkles size={12} color={Colors.warning} />
+              <Text style={styles.comingSoonLabel}>Coming Soon</Text>
+            </View>
+            <Text style={styles.comingSoonBody}>
+              Achievements will be available soon — race wins, league championships, podium streaks, prediction milestones and more.
+            </Text>
+            <View style={styles.previewBadges}>
+              <View style={styles.previewBadge}>
+                <Trophy size={14} color={Colors.warning} />
+                <Text style={styles.previewBadgeText}>League Champion</Text>
+              </View>
+              <View style={styles.previewBadge}>
+                <Flag size={14} color={Colors.info} />
+                <Text style={styles.previewBadgeText}>Perfect Podium</Text>
+              </View>
+              <View style={styles.previewBadge}>
+                <Sparkles size={14} color={Colors.f1Red} />
+                <Text style={styles.previewBadgeText}>Hot Streak</Text>
+              </View>
+            </View>
+          </LinearGradient>
+        </Animated.View>
+
         {/* Bottom Spacer */}
         <View style={{ height: 40 }} />
       </ScrollView>
@@ -574,5 +625,85 @@ const styles = StyleSheet.create({
     width: 1,
     height: 36,
     backgroundColor: Colors.border,
+  },
+
+  /* ── Achievements ── */
+  achievementsCard: {
+    borderRadius: 14,
+    overflow: 'hidden',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 12,
+  },
+  achievementsInner: {
+    padding: 18,
+    gap: 12,
+  },
+  achievementsHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  achievementsIconShell: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,214,10,0.1)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  achievementsTitle: {
+    color: Colors.text,
+    fontSize: 15,
+    fontWeight: '700' as const,
+  },
+  achievementsSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    marginTop: 2,
+  },
+  comingSoonBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    alignSelf: 'flex-start',
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 100,
+    backgroundColor: 'rgba(255,214,10,0.1)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,214,10,0.25)',
+  },
+  comingSoonLabel: {
+    color: Colors.warning,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
+  },
+  comingSoonBody: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  previewBadges: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  previewBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 100,
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  previewBadgeText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
 });

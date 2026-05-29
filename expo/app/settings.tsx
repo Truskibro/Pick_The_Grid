@@ -18,10 +18,7 @@ import {
   Check,
   Shield,
   AtSign,
-  Globe,
-  Award,
   Eye,
-  Sparkles,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -37,7 +34,6 @@ export default function SettingsScreen() {
   const { leagues, totalPoints, predictions } = useGame();
 
   const [editorOpen, setEditorOpen] = useState<boolean>(false);
-  const [achievementsOpen, setAchievementsOpen] = useState<boolean>(false);
   const [firstName, setFirstName] = useState<string>(profile.firstName);
   const [lastName, setLastName] = useState<string>(profile.lastName);
   const [country, setCountry] = useState<string>(profile.country);
@@ -233,32 +229,6 @@ export default function SettingsScreen() {
                 return;
               }
               Haptics.selectionAsync();
-              setAchievementsOpen(true);
-            }}
-            style={styles.row}
-          >
-            <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,214,10,0.12)' }]}>
-              <Award size={16} color={Colors.warning} />
-            </View>
-            <View style={styles.rowContent}>
-              <Text style={styles.rowLabel}>Achievements</Text>
-              <Text style={styles.rowValue} numberOfLines={1}>
-                Showcase your badges and milestones
-              </Text>
-            </View>
-            <View style={styles.comingSoonPill}>
-              <Sparkles size={10} color={Colors.warning} />
-              <Text style={styles.comingSoonText}>Soon</Text>
-            </View>
-          </AnimatedPressable>
-          <View style={styles.divider} />
-          <AnimatedPressable
-            onPress={() => {
-              if (isGuest) {
-                router.push('/auth' as any);
-                return;
-              }
-              Haptics.selectionAsync();
               router.push(`/profile/${profile.id}` as any);
             }}
             style={styles.row}
@@ -269,7 +239,7 @@ export default function SettingsScreen() {
             <View style={styles.rowContent}>
               <Text style={styles.rowLabel}>Preview Public Profile</Text>
               <Text style={styles.rowValue} numberOfLines={1}>
-                See what others see when visiting you
+                See your plaque, stats, and achievements
               </Text>
             </View>
             <ChevronRight size={18} color={Colors.textMuted} />
@@ -361,50 +331,6 @@ export default function SettingsScreen() {
 
         <Text style={styles.version}>Apex Draft F1 · v1.0.0</Text>
       </ScrollView>
-
-      {/* Achievements (coming soon) modal */}
-      <Modal
-        visible={achievementsOpen}
-        animationType="slide"
-        presentationStyle="pageSheet"
-        onRequestClose={() => setAchievementsOpen(false)}
-      >
-        <View style={styles.modalRoot}>
-          <View style={styles.modalHeader}>
-            <AnimatedPressable onPress={() => setAchievementsOpen(false)} style={styles.modalClose}>
-              <X size={20} color={Colors.text} />
-            </AnimatedPressable>
-            <Text style={styles.modalTitle}>Achievements</Text>
-            <View style={{ width: 36 }} />
-          </View>
-          <View style={styles.comingSoonWrap}>
-            <LinearGradient
-              colors={['rgba(255,214,10,0.2)', 'rgba(255,214,10,0.04)']}
-              style={styles.comingSoonIconWrap}
-            >
-              <Award size={36} color={Colors.warning} />
-            </LinearGradient>
-            <Text style={styles.comingSoonHeading}>Coming Soon</Text>
-            <Text style={styles.comingSoonBody}>
-              Soon you&apos;ll be able to pin achievements to your plaque — race wins, league championships, podium streaks, prediction milestones and more.
-            </Text>
-            <View style={styles.previewBadges}>
-              <View style={styles.previewBadge}>
-                <Trophy size={14} color={Colors.warning} />
-                <Text style={styles.previewBadgeText}>League Champion</Text>
-              </View>
-              <View style={styles.previewBadge}>
-                <Flag size={14} color={Colors.info} />
-                <Text style={styles.previewBadgeText}>Perfect Podium</Text>
-              </View>
-              <View style={styles.previewBadge}>
-                <Sparkles size={14} color={Colors.f1Red} />
-                <Text style={styles.previewBadgeText}>Hot Streak</Text>
-              </View>
-            </View>
-          </View>
-        </View>
-      </Modal>
 
       {/* Profile edit modal */}
       <Modal
@@ -723,58 +649,4 @@ const styles = StyleSheet.create({
   },
   modalSaveBigText: { color: '#FFF', fontSize: 15, fontWeight: '700' as const },
 
-  comingSoonPill: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 4,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,214,10,0.12)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,214,10,0.3)',
-  },
-  comingSoonText: { color: Colors.warning, fontSize: 10, fontWeight: '700' as const, letterSpacing: 0.5 },
-
-  comingSoonWrap: {
-    flex: 1,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    paddingHorizontal: 32,
-    gap: 16,
-  },
-  comingSoonIconWrap: {
-    width: 88,
-    height: 88,
-    borderRadius: 44,
-    alignItems: 'center' as const,
-    justifyContent: 'center' as const,
-    marginBottom: 4,
-  },
-  comingSoonHeading: { color: Colors.text, fontSize: 22, fontWeight: '800' as const, letterSpacing: -0.3 },
-  comingSoonBody: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-    textAlign: 'center' as const,
-    lineHeight: 20,
-  },
-  previewBadges: {
-    flexDirection: 'row' as const,
-    flexWrap: 'wrap' as const,
-    justifyContent: 'center' as const,
-    gap: 8,
-    marginTop: 16,
-  },
-  previewBadge: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 100,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
-    borderColor: Colors.border,
-  },
-  previewBadgeText: { color: Colors.textSecondary, fontSize: 12, fontWeight: '600' as const },
 });
