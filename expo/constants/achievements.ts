@@ -291,9 +291,9 @@ const NO_TAKE_BACKS: AchievementDefinition = {
   unlockHint: 'Submit a complete prediction and never change it before the deadline',
 };
 
-const HERO_TO_ZERO: AchievementDefinition = {
-  id: 'hero-to-zero',
-  name: 'Hero to Zero',
+const GOLDEN_GOOSE_EGG: AchievementDefinition = {
+  id: 'golden-goose-egg',
+  name: 'Golden Goose Egg',
   description: 'Submit full grid and score 0.',
   category: 'race',
   isHidden: true,
@@ -303,9 +303,9 @@ const HERO_TO_ZERO: AchievementDefinition = {
   unlockHint: 'Submit predictions for all 10 positions and score exactly 0 points',
 };
 
-const SUNDAY_RUINED: AchievementDefinition = {
-  id: 'sunday-ruined',
-  name: 'Sunday Ruined',
+const HERO_TO_ZERO: AchievementDefinition = {
+  id: 'hero-to-zero',
+  name: 'Hero to Zero',
   description: 'Predicted winner DNFs.',
   category: 'race',
   isHidden: true,
