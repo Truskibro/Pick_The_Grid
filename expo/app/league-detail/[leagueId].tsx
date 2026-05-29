@@ -189,13 +189,13 @@ export default function LeagueDetailScreen() {
           <View style={styles.memberNameRow}>
             <Text style={styles.memberName} numberOfLines={1}>{item.displayName || item.username}</Text>
             {item.role === 'owner' && <Crown size={11} color={Colors.warning} />}
-            {isCurrentUser && !isOwner && (
+            {isCurrentUser && (
               <View style={styles.youBadge}>
                 <Text style={styles.youBadgeText}>YOU</Text>
               </View>
             )}
           </View>
-
+          <Text style={styles.memberUsername} numberOfLines={1}>@{item.username}</Text>
         </View>
 
         {/* Points */}

@@ -1,5 +1,6 @@
 import { LeagueMember, Prediction } from '@/types';
 import { RaceResult } from '@/types';
+import { calculatePoints } from '@/lib/scoring';
 
 /**
  * Mock league members with hard-coded predictions for the Miami GP (r06).
@@ -54,21 +55,39 @@ export const MOCK_LEAGUE_MEMBERS: MockMember[] = [
 ];
 
 /**
- * Score a mock member's picks against the loaded Miami race result and the
- * hard-coded sprint result. Returns a fully-formed LeagueMember.
+ * Score a mock member's picks against the loaded Miami race result.
+ * Returns a fully-formed LeagueMember with live points.
  */
 export function scoreMockMember(
   mock: MockMember,
-  _raceResult: RaceResult | undefined,
+  raceResult: RaceResult | undefined,
 ): LeagueMember {
-  // Points reset to zero — leaderboard starts from scratch.
-  // Predictions stay attached for reference but award no points.
+  let points = 0;
+
+  if (raceResult) {
+    const breakdown = calculatePoints(
+      {
+        id: `mock-${mock.userId}`,
+        raceId: mock.prediction.raceId,
+        top10: mock.prediction.top10,
+        fastestLap: mock.prediction.fastestLap,
+        dnf: mock.prediction.dnf,
+        pointsEarned: mock.prediction.pointsEarned,
+        sprintTop8: mock.prediction.sprintTop8,
+        sprintPointsEarned: mock.prediction.sprintPointsEarned,
+        updatedAt: new Date().toISOString(),
+      },
+      raceResult,
+    );
+    points = breakdown.totalPoints;
+  }
+
   return {
     userId: mock.userId,
     username: mock.username,
     displayName: mock.displayName,
     role: 'member',
-    points: 0,
+    points,
     joinedAt: mock.joinedAt,
   };
 }
