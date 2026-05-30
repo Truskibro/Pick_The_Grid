@@ -218,31 +218,29 @@ export default function LeagueDetailScreen() {
           </Text>
         </View>
 
-        {/* Info — single row: name + badges + username inline */}
+        {/* Info + badges + points — all one row */}
         <View style={styles.memberInfo}>
           <Text style={[styles.memberName, isTop3 && index === 0 && styles.memberNameGold]} numberOfLines={1}>
             {item.displayName || item.username}
             <Text style={styles.memberUsername}>  @{item.username}</Text>
           </Text>
-          <View style={styles.badgeRow}>
-            {item.role === 'owner' && <Crown size={10} color={Colors.warning} />}
-            {isCurrentUser && (
-              <View style={styles.youBadge}>
-                <Text style={styles.youBadgeText}>YOU</Text>
-              </View>
-            )}
-            {isDemo && (
-              <View style={styles.demoBadge}>
-                <Text style={styles.demoBadgeText}>DEMO</Text>
-              </View>
-            )}
+          {item.role === 'owner' && <Crown size={10} color={Colors.warning} />}
+          {isCurrentUser && (
+            <View style={styles.youBadge}>
+              <Text style={styles.youBadgeText}>YOU</Text>
+            </View>
+          )}
+          {isDemo && (
+            <View style={styles.demoBadge}>
+              <Text style={styles.demoBadgeText}>DEMO</Text>
+            </View>
+          )}
+          <View style={styles.pointsCol}>
+            <Text style={[styles.pointsValue, isTop3 && index === 0 && styles.pointsValueGold]}>
+              {item.points}
+            </Text>
           </View>
         </View>
-
-        {/* Points */}
-        <Text style={[styles.pointsValue, isTop3 && index === 0 && styles.pointsValueGold]}>
-          {item.points}
-        </Text>
       </AnimatedPressable>
     );
   };
@@ -558,13 +556,16 @@ const styles = StyleSheet.create({
   },
   memberInfo: {
     flex: 1,
-    gap: 3,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
   },
   memberName: {
     color: Colors.text,
     fontSize: 13,
     fontWeight: '600' as const,
     flexShrink: 1,
+    flex: 1,
   },
   memberNameGold: {
     color: Colors.warning,
@@ -574,10 +575,8 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '400' as const,
   },
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  pointsCol: {
+    marginLeft: 'auto',
   },
   youBadge: {
     backgroundColor: Colors.f1Red,
@@ -603,10 +602,8 @@ const styles = StyleSheet.create({
   },
   pointsValue: {
     color: Colors.text,
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '700' as const,
-    minWidth: 30,
-    textAlign: 'right' as const,
   },
   pointsValueGold: {
     color: Colors.warning,
