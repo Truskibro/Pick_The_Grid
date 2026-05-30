@@ -145,13 +145,10 @@ export default function LeaderboardsScreen() {
                 </Text>
               </View>
               <View style={styles.rankInfo}>
-                <Text style={styles.rankName}>{item.displayName}</Text>
-                <Text style={styles.rankUsername}>@{item.username}</Text>
+                <Text style={styles.rankName} numberOfLines={1}>{item.displayName} <Text style={styles.rankUsername}>@{item.username}</Text></Text>
               </View>
-              <View style={styles.rankRight}>
-                <Text style={styles.rankPoints}>{item.totalPoints}</Text>
-                {renderTrendIcon(item)}
-              </View>
+              {renderTrendIcon(item)}
+              <Text style={styles.rankPoints}>{item.totalPoints}</Text>
             </AnimatedPressable>
           )}
           ListEmptyComponent={
@@ -207,23 +204,19 @@ export default function LeaderboardsScreen() {
             ) : null
           }
           renderItem={({ item }) => (
-            <View style={styles.rankRow}>
+            <AnimatedPressable
+              style={styles.rankRow}
+              onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
+            >
               <Text style={styles.rankNumber}>{item.rank}</Text>
               <View style={styles.leagueAvatar}>
-                <Shield size={18} color={Colors.f1Red} />
+                <Shield size={15} color={Colors.f1Red} />
               </View>
               <View style={styles.rankInfo}>
-                <Text style={styles.rankName}>{item.league.name}</Text>
-                <View style={styles.leagueMetaRow}>
-                  <Users size={11} color={Colors.textMuted} />
-                  <Text style={styles.leagueMetaText}>{item.memberCount} members</Text>
-                </View>
+                <Text style={styles.rankName} numberOfLines={1}>{item.league.name} <Text style={styles.rankUsername}>{item.memberCount} members</Text></Text>
               </View>
-              <View style={styles.rankRight}>
-                <Text style={styles.rankPoints}>{item.combinedPoints}</Text>
-                <Text style={styles.rankPointsLabel}>pts</Text>
-              </View>
-            </View>
+              <Text style={styles.rankPoints}>{item.combinedPoints}</Text>
+            </AnimatedPressable>
           )}
           ListEmptyComponent={null}
         />
@@ -326,53 +319,51 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 12,
-    padding: 14,
-    marginBottom: 8,
+    borderRadius: 10,
+    paddingVertical: 9,
+    paddingHorizontal: 10,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: Colors.border,
-    gap: 12,
+    gap: 8,
   },
   rankNumber: {
     color: Colors.textMuted,
-    fontSize: 16,
+    fontSize: 13,
     fontWeight: '700' as const,
-    width: 24,
+    width: 22,
     textAlign: 'center',
   },
   rankAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 20,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
     backgroundColor: Colors.surfaceHighlight,
     alignItems: 'center',
     justifyContent: 'center',
   },
   rankInitials: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: '700' as const,
   },
   rankInfo: {
     flex: 1,
+    minWidth: 0,
   },
   rankName: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600' as const,
   },
   rankUsername: {
     color: Colors.textMuted,
     fontSize: 11,
-    marginTop: 1,
-  },
-  rankRight: {
-    alignItems: 'flex-end',
-    gap: 2,
+    fontWeight: '400' as const,
   },
   rankPoints: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: '700' as const,
   },
   emptyState: {
@@ -392,36 +383,11 @@ const styles = StyleSheet.create({
     maxWidth: 260,
   },
   leagueAvatar: {
-    width: 40,
-    height: 40,
-    borderRadius: 12,
+    width: 28,
+    height: 28,
+    borderRadius: 8,
     backgroundColor: 'rgba(225, 6, 0, 0.12)',
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  leagueMemberBadge: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 3,
-  },
-  leagueMemberCount: {
-    color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '500' as const,
-  },
-  leagueMetaRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    marginTop: 2,
-  },
-  leagueMetaText: {
-    color: Colors.textMuted,
-    fontSize: 11,
-  },
-  rankPointsLabel: {
-    color: Colors.textMuted,
-    fontSize: 10,
-    fontWeight: '500' as const,
   },
 });
