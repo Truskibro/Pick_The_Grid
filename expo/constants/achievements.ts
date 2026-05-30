@@ -372,8 +372,8 @@ export const VISIBLE_ACHIEVEMENTS: AchievementDefinition[] = [
 export const HIDDEN_ACHIEVEMENTS: AchievementDefinition[] = [
   BOX_BOX_BOX,
   NO_TAKE_BACKS,
+  GOLDEN_GOOSE_EGG,
   HERO_TO_ZERO,
-  SUNDAY_RUINED,
   ALMOST_HAD_IT,
   FERRARI_STRATEGY,
   CHAOS_MERCHANT,

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { View, Text, StyleSheet, FlatList, Alert, Share, ActivityIndicator, Animated } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Crown, Globe, Lock, Users, Copy, Share2, Trash2, Medal, ChevronUp } from 'lucide-react-native';
+import { Crown, Globe, Lock, Users, Copy, Share2, Trash2, Medal, ChevronUp, Clock, CheckCircle2, UserCheck } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
@@ -147,6 +147,9 @@ export default function LeagueDetailScreen() {
     return Colors.textMuted;
   };
 
+  const isMockMember = (userId: string) =>
+    MOCK_LEAGUE_MEMBERS.some(m => m.userId === userId);
+
   const renderMember = ({ item, index }: { item: LeagueMember; index: number }) => {
     const initials = (item.displayName || item.username)
       .trim()
@@ -157,6 +160,7 @@ export default function LeagueDetailScreen() {
       .toUpperCase();
     const isTop3 = index < 3;
     const isCurrentUser = item.userId === profile.id;
+    const isDemo = isMockMember(item.userId);
     const medalColor = getMedalColor(index);
 
     return (
@@ -168,18 +172,48 @@ export default function LeagueDetailScreen() {
         ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
+        {isTop3 && (
+          <LinearGradient
+            colors={
+              index === 0
+                ? ['rgba(255,214,10,0.08)', 'rgba(255,214,10,0.00)']
+                : index === 1
+                ? ['rgba(168,174,182,0.07)', 'rgba(168,174,182,0.00)']
+                : ['rgba(205,127,50,0.07)', 'rgba(205,127,50,0.00)']
+            }
+            style={StyleSheet.absoluteFill as any}
+            start={{ x: 0, y: 0 }}
+            end={{ x: 1, y: 0 }}
+            pointerEvents="none"
+          />
+        )}
+
         {/* Rank */}
-        <View style={[styles.rankCol, isTop3 && { backgroundColor: medalColor + '18' }]}>
+        <View style={[
+          styles.rankCol,
+          isTop3 && index === 0 && { backgroundColor: 'rgba(255,214,10,0.15)', borderColor: Colors.warning + '30' },
+          isTop3 && index === 1 && { backgroundColor: 'rgba(168,174,182,0.12)', borderColor: 'rgba(168,174,182,0.3)' },
+          isTop3 && index === 2 && { backgroundColor: 'rgba(205,127,50,0.12)', borderColor: 'rgba(205,127,50,0.3)' },
+          isTop3 && { borderWidth: 1 },
+        ]}>
           {isTop3 ? (
-            <Medal size={16} color={medalColor} />
+            <Medal size={15} color={medalColor} />
           ) : (
             <Text style={styles.rankText}>{index + 1}</Text>
           )}
         </View>
 
         {/* Avatar */}
-        <View style={[styles.avatar, isCurrentUser && styles.avatarCurrent]}>
-          <Text style={[styles.avatarText, isCurrentUser && styles.avatarTextCurrent]}>
+        <View style={[
+          styles.avatar,
+          isCurrentUser && styles.avatarCurrent,
+          isTop3 && index === 0 && styles.avatarGold,
+        ]}>
+          <Text style={[
+            styles.avatarText,
+            isCurrentUser && styles.avatarTextCurrent,
+            isTop3 && index === 0 && { color: Colors.warning },
+          ]}>
             {initials}
           </Text>
         </View>
@@ -187,11 +221,19 @@ export default function LeagueDetailScreen() {
         {/* Info */}
         <View style={styles.memberInfo}>
           <View style={styles.memberNameRow}>
-            <Text style={styles.memberName} numberOfLines={1}>{item.displayName || item.username}</Text>
+            <Text style={[styles.memberName, isTop3 && index === 0 && styles.memberNameGold]} numberOfLines={1}>
+              {item.displayName || item.username}
+            </Text>
             {item.role === 'owner' && <Crown size={11} color={Colors.warning} />}
             {isCurrentUser && (
               <View style={styles.youBadge}>
                 <Text style={styles.youBadgeText}>YOU</Text>
+              </View>
+            )}
+            {isDemo && (
+              <View style={styles.demoBadge}>
+                <UserCheck size={8} color={Colors.textMuted} />
+                <Text style={styles.demoBadgeText}>DEMO</Text>
               </View>
             )}
           </View>
@@ -200,7 +242,9 @@ export default function LeagueDetailScreen() {
 
         {/* Points */}
         <View style={styles.pointsCol}>
-          <Text style={styles.pointsValue}>{item.points}</Text>
+          <Text style={[styles.pointsValue, isTop3 && index === 0 && styles.pointsValueGold]}>
+            {item.points}
+          </Text>
           <Text style={styles.pointsLabel}>pts</Text>
         </View>
       </AnimatedPressable>
@@ -472,8 +516,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   memberCardTop: {
-    borderColor: 'rgba(255,214,10,0.12)',
-    backgroundColor: '#14181F',
+    borderColor: 'rgba(255,214,10,0.10)',
+    backgroundColor: '#12161D',
+    overflow: 'hidden' as const,
   },
   rankCol: {
     width: 28,
@@ -546,8 +591,36 @@ const styles = StyleSheet.create({
   },
   pointsValue: {
     color: Colors.text,
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: '700' as const,
+  },
+  pointsValueGold: {
+    color: Colors.warning,
+  },
+  avatarGold: {
+    backgroundColor: 'rgba(255,214,10,0.1)',
+    borderWidth: 1.5,
+    borderColor: 'rgba(255,214,10,0.25)',
+  },
+  memberNameGold: {
+    color: Colors.warning,
+  },
+  demoBadge: {
+    flexDirection: 'row' as const,
+    alignItems: 'center' as const,
+    gap: 2,
+    backgroundColor: 'rgba(255,255,255,0.05)',
+    borderRadius: 4,
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderWidth: 0.5,
+    borderColor: 'rgba(255,255,255,0.08)',
+  },
+  demoBadgeText: {
+    color: Colors.textMuted,
+    fontSize: 7,
+    fontWeight: '700' as const,
+    letterSpacing: 0.5,
   },
   pointsLabel: {
     color: Colors.textMuted,
