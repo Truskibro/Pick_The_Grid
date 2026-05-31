@@ -219,67 +219,77 @@ export default function LeagueDetailScreen() {
               ]}
               numberOfLines={1}
               adjustsFontSizeToFit
-              minimumFontScale={0.7}
+              minimumFontScale={0.75}
             >
               #{rank}
             </Text>
           </View>
         </View>
 
-        <View style={styles.middleColumn}>
-          <View style={styles.nameLine}>
-            <Text
-              style={[styles.displayName, accentColor && { color: accentColor }]}
-              numberOfLines={2}
-              adjustsFontSizeToFit
-              minimumFontScale={0.72}
-            >
-              {item.displayName || item.username}
-            </Text>
+        <View style={styles.rowMain}>
+          <View style={styles.rowTop}>
+            <View style={styles.nameBlock}>
+              <View style={styles.nameLine}>
+                <Text
+                  style={[styles.displayName, accentColor && { color: accentColor }]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  {item.displayName || item.username}
+                </Text>
 
-            {item.role === 'owner' && (
-              <Crown size={11} color={Colors.warning} style={styles.crownIcon} />
-            )}
-          </View>
-
-          <Text style={styles.usernameText} numberOfLines={1}>
-            @{item.username}
-          </Text>
-
-          <View style={styles.badgeRow}>
-            {isCurrentUser && (
-              <View style={styles.youBadge}>
-                <Text style={styles.youBadgeText}>YOU</Text>
+                {item.role === 'owner' && (
+                  <Crown size={11} color={Colors.warning} style={styles.crownIcon} />
+                )}
               </View>
-            )}
 
-            {isDemo && (
-              <View style={styles.demoBadge}>
-                <Text style={styles.demoBadgeText}>DEMO</Text>
-              </View>
-            )}
-
-            <View style={styles.rolePill}>
-              <Text style={styles.rolePillText}>
-                {item.role === 'owner' ? 'Owner' : 'Member'}
+              <Text style={styles.usernameText} numberOfLines={1}>
+                @{item.username}
               </Text>
             </View>
-          </View>
-        </View>
 
-        <View style={styles.pointsColumn}>
-          <Text
-            style={[styles.pointsText, accentColor && { color: accentColor }]}
-            numberOfLines={1}
-            adjustsFontSizeToFit
-            minimumFontScale={0.65}
-          >
-            {item.points.toLocaleString()}
-          </Text>
-          <Text style={styles.pointsLabel}>PTS</Text>
-          <Text style={styles.rankMetaText} numberOfLines={1}>
-            #{rank}
-          </Text>
+            <View style={styles.pointsColumn}>
+              <Text
+                style={[
+                  styles.pointsText,
+                  accentColor && { color: accentColor },
+                ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.7}
+              >
+                {item.points.toLocaleString()}
+              </Text>
+              <Text style={styles.pointsLabel}>PTS</Text>
+            </View>
+          </View>
+
+          <View style={styles.rowBottom}>
+            <View style={styles.badgesLeft}>
+              {isCurrentUser && (
+                <View style={styles.youBadge}>
+                  <Text style={styles.youBadgeText}>YOU</Text>
+                </View>
+              )}
+
+              {isDemo && (
+                <View style={styles.demoBadge}>
+                  <Text style={styles.demoBadgeText}>DEMO</Text>
+                </View>
+              )}
+
+              <View style={styles.rolePill}>
+                <Text style={styles.rolePillText}>
+                  {item.role === 'owner' ? 'Owner' : 'Member'}
+                </Text>
+              </View>
+            </View>
+
+            <Text style={styles.rankMetaText} numberOfLines={1}>
+              League #{rank}
+            </Text>
+          </View>
         </View>
       </AnimatedPressable>
     );
@@ -567,14 +577,14 @@ const styles = StyleSheet.create({
   },
 
   memberCard: {
-    minHeight: 94,
+    minHeight: 86,
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Colors.surface,
     borderRadius: 16,
     paddingVertical: 12,
     paddingLeft: 10,
-    paddingRight: 10,
+    paddingRight: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderLeftWidth: 5,
@@ -588,15 +598,15 @@ const styles = StyleSheet.create({
   },
 
   rankColumn: {
-    width: 38,
+    width: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 8,
+    marginRight: 10,
     flexShrink: 0,
   },
 
   rankBadge: {
-    width: 34,
+    minWidth: 34,
     height: 34,
     borderRadius: 17,
     backgroundColor: Colors.surfaceHighlight,
@@ -604,19 +614,31 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    paddingHorizontal: 5,
   },
 
   rankBadgeText: {
     color: Colors.textSecondary,
-    fontSize: 10,
+    fontSize: 12,
     fontWeight: '900',
   },
 
-  middleColumn: {
+  rowMain: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'center',
-    paddingRight: 8,
+    justifyContent: 'space-between',
+  },
+
+  rowTop: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+  },
+
+  nameBlock: {
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 4,
   },
 
   nameLine: {
@@ -627,10 +649,10 @@ const styles = StyleSheet.create({
 
   displayName: {
     color: Colors.text,
-    fontSize: 16,
-    lineHeight: 19,
+    fontSize: 18,
+    lineHeight: 21,
     fontWeight: '900',
-    letterSpacing: -0.2,
+    letterSpacing: -0.25,
     flex: 1,
     minWidth: 0,
   },
@@ -643,21 +665,14 @@ const styles = StyleSheet.create({
 
   usernameText: {
     color: Colors.textMuted,
-    fontSize: 11,
-    lineHeight: 14,
+    fontSize: 12,
+    lineHeight: 15,
     fontWeight: '600',
     marginTop: 2,
   },
 
-  badgeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
-    marginTop: 6,
-  },
-
   pointsColumn: {
-    width: 56,
+    width: 66,
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
     paddingTop: 1,
@@ -666,27 +681,34 @@ const styles = StyleSheet.create({
 
   pointsText: {
     color: Colors.text,
-    fontSize: 20,
+    fontSize: 23,
     fontWeight: '900',
-    lineHeight: 22,
-    letterSpacing: -0.45,
+    lineHeight: 25,
+    letterSpacing: -0.5,
     textAlign: 'right',
   },
 
   pointsLabel: {
     color: Colors.textMuted,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1,
+    letterSpacing: 1.2,
     marginTop: 1,
   },
 
-  rankMetaText: {
-    color: Colors.textMuted,
-    fontSize: 9,
-    fontWeight: '700',
-    textAlign: 'right',
-    marginTop: 18,
+  rowBottom: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginTop: 8,
+  },
+
+  badgesLeft: {
+    flex: 1,
+    minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
 
   rolePill: {
@@ -694,45 +716,54 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    marginRight: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 5,
     marginBottom: 3,
   },
 
   rolePillText: {
     color: Colors.textSecondary,
-    fontSize: 9,
+    fontSize: 10,
     fontWeight: '700',
+  },
+
+  rankMetaText: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700',
+    textAlign: 'right',
+    width: 66,
+    flexShrink: 0,
   },
 
   youBadge: {
     backgroundColor: Colors.f1Red,
     borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
-    marginRight: 4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginRight: 5,
     marginBottom: 3,
   },
 
   youBadgeText: {
     color: '#FFF',
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '900',
   },
 
   demoBadge: {
     borderRadius: 999,
-    paddingHorizontal: 7,
-    paddingVertical: 3,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     backgroundColor: 'rgba(255,255,255,0.08)',
-    marginRight: 4,
+    marginRight: 5,
     marginBottom: 3,
   },
 
   demoBadgeText: {
     color: Colors.textMuted,
-    fontSize: 8,
+    fontSize: 9,
     fontWeight: '800',
   },
 });
