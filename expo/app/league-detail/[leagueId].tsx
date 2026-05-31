@@ -208,7 +208,7 @@ export default function LeagueDetailScreen() {
               styles.rankBadge,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
-                borderColor: `${accentColor}60`,
+                borderColor: `${accentColor}55`,
               },
             ]}
           >
@@ -218,8 +218,6 @@ export default function LeagueDetailScreen() {
                 accentColor && { color: accentColor },
               ]}
               numberOfLines={1}
-              adjustsFontSizeToFit
-              minimumFontScale={0.8}
             >
               #{rank}
             </Text>
@@ -229,12 +227,10 @@ export default function LeagueDetailScreen() {
         <View style={styles.memberMain}>
           <View style={styles.memberTopRow}>
             <View style={styles.memberInfo}>
-              <View style={styles.nameRow}>
+              <View style={styles.nameLine}>
                 <Text
                   style={[styles.displayName, accentColor && { color: accentColor }]}
                   numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.74}
                 >
                   {item.displayName || item.username}
                 </Text>
@@ -257,7 +253,7 @@ export default function LeagueDetailScreen() {
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.68}
+                minimumFontScale={0.7}
               >
                 {item.points.toLocaleString()}
               </Text>
@@ -434,7 +430,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     paddingVertical: 28,
     paddingHorizontal: 20,
-    gap: 12,
   },
 
   leagueIconLg: {
@@ -446,6 +441,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 1,
     borderColor: Colors.border,
+    marginBottom: 12,
   },
 
   leagueName: {
@@ -460,26 +456,28 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textAlign: 'center',
     lineHeight: 18,
+    marginTop: 8,
   },
 
   metaRow: {
     flexDirection: 'row',
-    gap: 8,
+    marginTop: 12,
   },
 
   metaPill: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 4,
     backgroundColor: 'rgba(255,255,255,0.06)',
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 8,
+    marginHorizontal: 4,
   },
 
   metaText: {
     color: Colors.textSecondary,
     fontSize: 11,
+    marginLeft: 4,
   },
 
   codeCard: {
@@ -509,7 +507,6 @@ const styles = StyleSheet.create({
 
   actionRow: {
     flexDirection: 'row',
-    gap: 8,
     marginBottom: 22,
   },
 
@@ -518,18 +515,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 6,
     backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingVertical: 12,
     borderWidth: 1,
     borderColor: Colors.border,
+    marginHorizontal: 4,
   },
 
   actionBtnText: {
     color: Colors.text,
     fontSize: 12,
     fontWeight: '600',
+    marginLeft: 6,
   },
 
   deleteBtn: {
@@ -551,13 +549,13 @@ const styles = StyleSheet.create({
   sectionHeaderLeft: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 7,
   },
 
   sectionTitle: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: '700',
+    marginLeft: 7,
   },
 
   sectionCount: {
@@ -565,6 +563,7 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     paddingHorizontal: 7,
     paddingVertical: 2,
+    marginLeft: 7,
   },
 
   sectionCountText: {
@@ -574,20 +573,19 @@ const styles = StyleSheet.create({
   },
 
   memberCard: {
-    minHeight: 94,
+    minHeight: 96,
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Colors.surface,
     borderRadius: 16,
     paddingVertical: 12,
-    paddingLeft: 14,
+    paddingLeft: 12,
     paddingRight: 10,
     marginBottom: 12,
     borderWidth: 1,
     borderLeftWidth: 5,
     borderColor: Colors.border,
     borderLeftColor: Colors.border,
-    overflow: 'hidden',
   },
 
   memberCardTop: {
@@ -596,16 +594,17 @@ const styles = StyleSheet.create({
   },
 
   rankColumn: {
-    width: 40,
+    width: 38,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 8,
+    flexShrink: 0,
   },
 
   rankBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.surfaceHighlight,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -615,7 +614,7 @@ const styles = StyleSheet.create({
 
   rankBadgeText: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '900',
   },
 
@@ -628,17 +627,15 @@ const styles = StyleSheet.create({
   memberTopRow: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    justifyContent: 'space-between',
-    gap: 6,
   },
 
   memberInfo: {
     flex: 1,
     minWidth: 0,
-    paddingRight: 4,
+    paddingRight: 6,
   },
 
-  nameRow: {
+  nameLine: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     minWidth: 0,
@@ -657,6 +654,7 @@ const styles = StyleSheet.create({
   crownIcon: {
     marginLeft: 4,
     marginTop: 3,
+    flexShrink: 0,
   },
 
   usernameText: {
@@ -668,10 +666,11 @@ const styles = StyleSheet.create({
   },
 
   pointsColumn: {
-    width: 54,
+    width: 52,
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
     paddingTop: 1,
+    flexShrink: 0,
   },
 
   pointsText: {
@@ -686,24 +685,22 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 8,
     fontWeight: '900',
-    letterSpacing: 1.1,
+    letterSpacing: 1,
     marginTop: 1,
   },
 
   memberBottomRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 6,
     marginTop: 8,
   },
 
   badgesLeft: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
     flex: 1,
     minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
 
   rolePill: {
@@ -713,6 +710,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 3,
+    marginRight: 4,
+    marginBottom: 3,
   },
 
   rolePillText: {
@@ -726,7 +725,8 @@ const styles = StyleSheet.create({
     fontSize: 9,
     fontWeight: '700',
     textAlign: 'right',
-    width: 54,
+    width: 52,
+    flexShrink: 0,
   },
 
   youBadge: {
@@ -734,6 +734,8 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     paddingHorizontal: 7,
     paddingVertical: 3,
+    marginRight: 4,
+    marginBottom: 3,
   },
 
   youBadgeText: {
@@ -747,6 +749,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 7,
     paddingVertical: 3,
     backgroundColor: 'rgba(255,255,255,0.08)',
+    marginRight: 4,
+    marginBottom: 3,
   },
 
   demoBadgeText: {
