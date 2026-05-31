@@ -435,18 +435,20 @@ export default function LeaderboardsScreen() {
                 size,
               })}
 
-              <View
-                style={[
-                  styles.podiumBar,
-                  {
-                    width: size,
-                    height,
-                    backgroundColor: `${color}22`,
-                    borderColor: `${color}55`,
-                  },
-                ]}
-              >
-                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+              <View style={styles.podiumBarSlot}>
+                <View
+                  style={[
+                    styles.podiumBar,
+                    {
+                      width: size,
+                      height,
+                      backgroundColor: `${color}22`,
+                      borderColor: `${color}55`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                </View>
               </View>
             </AnimatedPressable>
           );
@@ -489,18 +491,20 @@ export default function LeaderboardsScreen() {
                 size,
               })}
 
-              <View
-                style={[
-                  styles.podiumBar,
-                  {
-                    width: size,
-                    height,
-                    backgroundColor: `${color}22`,
-                    borderColor: `${color}55`,
-                  },
-                ]}
-              >
-                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+              <View style={styles.podiumBarSlot}>
+                <View
+                  style={[
+                    styles.podiumBar,
+                    {
+                      width: size,
+                      height,
+                      backgroundColor: `${color}22`,
+                      borderColor: `${color}55`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                </View>
               </View>
             </AnimatedPressable>
           );
@@ -662,7 +666,7 @@ const styles = StyleSheet.create({
 
   podiumProfileCard: {
     width: '100%',
-    height: 132,
+    height: 124,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
@@ -674,7 +678,7 @@ const styles = StyleSheet.create({
   },
 
   avatarSlot: {
-    height: 78,
+    height: 72,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 2,
@@ -739,8 +743,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  podiumBar: {
+  podiumBarSlot: {
+    width: '100%',
+    height: 108,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
     marginTop: 8,
+  },
+
+  podiumBar: {
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
