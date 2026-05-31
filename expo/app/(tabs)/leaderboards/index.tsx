@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, FlatList, Animated, ActivityIndicator } from 'react-native';
 import { useRouter } from 'expo-router';
+import { LinearGradient } from 'expo-linear-gradient';
 import { Trophy, TrendingUp, TrendingDown, Minus, Users, Shield } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
@@ -133,24 +134,64 @@ export default function LeaderboardsScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <AnimatedPressable
-              style={styles.rankRow}
-              onPress={() => router.push(`/profile/${item.userId}` as any)}
-            >
-              <Text style={styles.rankNumber}>{item.rank}</Text>
-              <View style={styles.rankAvatar}>
-                <Text style={styles.rankInitials}>
-                  {(item.displayName || '??').split(' ').map(w => w[0]).join('').substring(0, 2)}
-                </Text>
-              </View>
-              <View style={styles.rankInfo}>
-                <Text style={styles.rankName} numberOfLines={1}>{item.displayName} <Text style={styles.rankUsername}>@{item.username}</Text></Text>
-              </View>
-              {renderTrendIcon(item)}
-              <Text style={styles.rankPoints}>{item.totalPoints}</Text>
-            </AnimatedPressable>
-          )}
+          renderItem={({ item, index }) => {
+            const accentColor = index < 3
+              ? [Colors.warning, '#A0A0A8', '#CD7F32'][index]
+              : undefined;
+            const initials = (item.displayName || '??').split(' ').map(w => w[0]).join('').substring(0, 2);
+            return (
+              <AnimatedPressable
+                style={styles.rankRow}
+                onPress={() => router.push(`/profile/${item.userId}` as any)}
+              >
+                {/* Left accent strip */}
+                {accentColor && (
+                  <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+                )}
+
+                {/* Rank badge */}
+                <View style={[
+                  styles.rankBadge,
+                  accentColor && { backgroundColor: `${accentColor}18`, borderColor: `${accentColor}40` },
+                ]}>
+                  <Text style={[
+                    styles.rankBadgeText,
+                    accentColor && { color: accentColor },
+                  ]}>{item.rank}</Text>
+                </View>
+
+                {/* Avatar */}
+                <View style={[
+                  styles.avatar,
+                  accentColor && { borderColor: `${accentColor}30` },
+                ]}>
+                  <Text style={styles.avatarText}>{initials}</Text>
+                </View>
+
+                {/* Name + username */}
+                <View style={styles.nameCol}>
+                  <Text style={styles.displayName} numberOfLines={1}>{item.displayName}</Text>
+                  <Text style={styles.usernameText} numberOfLines={1}>@{item.username}</Text>
+                </View>
+
+                {/* Trend */}
+                <View style={styles.trendCol}>
+                  {renderTrendIcon(item)}
+                </View>
+
+                {/* Points pill */}
+                <View style={[
+                  styles.pointsPill,
+                  accentColor && { backgroundColor: `${accentColor}12` },
+                ]}>
+                  <Text style={[
+                    styles.pointsPillText,
+                    accentColor && { color: accentColor },
+                  ]}>{item.totalPoints.toLocaleString()}</Text>
+                </View>
+              </AnimatedPressable>
+            );
+          }}
           ListEmptyComponent={
             loadingLeaderboard ? null : top3.length === 0 ? (
               <View style={styles.emptyState}>
@@ -203,21 +244,46 @@ export default function LeaderboardsScreen() {
               </View>
             ) : null
           }
-          renderItem={({ item }) => (
-            <AnimatedPressable
-              style={styles.rankRow}
-              onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
-            >
-              <Text style={styles.rankNumber}>{item.rank}</Text>
-              <View style={styles.leagueAvatar}>
-                <Shield size={15} color={Colors.f1Red} />
-              </View>
-              <View style={styles.rankInfo}>
-                <Text style={styles.rankName} numberOfLines={1}>{item.league.name} <Text style={styles.rankUsername}>{item.memberCount} members</Text></Text>
-              </View>
-              <Text style={styles.rankPoints}>{item.combinedPoints}</Text>
-            </AnimatedPressable>
-          )}
+          renderItem={({ item, index }) => {
+            const accentColor = index < 3
+              ? [Colors.warning, '#A0A0A8', '#CD7F32'][index]
+              : undefined;
+            return (
+              <AnimatedPressable
+                style={styles.rankRow}
+                onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
+              >
+                {accentColor && (
+                  <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
+                )}
+                <View style={[
+                  styles.rankBadge,
+                  accentColor && { backgroundColor: `${accentColor}18`, borderColor: `${accentColor}40` },
+                ]}>
+                  <Text style={[
+                    styles.rankBadgeText,
+                    accentColor && { color: accentColor },
+                  ]}>{item.rank}</Text>
+                </View>
+                <View style={[styles.leagueAvatar, accentColor && { borderColor: `${accentColor}30` }]}>
+                  <Shield size={14} color={accentColor ?? Colors.f1Red} />
+                </View>
+                <View style={styles.nameCol}>
+                  <Text style={styles.displayName} numberOfLines={1}>{item.league.name}</Text>
+                  <Text style={styles.usernameText} numberOfLines={1}>{item.memberCount} members</Text>
+                </View>
+                <View style={[
+                  styles.pointsPill,
+                  accentColor && { backgroundColor: `${accentColor}12` },
+                ]}>
+                  <Text style={[
+                    styles.pointsPillText,
+                    accentColor && { color: accentColor },
+                  ]}>{item.combinedPoints.toLocaleString()}</Text>
+                </View>
+              </AnimatedPressable>
+            );
+          }}
           ListEmptyComponent={null}
         />
       )}
@@ -271,6 +337,8 @@ const styles = StyleSheet.create({
     padding: 20,
     paddingBottom: 40,
   },
+
+  /* ── Podium ── */
   podiumContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
@@ -315,57 +383,123 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: '800' as const,
   },
+
+  /* ── Rank Row ── */
   rankRow: {
     flexDirection: 'row',
     alignItems: 'center',
     backgroundColor: Colors.surface,
-    borderRadius: 10,
-    paddingVertical: 9,
-    paddingHorizontal: 10,
-    marginBottom: 6,
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingRight: 12,
+    paddingLeft: 0,
+    marginBottom: 8,
     borderWidth: 1,
     borderColor: Colors.border,
-    gap: 8,
+    overflow: 'hidden' as const,
   },
-  rankNumber: {
-    color: Colors.textMuted,
-    fontSize: 13,
-    fontWeight: '700' as const,
-    width: 22,
-    textAlign: 'center',
+  accentStrip: {
+    width: 3,
+    height: '100%',
+    position: 'absolute' as const,
+    left: 0,
+    top: 0,
+    bottom: 0,
+    borderTopLeftRadius: 12,
+    borderBottomLeftRadius: 12,
   },
-  rankAvatar: {
+  rankBadge: {
     width: 28,
     height: 28,
     borderRadius: 14,
     backgroundColor: Colors.surfaceHighlight,
+    borderWidth: 1,
+    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
+    marginLeft: 12,
   },
-  rankInitials: {
+  rankBadgeText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '800' as const,
+  },
+  avatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    backgroundColor: Colors.surfaceHighlight,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  avatarText: {
     color: Colors.text,
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: '700' as const,
   },
-  rankInfo: {
+  nameCol: {
     flex: 1,
+    marginLeft: 10,
     minWidth: 0,
   },
-  rankName: {
+  displayName: {
     color: Colors.text,
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: '600' as const,
   },
-  rankUsername: {
+  usernameText: {
     color: Colors.textMuted,
     fontSize: 11,
     fontWeight: '400' as const,
+    marginTop: 1,
   },
-  rankPoints: {
+  trendCol: {
+    width: 24,
+    alignItems: 'center',
+    marginRight: 4,
+  },
+  pointsPill: {
+    backgroundColor: Colors.surfaceHighlight,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    minWidth: 48,
+    alignItems: 'center',
+  },
+  pointsPillText: {
     color: Colors.text,
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '700' as const,
   },
+
+  /* ── League tab extras ── */
+  leagueAvatar: {
+    width: 34,
+    height: 34,
+    borderRadius: 10,
+    backgroundColor: 'rgba(225, 6, 0, 0.08)',
+    borderWidth: 1,
+    borderColor: Colors.border,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginLeft: 10,
+  },
+  leagueMemberBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 3,
+    marginBottom: 2,
+  },
+  leagueMemberCount: {
+    color: Colors.textSecondary,
+    fontSize: 9,
+    fontWeight: '600' as const,
+  },
+
+  /* ── Empty ── */
   emptyState: {
     alignItems: 'center',
     paddingTop: 60,
@@ -381,13 +515,5 @@ const styles = StyleSheet.create({
     fontSize: 14,
     textAlign: 'center',
     maxWidth: 260,
-  },
-  leagueAvatar: {
-    width: 28,
-    height: 28,
-    borderRadius: 8,
-    backgroundColor: 'rgba(225, 6, 0, 0.12)',
-    alignItems: 'center',
-    justifyContent: 'center',
   },
 });
