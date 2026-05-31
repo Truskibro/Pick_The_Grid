@@ -345,31 +345,66 @@ export default function LeaderboardsScreen() {
             >
               <View
                 style={[
-                  styles.podiumAvatar,
+                  styles.podiumProfileCard,
                   {
-                    width: size,
-                    height: size,
-                    borderColor: color,
+                    borderColor: `${color}35`,
+                    backgroundColor: `${color}0D`,
                   },
                 ]}
               >
-                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                  {initials}
+                <View style={styles.avatarWrap}>
+                  <View
+                    style={[
+                      styles.podiumAvatarGlow,
+                      {
+                        width: size + 10,
+                        height: size + 10,
+                        borderRadius: (size + 10) / 2,
+                        backgroundColor: `${color}10`,
+                      },
+                    ]}
+                  />
+
+                  <View
+                    style={[
+                      styles.podiumAvatar,
+                      {
+                        width: size,
+                        height: size,
+                        borderColor: color,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                      {initials}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.podiumRankBubble,
+                      {
+                        backgroundColor: color,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.podiumRankBubbleText}>#{entry.rank}</Text>
+                  </View>
+                </View>
+
+                <Text
+                  style={styles.podiumName}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {entry.displayName}
+                </Text>
+
+                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                  {entry.totalPoints.toLocaleString()} pts
                 </Text>
               </View>
-
-              <Text
-                style={styles.podiumName}
-                numberOfLines={2}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {entry.displayName}
-              </Text>
-
-              <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                {entry.totalPoints.toLocaleString()} pts
-              </Text>
 
               <View
                 style={[
@@ -418,31 +453,66 @@ export default function LeaderboardsScreen() {
             >
               <View
                 style={[
-                  styles.podiumAvatar,
+                  styles.podiumProfileCard,
                   {
-                    width: size,
-                    height: size,
-                    borderColor: color,
+                    borderColor: `${color}35`,
+                    backgroundColor: `${color}0D`,
                   },
                 ]}
               >
-                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                  {initials}
+                <View style={styles.avatarWrap}>
+                  <View
+                    style={[
+                      styles.podiumAvatarGlow,
+                      {
+                        width: size + 10,
+                        height: size + 10,
+                        borderRadius: (size + 10) / 2,
+                        backgroundColor: `${color}10`,
+                      },
+                    ]}
+                  />
+
+                  <View
+                    style={[
+                      styles.podiumAvatar,
+                      {
+                        width: size,
+                        height: size,
+                        borderColor: color,
+                      },
+                    ]}
+                  >
+                    <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                      {initials}
+                    </Text>
+                  </View>
+
+                  <View
+                    style={[
+                      styles.podiumRankBubble,
+                      {
+                        backgroundColor: color,
+                      },
+                    ]}
+                  >
+                    <Text style={styles.podiumRankBubbleText}>#{entry.rank}</Text>
+                  </View>
+                </View>
+
+                <Text
+                  style={styles.podiumName}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.75}
+                >
+                  {entry.league.name}
+                </Text>
+
+                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                  {entry.combinedPoints.toLocaleString()} pts
                 </Text>
               </View>
-
-              <Text
-                style={styles.podiumName}
-                numberOfLines={2}
-                adjustsFontSizeToFit
-                minimumFontScale={0.75}
-              >
-                {entry.league.name}
-              </Text>
-
-              <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                {entry.combinedPoints.toLocaleString()} pts
-              </Text>
 
               <View
                 style={[
@@ -616,6 +686,30 @@ const styles = StyleSheet.create({
     gap: 6,
   },
 
+  podiumProfileCard: {
+    width: '100%',
+    minHeight: 132,
+    borderRadius: 18,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-start',
+    paddingTop: 10,
+    paddingHorizontal: 5,
+    paddingBottom: 8,
+    overflow: 'visible',
+  },
+
+  avatarWrap: {
+    position: 'relative',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
+
+  podiumAvatarGlow: {
+    position: 'absolute',
+  },
+
   podiumAvatar: {
     borderRadius: 999,
     borderWidth: 3,
@@ -629,11 +723,31 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
+  podiumRankBubble: {
+    position: 'absolute',
+    right: -5,
+    bottom: -3,
+    minWidth: 25,
+    height: 18,
+    borderRadius: 9,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 5,
+    borderWidth: 1,
+    borderColor: 'rgba(0,0,0,0.25)',
+  },
+
+  podiumRankBubbleText: {
+    color: '#000',
+    fontSize: 9,
+    fontWeight: '900',
+  },
+
   podiumName: {
     color: Colors.text,
     fontSize: 11,
     lineHeight: 13,
-    fontWeight: '800',
+    fontWeight: '900',
     textAlign: 'center',
     width: '100%',
     minHeight: 26,
@@ -642,6 +756,7 @@ const styles = StyleSheet.create({
   podiumPoints: {
     fontSize: 10,
     fontWeight: '900',
+    marginTop: 2,
   },
 
   podiumBar: {
