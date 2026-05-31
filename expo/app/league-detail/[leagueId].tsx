@@ -25,6 +25,7 @@ export default function LeagueDetailScreen() {
   // Inject mock league members (Sainz4Ever55, Whitney) with picks scored
   // against the live Miami GP result.
   const miamiResult = getRaceResult(MIAMI_RACE_ID);
+  const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) => scoreMockMember(mock, miamiResult));
 
   // Always override current user with live profile data
   const members: LeagueMember[] = rawMembers.map(m =>
