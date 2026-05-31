@@ -197,30 +197,18 @@ export default function LeagueDetailScreen() {
         style={[
           styles.memberCard,
           isTop3 && styles.memberCardTop,
+          accentColor && { borderLeftColor: accentColor },
           { opacity: fadeAnim },
         ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
-        {accentColor && (
-          <>
-            <LinearGradient
-              colors={[`${accentColor}14`, 'transparent']}
-              style={StyleSheet.absoluteFill}
-              start={{ x: 0, y: 0 }}
-              end={{ x: 1, y: 0 }}
-              pointerEvents="none"
-            />
-            <View style={[styles.accentStrip, { backgroundColor: accentColor }]} />
-          </>
-        )}
-
         <View style={styles.rankColumn}>
           <View
             style={[
               styles.rankBadge,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
-                borderColor: `${accentColor}55`,
+                borderColor: `${accentColor}60`,
               },
             ]}
           >
@@ -246,7 +234,7 @@ export default function LeagueDetailScreen() {
                   style={[styles.displayName, accentColor && { color: accentColor }]}
                   numberOfLines={2}
                   adjustsFontSizeToFit
-                  minimumFontScale={0.76}
+                  minimumFontScale={0.74}
                 >
                   {item.displayName || item.username}
                 </Text>
@@ -269,7 +257,7 @@ export default function LeagueDetailScreen() {
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
-                minimumFontScale={0.7}
+                minimumFontScale={0.68}
               >
                 {item.points.toLocaleString()}
               </Text>
@@ -586,34 +574,25 @@ const styles = StyleSheet.create({
   },
 
   memberCard: {
-    minHeight: 92,
+    minHeight: 94,
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Colors.surface,
     borderRadius: 16,
     paddingVertical: 12,
-    paddingLeft: 22,
+    paddingLeft: 14,
     paddingRight: 10,
     marginBottom: 12,
     borderWidth: 1,
+    borderLeftWidth: 5,
     borderColor: Colors.border,
+    borderLeftColor: Colors.border,
     overflow: 'hidden',
   },
 
   memberCardTop: {
     borderColor: 'rgba(255,214,10,0.16)',
     backgroundColor: '#12161D',
-  },
-
-  accentStrip: {
-    width: 4,
-    height: '100%',
-    position: 'absolute',
-    left: 0,
-    top: 0,
-    bottom: 0,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
   },
 
   rankColumn: {
