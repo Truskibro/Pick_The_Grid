@@ -587,7 +587,7 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 16,
     paddingVertical: 12,
-    paddingLeft: 10,
+    paddingLeft: 18,
     paddingRight: 12,
     marginBottom: 12,
     borderWidth: 1,
@@ -612,10 +612,10 @@ const styles = StyleSheet.create({
   },
 
   rankColumn: {
-    width: 42,
+    width: 44,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 10,
+    marginRight: 12,
   },
 
   rankBadge: {
