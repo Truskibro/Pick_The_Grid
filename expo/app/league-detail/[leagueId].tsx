@@ -218,74 +218,68 @@ export default function LeagueDetailScreen() {
                 accentColor && { color: accentColor },
               ]}
               numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}
             >
               #{rank}
             </Text>
           </View>
         </View>
 
-        <View style={styles.memberMain}>
-          <View style={styles.memberTopRow}>
-            <View style={styles.memberInfo}>
-              <View style={styles.nameLine}>
-                <Text
-                  style={[styles.displayName, accentColor && { color: accentColor }]}
-                  numberOfLines={2}
-                >
-                  {item.displayName || item.username}
-                </Text>
-
-                {item.role === 'owner' && (
-                  <Crown size={11} color={Colors.warning} style={styles.crownIcon} />
-                )}
-              </View>
-
-              <Text style={styles.usernameText} numberOfLines={1}>
-                @{item.username}
-              </Text>
-            </View>
-
-            <View style={styles.pointsColumn}>
-              <Text
-                style={[
-                  styles.pointsText,
-                  accentColor && { color: accentColor },
-                ]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.7}
-              >
-                {item.points.toLocaleString()}
-              </Text>
-              <Text style={styles.pointsLabel}>PTS</Text>
-            </View>
-          </View>
-
-          <View style={styles.memberBottomRow}>
-            <View style={styles.badgesLeft}>
-              {isCurrentUser && (
-                <View style={styles.youBadge}>
-                  <Text style={styles.youBadgeText}>YOU</Text>
-                </View>
-              )}
-
-              {isDemo && (
-                <View style={styles.demoBadge}>
-                  <Text style={styles.demoBadgeText}>DEMO</Text>
-                </View>
-              )}
-
-              <View style={styles.rolePill}>
-                <Text style={styles.rolePillText}>
-                  {item.role === 'owner' ? 'Owner' : 'Member'}
-                </Text>
-              </View>
-            </View>
-
-            <Text style={styles.rankMetaText} numberOfLines={1}>
-              League #{rank}
+        <View style={styles.middleColumn}>
+          <View style={styles.nameLine}>
+            <Text
+              style={[styles.displayName, accentColor && { color: accentColor }]}
+              numberOfLines={2}
+              adjustsFontSizeToFit
+              minimumFontScale={0.72}
+            >
+              {item.displayName || item.username}
             </Text>
+
+            {item.role === 'owner' && (
+              <Crown size={11} color={Colors.warning} style={styles.crownIcon} />
+            )}
           </View>
+
+          <Text style={styles.usernameText} numberOfLines={1}>
+            @{item.username}
+          </Text>
+
+          <View style={styles.badgeRow}>
+            {isCurrentUser && (
+              <View style={styles.youBadge}>
+                <Text style={styles.youBadgeText}>YOU</Text>
+              </View>
+            )}
+
+            {isDemo && (
+              <View style={styles.demoBadge}>
+                <Text style={styles.demoBadgeText}>DEMO</Text>
+              </View>
+            )}
+
+            <View style={styles.rolePill}>
+              <Text style={styles.rolePillText}>
+                {item.role === 'owner' ? 'Owner' : 'Member'}
+              </Text>
+            </View>
+          </View>
+        </View>
+
+        <View style={styles.pointsColumn}>
+          <Text
+            style={[styles.pointsText, accentColor && { color: accentColor }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.65}
+          >
+            {item.points.toLocaleString()}
+          </Text>
+          <Text style={styles.pointsLabel}>PTS</Text>
+          <Text style={styles.rankMetaText} numberOfLines={1}>
+            #{rank}
+          </Text>
         </View>
       </AnimatedPressable>
     );
@@ -573,13 +567,13 @@ const styles = StyleSheet.create({
   },
 
   memberCard: {
-    minHeight: 96,
+    minHeight: 94,
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Colors.surface,
     borderRadius: 16,
     paddingVertical: 12,
-    paddingLeft: 12,
+    paddingLeft: 10,
     paddingRight: 10,
     marginBottom: 12,
     borderWidth: 1,
@@ -618,21 +612,11 @@ const styles = StyleSheet.create({
     fontWeight: '900',
   },
 
-  memberMain: {
+  middleColumn: {
     flex: 1,
     minWidth: 0,
-    justifyContent: 'space-between',
-  },
-
-  memberTopRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-  },
-
-  memberInfo: {
-    flex: 1,
-    minWidth: 0,
-    paddingRight: 6,
+    justifyContent: 'center',
+    paddingRight: 8,
   },
 
   nameLine: {
@@ -665,8 +649,15 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    marginTop: 6,
+  },
+
   pointsColumn: {
-    width: 52,
+    width: 56,
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
     paddingTop: 1,
@@ -679,6 +670,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     lineHeight: 22,
     letterSpacing: -0.45,
+    textAlign: 'right',
   },
 
   pointsLabel: {
@@ -689,18 +681,12 @@ const styles = StyleSheet.create({
     marginTop: 1,
   },
 
-  memberBottomRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 8,
-  },
-
-  badgesLeft: {
-    flex: 1,
-    minWidth: 0,
-    flexDirection: 'row',
-    alignItems: 'center',
-    flexWrap: 'wrap',
+  rankMetaText: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700',
+    textAlign: 'right',
+    marginTop: 18,
   },
 
   rolePill: {
@@ -718,15 +704,6 @@ const styles = StyleSheet.create({
     color: Colors.textSecondary,
     fontSize: 9,
     fontWeight: '700',
-  },
-
-  rankMetaText: {
-    color: Colors.textMuted,
-    fontSize: 9,
-    fontWeight: '700',
-    textAlign: 'right',
-    width: 52,
-    flexShrink: 0,
   },
 
   youBadge: {
