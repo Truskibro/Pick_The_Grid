@@ -91,35 +91,19 @@ export default function LeaderboardsScreen() {
   const leagueRest = leagueRankings.slice(3);
 
   const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+  const podiumSizes = [72, 60, 56];
+  const podiumHeights = [100, 80, 64];
 
-  const getPodiumDisplayOrder = <T extends { rank: number }>(items: T[]) => {
-    if (items.length >= 3) {
-      return [items[1], items[0], items[2]];
-    }
+  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
+  const podiumColorOrder =
+    top3.length >= 3 ? [podiumColors[1], podiumColors[0], podiumColors[2]] : podiumColors;
+  const podiumSizeOrder =
+    top3.length >= 3 ? [podiumSizes[1], podiumSizes[0], podiumSizes[2]] : podiumSizes;
+  const podiumHeightOrder =
+    top3.length >= 3 ? [podiumHeights[1], podiumHeights[0], podiumHeights[2]] : podiumHeights;
 
-    return items;
-  };
-
-  const getPodiumColor = (rank: number) => {
-    if (rank === 1) return podiumColors[0];
-    if (rank === 2) return podiumColors[1];
-    if (rank === 3) return podiumColors[2];
-    return Colors.textSecondary;
-  };
-
-  const getPodiumHeight = (rank: number) => {
-    if (rank === 1) return 92;
-    if (rank === 2) return 72;
-    if (rank === 3) return 62;
-    return 56;
-  };
-
-  const getPodiumAvatarSize = (rank: number) => {
-    if (rank === 1) return 62;
-    if (rank === 2) return 54;
-    if (rank === 3) return 50;
-    return 48;
-  };
+  const leaguePodiumOrder =
+    leagueTop3.length >= 3 ? [leagueTop3[1], leagueTop3[0], leagueTop3[2]] : leagueTop3;
 
   const renderTrendIcon = (entry: LeaderboardEntry) => {
     if (!entry.previousRank) {
@@ -139,7 +123,7 @@ export default function LeaderboardsScreen() {
 
   const renderGlobalRow = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const actualRank = item.rank ?? index + 4;
-    const accentColor = actualRank <= 3 ? getPodiumColor(actualRank) : undefined;
+    const accentColor = actualRank <= 3 ? podiumColors[actualRank - 1] : undefined;
 
     return (
       <AnimatedPressable
@@ -231,7 +215,7 @@ export default function LeaderboardsScreen() {
   };
 
   const renderLeagueRow = ({ item }: { item: LeagueRanking; index: number }) => {
-    const accentColor = item.rank <= 3 ? getPodiumColor(item.rank) : undefined;
+    const accentColor = item.rank <= 3 ? podiumColors[item.rank - 1] : undefined;
 
     return (
       <AnimatedPressable
@@ -337,81 +321,72 @@ export default function LeaderboardsScreen() {
 
     if (top3.length === 0) return null;
 
-    const podiumItems = getPodiumDisplayOrder(top3);
-
     return (
-      <View style={styles.podiumWrapper}>
-        <View style={styles.podiumContainer}>
-          {podiumItems.map((entry) => {
-            if (!entry) return null;
+      <View style={styles.podiumContainer}>
+        {podiumOrder.map((entry, i) => {
+          if (!entry) return null;
 
-            const color = getPodiumColor(entry.rank);
-            const size = getPodiumAvatarSize(entry.rank);
-            const height = getPodiumHeight(entry.rank);
+          const color = podiumColorOrder[i];
+          const size = podiumSizeOrder[i];
+          const height = podiumHeightOrder[i];
 
-            const initials = (entry.displayName || '??')
-              .split(' ')
-              .map((w) => w[0])
-              .join('')
-              .substring(0, 2)
-              .toUpperCase();
+          const initials = (entry.displayName || '??')
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
 
-            return (
-              <AnimatedPressable
-                key={entry.userId}
+          return (
+            <AnimatedPressable
+              key={entry.userId}
+              style={styles.podiumItem}
+              onPress={() => router.push(`/profile/${entry.userId}` as any)}
+            >
+              <View
                 style={[
-                  styles.podiumItem,
-                  entry.rank === 1 && styles.podiumItemFirst,
+                  styles.podiumAvatar,
+                  {
+                    width: size,
+                    height: size,
+                    borderColor: color,
+                  },
                 ]}
-                onPress={() => router.push(`/profile/${entry.userId}` as any)}
               >
-                <View
-                  style={[
-                    styles.podiumAvatar,
-                    {
-                      width: size,
-                      height: size,
-                      borderColor: color,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                    {initials}
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.podiumName,
-                    entry.rank === 1 && styles.podiumNameFirst,
-                  ]}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                >
-                  {entry.displayName}
+                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                  {initials}
                 </Text>
+              </View>
 
-                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                  {entry.totalPoints.toLocaleString()} pts
-                </Text>
+              <Text
+                style={styles.podiumName}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {entry.displayName}
+              </Text>
 
-                <View
-                  style={[
-                    styles.podiumBar,
-                    {
-                      height,
-                      backgroundColor: `${color}22`,
-                      borderColor: `${color}55`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                </View>
-              </AnimatedPressable>
-            );
-          })}
-        </View>
+              <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                {entry.totalPoints.toLocaleString()} pts
+              </Text>
+
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    width: size,
+                    height,
+                    backgroundColor: `${color}22`,
+                    borderColor: `${color}55`,
+                  },
+                ]}
+              >
+                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+              </View>
+            </AnimatedPressable>
+          );
+        })}
       </View>
     );
   };
@@ -419,81 +394,72 @@ export default function LeaderboardsScreen() {
   const renderLeaguePodium = () => {
     if (leagueTop3.length === 0) return null;
 
-    const podiumItems = getPodiumDisplayOrder(leagueTop3);
-
     return (
-      <View style={styles.podiumWrapper}>
-        <View style={styles.podiumContainer}>
-          {podiumItems.map((entry) => {
-            if (!entry) return null;
+      <View style={styles.podiumContainer}>
+        {leaguePodiumOrder.map((entry, i) => {
+          if (!entry) return null;
 
-            const color = getPodiumColor(entry.rank);
-            const size = getPodiumAvatarSize(entry.rank);
-            const height = getPodiumHeight(entry.rank);
+          const color = podiumColorOrder[i] ?? podiumColors[i];
+          const size = podiumSizeOrder[i] ?? podiumSizes[i];
+          const height = podiumHeightOrder[i] ?? podiumHeights[i];
 
-            const initials = entry.league.name
-              .split(' ')
-              .map((w) => w[0])
-              .join('')
-              .substring(0, 2)
-              .toUpperCase();
+          const initials = entry.league.name
+            .split(' ')
+            .map((w) => w[0])
+            .join('')
+            .substring(0, 2)
+            .toUpperCase();
 
-            return (
-              <AnimatedPressable
-                key={entry.league.id}
+          return (
+            <AnimatedPressable
+              key={entry.league.id}
+              style={styles.podiumItem}
+              onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
+            >
+              <View
                 style={[
-                  styles.podiumItem,
-                  entry.rank === 1 && styles.podiumItemFirst,
+                  styles.podiumAvatar,
+                  {
+                    width: size,
+                    height: size,
+                    borderColor: color,
+                  },
                 ]}
-                onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
               >
-                <View
-                  style={[
-                    styles.podiumAvatar,
-                    {
-                      width: size,
-                      height: size,
-                      borderColor: color,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                    {initials}
-                  </Text>
-                </View>
-
-                <Text
-                  style={[
-                    styles.podiumName,
-                    entry.rank === 1 && styles.podiumNameFirst,
-                  ]}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.78}
-                >
-                  {entry.league.name}
+                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                  {initials}
                 </Text>
+              </View>
 
-                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                  {entry.combinedPoints.toLocaleString()} pts
-                </Text>
+              <Text
+                style={styles.podiumName}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
+              >
+                {entry.league.name}
+              </Text>
 
-                <View
-                  style={[
-                    styles.podiumBar,
-                    {
-                      height,
-                      backgroundColor: `${color}22`,
-                      borderColor: `${color}55`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                </View>
-              </AnimatedPressable>
-            );
-          })}
-        </View>
+              <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                {entry.combinedPoints.toLocaleString()} pts
+              </Text>
+
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    width: size,
+                    height,
+                    backgroundColor: `${color}22`,
+                    borderColor: `${color}55`,
+                  },
+                ]}
+              >
+                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+              </View>
+            </AnimatedPressable>
+          );
+        })}
       </View>
     );
   };
@@ -635,29 +601,19 @@ const styles = StyleSheet.create({
     paddingBottom: 40,
   },
 
-  podiumWrapper: {
-    width: '100%',
-    marginBottom: 24,
-  },
-
   podiumContainer: {
-    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'center',
     alignItems: 'flex-end',
     gap: 8,
-    paddingTop: 8,
+    marginBottom: 28,
+    paddingTop: 16,
   },
 
   podiumItem: {
     flex: 1,
-    maxWidth: '31.5%',
     alignItems: 'center',
-    justifyContent: 'flex-end',
-  },
-
-  podiumItemFirst: {
-    maxWidth: '35%',
+    gap: 6,
   },
 
   podiumAvatar: {
@@ -666,7 +622,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceHighlight,
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 5,
   },
 
   podiumInitials: {
@@ -676,29 +631,20 @@ const styles = StyleSheet.create({
 
   podiumName: {
     color: Colors.text,
-    fontSize: 10,
-    lineHeight: 12,
+    fontSize: 11,
+    lineHeight: 13,
     fontWeight: '800',
     textAlign: 'center',
     width: '100%',
-    minHeight: 24,
-  },
-
-  podiumNameFirst: {
-    fontSize: 11,
-    lineHeight: 13,
+    minHeight: 26,
   },
 
   podiumPoints: {
     fontSize: 10,
     fontWeight: '900',
-    marginTop: 1,
-    marginBottom: 4,
   },
 
   podiumBar: {
-    width: '74%',
-    minWidth: 34,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
