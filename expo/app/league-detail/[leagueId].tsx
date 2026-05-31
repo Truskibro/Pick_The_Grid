@@ -512,8 +512,8 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surface,
     borderRadius: 12,
     paddingVertical: 12,
-    paddingRight: 12,
-    paddingLeft: 0,
+    paddingRight: 10,
+    paddingLeft: 10,
     marginBottom: 8,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -542,7 +542,7 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    marginLeft: 12,
+    marginRight: 8,
   },
   rankBadgeText: {
     color: Colors.textSecondary,
@@ -626,7 +626,7 @@ const styles = StyleSheet.create({
     paddingVertical: 5,
     minWidth: 48,
     alignItems: 'center',
-    marginLeft: 8,
+    marginLeft: 'auto' as const,
   },
   pointsPillText: {
     color: Colors.text,
