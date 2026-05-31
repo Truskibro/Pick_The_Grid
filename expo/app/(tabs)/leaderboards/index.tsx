@@ -153,12 +153,7 @@ export default function LeaderboardsScreen() {
               },
             ]}
           >
-            <Text
-              style={[
-                styles.rankBadgeText,
-                accentColor && { color: accentColor },
-              ]}
-            >
+            <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{actualRank}
             </Text>
           </View>
@@ -183,10 +178,7 @@ export default function LeaderboardsScreen() {
 
             <View style={styles.pointsColumn}>
               <Text
-                style={[
-                  styles.pointsText,
-                  accentColor && { color: accentColor },
-                ]}
+                style={[styles.pointsText, accentColor && { color: accentColor }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
@@ -245,12 +237,7 @@ export default function LeaderboardsScreen() {
               },
             ]}
           >
-            <Text
-              style={[
-                styles.rankBadgeText,
-                accentColor && { color: accentColor },
-              ]}
-            >
+            <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{item.rank}
             </Text>
           </View>
@@ -278,10 +265,7 @@ export default function LeaderboardsScreen() {
 
             <View style={styles.pointsColumn}>
               <Text
-                style={[
-                  styles.pointsText,
-                  accentColor && { color: accentColor },
-                ]}
+                style={[styles.pointsText, accentColor && { color: accentColor }]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
@@ -363,14 +347,7 @@ export default function LeaderboardsScreen() {
               </Text>
             </View>
 
-            <View
-              style={[
-                styles.podiumRankBubble,
-                {
-                  backgroundColor: color,
-                },
-              ]}
-            >
+            <View style={[styles.podiumRankBubble, { backgroundColor: color }]}>
               <Text style={styles.podiumRankBubbleText}>#{rank}</Text>
             </View>
           </View>
@@ -446,7 +423,6 @@ export default function LeaderboardsScreen() {
                 style={[
                   styles.podiumBar,
                   {
-                    width: '100%',
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
@@ -500,7 +476,6 @@ export default function LeaderboardsScreen() {
                 style={[
                   styles.podiumBar,
                   {
-                    width: '100%',
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
@@ -523,12 +498,7 @@ export default function LeaderboardsScreen() {
           style={[styles.tab, activeTab === 'global' && styles.tabActive]}
           onPress={() => setActiveTab('global')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'global' && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
             Global
           </Text>
         </AnimatedPressable>
@@ -537,12 +507,7 @@ export default function LeaderboardsScreen() {
           style={[styles.tab, activeTab === 'league' && styles.tabActive]}
           onPress={() => setActiveTab('league')}
         >
-          <Text
-            style={[
-              styles.tabText,
-              activeTab === 'league' && styles.tabTextActive,
-            ]}
-          >
+          <Text style={[styles.tabText, activeTab === 'league' && styles.tabTextActive]}>
             League
           </Text>
         </AnimatedPressable>
@@ -654,18 +619,19 @@ const styles = StyleSheet.create({
   },
 
   podiumContainer: {
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'flex-start',
-    gap: 8,
+    columnGap: 8,
     marginBottom: 28,
     paddingTop: 16,
     minHeight: 330,
   },
 
   podiumColumn: {
-    flex: 1,
-    alignItems: 'center',
+    width: '31.5%',
+    alignItems: 'stretch',
   },
 
   podiumColumnGold: {
@@ -757,9 +723,11 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '900',
     marginTop: 2,
+    textAlign: 'center',
   },
 
   podiumBar: {
+    width: '100%',
     marginTop: 8,
     borderRadius: 12,
     alignItems: 'center',
