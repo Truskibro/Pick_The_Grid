@@ -309,6 +309,89 @@ export default function LeaderboardsScreen() {
     );
   };
 
+  const renderPodiumProfile = ({
+    name,
+    points,
+    rank,
+    initials,
+    color,
+    size,
+  }: {
+    name: string;
+    points: number;
+    rank: number;
+    initials: string;
+    color: string;
+    size: number;
+  }) => {
+    return (
+      <View
+        style={[
+          styles.podiumProfileCard,
+          {
+            borderColor: `${color}35`,
+            backgroundColor: `${color}0D`,
+          },
+        ]}
+      >
+        <View style={styles.avatarSlot}>
+          <View style={styles.avatarWrap}>
+            <View
+              style={[
+                styles.podiumAvatarGlow,
+                {
+                  width: size + 10,
+                  height: size + 10,
+                  borderRadius: (size + 10) / 2,
+                  backgroundColor: `${color}10`,
+                },
+              ]}
+            />
+
+            <View
+              style={[
+                styles.podiumAvatar,
+                {
+                  width: size,
+                  height: size,
+                  borderColor: color,
+                },
+              ]}
+            >
+              <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                {initials}
+              </Text>
+            </View>
+
+            <View
+              style={[
+                styles.podiumRankBubble,
+                {
+                  backgroundColor: color,
+                },
+              ]}
+            >
+              <Text style={styles.podiumRankBubbleText}>#{rank}</Text>
+            </View>
+          </View>
+        </View>
+
+        <Text
+          style={styles.podiumName}
+          numberOfLines={2}
+          adjustsFontSizeToFit
+          minimumFontScale={0.75}
+        >
+          {name}
+        </Text>
+
+        <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+          {points.toLocaleString()} pts
+        </Text>
+      </View>
+    );
+  };
+
   const renderGlobalPodium = () => {
     if (loadingLeaderboard) {
       return (
@@ -340,71 +423,17 @@ export default function LeaderboardsScreen() {
           return (
             <AnimatedPressable
               key={entry.userId}
-              style={styles.podiumItem}
+              style={styles.podiumColumn}
               onPress={() => router.push(`/profile/${entry.userId}` as any)}
             >
-              <View
-                style={[
-                  styles.podiumProfileCard,
-                  {
-                    borderColor: `${color}35`,
-                    backgroundColor: `${color}0D`,
-                  },
-                ]}
-              >
-                <View style={styles.avatarWrap}>
-                  <View
-                    style={[
-                      styles.podiumAvatarGlow,
-                      {
-                        width: size + 10,
-                        height: size + 10,
-                        borderRadius: (size + 10) / 2,
-                        backgroundColor: `${color}10`,
-                      },
-                    ]}
-                  />
-
-                  <View
-                    style={[
-                      styles.podiumAvatar,
-                      {
-                        width: size,
-                        height: size,
-                        borderColor: color,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                      {initials}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.podiumRankBubble,
-                      {
-                        backgroundColor: color,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.podiumRankBubbleText}>#{entry.rank}</Text>
-                  </View>
-                </View>
-
-                <Text
-                  style={styles.podiumName}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
-                >
-                  {entry.displayName}
-                </Text>
-
-                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                  {entry.totalPoints.toLocaleString()} pts
-                </Text>
-              </View>
+              {renderPodiumProfile({
+                name: entry.displayName,
+                points: entry.totalPoints,
+                rank: entry.rank,
+                initials,
+                color,
+                size,
+              })}
 
               <View
                 style={[
@@ -448,71 +477,17 @@ export default function LeaderboardsScreen() {
           return (
             <AnimatedPressable
               key={entry.league.id}
-              style={styles.podiumItem}
+              style={styles.podiumColumn}
               onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
             >
-              <View
-                style={[
-                  styles.podiumProfileCard,
-                  {
-                    borderColor: `${color}35`,
-                    backgroundColor: `${color}0D`,
-                  },
-                ]}
-              >
-                <View style={styles.avatarWrap}>
-                  <View
-                    style={[
-                      styles.podiumAvatarGlow,
-                      {
-                        width: size + 10,
-                        height: size + 10,
-                        borderRadius: (size + 10) / 2,
-                        backgroundColor: `${color}10`,
-                      },
-                    ]}
-                  />
-
-                  <View
-                    style={[
-                      styles.podiumAvatar,
-                      {
-                        width: size,
-                        height: size,
-                        borderColor: color,
-                      },
-                    ]}
-                  >
-                    <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                      {initials}
-                    </Text>
-                  </View>
-
-                  <View
-                    style={[
-                      styles.podiumRankBubble,
-                      {
-                        backgroundColor: color,
-                      },
-                    ]}
-                  >
-                    <Text style={styles.podiumRankBubbleText}>#{entry.rank}</Text>
-                  </View>
-                </View>
-
-                <Text
-                  style={styles.podiumName}
-                  numberOfLines={2}
-                  adjustsFontSizeToFit
-                  minimumFontScale={0.75}
-                >
-                  {entry.league.name}
-                </Text>
-
-                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
-                  {entry.combinedPoints.toLocaleString()} pts
-                </Text>
-              </View>
+              {renderPodiumProfile({
+                name: entry.league.name,
+                points: entry.combinedPoints,
+                rank: entry.rank,
+                initials,
+                color,
+                size,
+              })}
 
               <View
                 style={[
@@ -674,21 +649,20 @@ const styles = StyleSheet.create({
   podiumContainer: {
     flexDirection: 'row',
     justifyContent: 'center',
-    alignItems: 'flex-end',
+    alignItems: 'flex-start',
     gap: 8,
     marginBottom: 28,
     paddingTop: 16,
   },
 
-  podiumItem: {
+  podiumColumn: {
     flex: 1,
     alignItems: 'center',
-    gap: 6,
   },
 
   podiumProfileCard: {
     width: '100%',
-    minHeight: 132,
+    height: 132,
     borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
@@ -699,11 +673,17 @@ const styles = StyleSheet.create({
     overflow: 'visible',
   },
 
+  avatarSlot: {
+    height: 78,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 2,
+  },
+
   avatarWrap: {
     position: 'relative',
     alignItems: 'center',
     justifyContent: 'center',
-    marginBottom: 6,
   },
 
   podiumAvatarGlow: {
@@ -750,7 +730,7 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     textAlign: 'center',
     width: '100%',
-    minHeight: 26,
+    height: 26,
   },
 
   podiumPoints: {
@@ -760,6 +740,7 @@ const styles = StyleSheet.create({
   },
 
   podiumBar: {
+    marginTop: 8,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
