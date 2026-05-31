@@ -392,6 +392,13 @@ export default function LeaderboardsScreen() {
     );
   };
 
+  const getPodiumColumnStyle = (rank: number) => [
+    styles.podiumColumn,
+    rank === 1 && styles.podiumColumnGold,
+    rank === 2 && styles.podiumColumnSilver,
+    rank === 3 && styles.podiumColumnBronze,
+  ];
+
   const renderGlobalPodium = () => {
     if (loadingLeaderboard) {
       return (
@@ -423,7 +430,7 @@ export default function LeaderboardsScreen() {
           return (
             <AnimatedPressable
               key={entry.userId}
-              style={styles.podiumColumn}
+              style={getPodiumColumnStyle(entry.rank)}
               onPress={() => router.push(`/profile/${entry.userId}` as any)}
             >
               {renderPodiumProfile({
@@ -435,20 +442,18 @@ export default function LeaderboardsScreen() {
                 size,
               })}
 
-              <View style={styles.podiumBarSlot}>
-                <View
-                  style={[
-                    styles.podiumBar,
-                    {
-                      width: size,
-                      height,
-                      backgroundColor: `${color}22`,
-                      borderColor: `${color}55`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                </View>
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    width: size,
+                    height,
+                    backgroundColor: `${color}22`,
+                    borderColor: `${color}55`,
+                  },
+                ]}
+              >
+                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
               </View>
             </AnimatedPressable>
           );
@@ -479,7 +484,7 @@ export default function LeaderboardsScreen() {
           return (
             <AnimatedPressable
               key={entry.league.id}
-              style={styles.podiumColumn}
+              style={getPodiumColumnStyle(entry.rank)}
               onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
             >
               {renderPodiumProfile({
@@ -491,20 +496,18 @@ export default function LeaderboardsScreen() {
                 size,
               })}
 
-              <View style={styles.podiumBarSlot}>
-                <View
-                  style={[
-                    styles.podiumBar,
-                    {
-                      width: size,
-                      height,
-                      backgroundColor: `${color}22`,
-                      borderColor: `${color}55`,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                </View>
+              <View
+                style={[
+                  styles.podiumBar,
+                  {
+                    width: size,
+                    height,
+                    backgroundColor: `${color}22`,
+                    borderColor: `${color}55`,
+                  },
+                ]}
+              >
+                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
               </View>
             </AnimatedPressable>
           );
@@ -657,11 +660,24 @@ const styles = StyleSheet.create({
     gap: 8,
     marginBottom: 28,
     paddingTop: 16,
+    minHeight: 330,
   },
 
   podiumColumn: {
     flex: 1,
     alignItems: 'center',
+  },
+
+  podiumColumnGold: {
+    marginTop: 0,
+  },
+
+  podiumColumnSilver: {
+    marginTop: 22,
+  },
+
+  podiumColumnBronze: {
+    marginTop: 44,
   },
 
   podiumProfileCard: {
@@ -743,15 +759,8 @@ const styles = StyleSheet.create({
     marginTop: 2,
   },
 
-  podiumBarSlot: {
-    width: '100%',
-    height: 108,
-    alignItems: 'center',
-    justifyContent: 'flex-end',
-    marginTop: 8,
-  },
-
   podiumBar: {
+    marginTop: 8,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
