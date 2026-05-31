@@ -446,7 +446,7 @@ export default function LeaderboardsScreen() {
                 style={[
                   styles.podiumBar,
                   {
-                    width: size,
+                    width: '100%',
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
@@ -500,7 +500,7 @@ export default function LeaderboardsScreen() {
                 style={[
                   styles.podiumBar,
                   {
-                    width: size,
+                    width: '100%',
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
@@ -761,7 +761,7 @@ const styles = StyleSheet.create({
 
   podiumBar: {
     marginTop: 8,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
