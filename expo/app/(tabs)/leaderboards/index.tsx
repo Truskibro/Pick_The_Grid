@@ -91,38 +91,55 @@ export default function LeaderboardsScreen() {
   const leagueRest = leagueRankings.slice(3);
 
   const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
-  const podiumSizes = [72, 60, 56];
-  const podiumHeights = [100, 80, 64];
 
-  const podiumOrder = top3.length >= 3 ? [top3[1], top3[0], top3[2]] : top3;
-  const podiumColorOrder =
-    top3.length >= 3 ? [podiumColors[1], podiumColors[0], podiumColors[2]] : podiumColors;
-  const podiumSizeOrder =
-    top3.length >= 3 ? [podiumSizes[1], podiumSizes[0], podiumSizes[2]] : podiumSizes;
-  const podiumHeightOrder =
-    top3.length >= 3 ? [podiumHeights[1], podiumHeights[0], podiumHeights[2]] : podiumHeights;
+  const getPodiumDisplayOrder = <T extends { rank: number }>(items: T[]) => {
+    if (items.length >= 3) {
+      return [items[1], items[0], items[2]];
+    }
 
-  const leaguePodiumOrder =
-    leagueTop3.length >= 3 ? [leagueTop3[1], leagueTop3[0], leagueTop3[2]] : leagueTop3;
+    return items;
+  };
+
+  const getPodiumColor = (rank: number) => {
+    if (rank === 1) return podiumColors[0];
+    if (rank === 2) return podiumColors[1];
+    if (rank === 3) return podiumColors[2];
+    return Colors.textSecondary;
+  };
+
+  const getPodiumHeight = (rank: number) => {
+    if (rank === 1) return 92;
+    if (rank === 2) return 72;
+    if (rank === 3) return 62;
+    return 56;
+  };
+
+  const getPodiumAvatarSize = (rank: number) => {
+    if (rank === 1) return 62;
+    if (rank === 2) return 54;
+    if (rank === 3) return 50;
+    return 48;
+  };
 
   const renderTrendIcon = (entry: LeaderboardEntry) => {
     if (!entry.previousRank) {
-      return <Minus size={16} color={Colors.textMuted} />;
+      return <Minus size={13} color={Colors.textMuted} />;
     }
 
     if (entry.previousRank > entry.rank) {
-      return <TrendingUp size={16} color={Colors.success} />;
+      return <TrendingUp size={13} color={Colors.success} />;
     }
 
     if (entry.previousRank < entry.rank) {
-      return <TrendingDown size={16} color={Colors.error} />;
+      return <TrendingDown size={13} color={Colors.error} />;
     }
 
-    return <Minus size={16} color={Colors.textMuted} />;
+    return <Minus size={13} color={Colors.textMuted} />;
   };
 
   const renderGlobalRow = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
-    const accentColor = index < 3 ? podiumColors[index] : undefined;
+    const actualRank = item.rank ?? index + 4;
+    const accentColor = actualRank <= 3 ? getPodiumColor(actualRank) : undefined;
 
     return (
       <AnimatedPressable
@@ -132,7 +149,7 @@ export default function LeaderboardsScreen() {
         {accentColor && (
           <>
             <LinearGradient
-              colors={[`${accentColor}16`, 'transparent']}
+              colors={[`${accentColor}14`, 'transparent']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -148,7 +165,7 @@ export default function LeaderboardsScreen() {
               styles.rankBadge,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
-                borderColor: `${accentColor}50`,
+                borderColor: `${accentColor}55`,
               },
             ]}
           >
@@ -158,7 +175,7 @@ export default function LeaderboardsScreen() {
                 accentColor && { color: accentColor },
               ]}
             >
-              #{item.rank}
+              #{actualRank}
             </Text>
           </View>
         </View>
@@ -168,10 +185,13 @@ export default function LeaderboardsScreen() {
             <View style={styles.nameBlock}>
               <Text
                 style={[styles.displayName, accentColor && { color: accentColor }]}
-                numberOfLines={1}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
               >
                 {item.displayName}
               </Text>
+
               <Text style={styles.usernameText} numberOfLines={1}>
                 @{item.username}
               </Text>
@@ -183,6 +203,9 @@ export default function LeaderboardsScreen() {
                   styles.pointsText,
                   accentColor && { color: accentColor },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {item.totalPoints.toLocaleString()}
               </Text>
@@ -193,20 +216,22 @@ export default function LeaderboardsScreen() {
           <View style={styles.rowBottom}>
             <View style={styles.trendPill}>
               {renderTrendIcon(item)}
-              <Text style={styles.trendText}>
+              <Text style={styles.trendText} numberOfLines={1}>
                 {item.previousRank ? `Prev #${item.previousRank}` : 'New Entry'}
               </Text>
             </View>
 
-            <Text style={styles.rankMetaText}>Global Rank #{item.rank}</Text>
+            <Text style={styles.rankMetaText} numberOfLines={1}>
+              Global #{actualRank}
+            </Text>
           </View>
         </View>
       </AnimatedPressable>
     );
   };
 
-  const renderLeagueRow = ({ item, index }: { item: LeagueRanking; index: number }) => {
-    const accentColor = index < 3 ? podiumColors[index] : undefined;
+  const renderLeagueRow = ({ item }: { item: LeagueRanking; index: number }) => {
+    const accentColor = item.rank <= 3 ? getPodiumColor(item.rank) : undefined;
 
     return (
       <AnimatedPressable
@@ -216,7 +241,7 @@ export default function LeaderboardsScreen() {
         {accentColor && (
           <>
             <LinearGradient
-              colors={[`${accentColor}16`, 'transparent']}
+              colors={[`${accentColor}14`, 'transparent']}
               style={StyleSheet.absoluteFill}
               start={{ x: 0, y: 0 }}
               end={{ x: 1, y: 0 }}
@@ -232,7 +257,7 @@ export default function LeaderboardsScreen() {
               styles.rankBadge,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
-                borderColor: `${accentColor}50`,
+                borderColor: `${accentColor}55`,
               },
             ]}
           >
@@ -252,13 +277,15 @@ export default function LeaderboardsScreen() {
             <View style={styles.nameBlock}>
               <Text
                 style={[styles.displayName, accentColor && { color: accentColor }]}
-                numberOfLines={1}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                minimumFontScale={0.82}
               >
                 {item.league.name}
               </Text>
 
               <View style={styles.leagueMemberLine}>
-                <Users size={13} color={Colors.textMuted} />
+                <Users size={12} color={Colors.textMuted} />
                 <Text style={styles.usernameText} numberOfLines={1}>
                   {item.memberCount} members
                 </Text>
@@ -271,6 +298,9 @@ export default function LeaderboardsScreen() {
                   styles.pointsText,
                   accentColor && { color: accentColor },
                 ]}
+                numberOfLines={1}
+                adjustsFontSizeToFit
+                minimumFontScale={0.75}
               >
                 {item.combinedPoints.toLocaleString()}
               </Text>
@@ -280,11 +310,15 @@ export default function LeaderboardsScreen() {
 
           <View style={styles.rowBottom}>
             <View style={styles.trendPill}>
-              <Shield size={15} color={Colors.textSecondary} />
-              <Text style={styles.trendText}>League Standing</Text>
+              <Shield size={13} color={Colors.textSecondary} />
+              <Text style={styles.trendText} numberOfLines={1}>
+                League
+              </Text>
             </View>
 
-            <Text style={styles.rankMetaText}>League Rank #{item.rank}</Text>
+            <Text style={styles.rankMetaText} numberOfLines={1}>
+              League #{item.rank}
+            </Text>
           </View>
         </View>
       </AnimatedPressable>
@@ -303,66 +337,81 @@ export default function LeaderboardsScreen() {
 
     if (top3.length === 0) return null;
 
+    const podiumItems = getPodiumDisplayOrder(top3);
+
     return (
-      <View style={styles.podiumContainer}>
-        {podiumOrder.map((entry, i) => {
-          if (!entry) return null;
+      <View style={styles.podiumWrapper}>
+        <View style={styles.podiumContainer}>
+          {podiumItems.map((entry) => {
+            if (!entry) return null;
 
-          const color = podiumColorOrder[i];
-          const size = podiumSizeOrder[i];
-          const height = podiumHeightOrder[i];
+            const color = getPodiumColor(entry.rank);
+            const size = getPodiumAvatarSize(entry.rank);
+            const height = getPodiumHeight(entry.rank);
 
-          const initials = (entry.displayName || '??')
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-            .substring(0, 2)
-            .toUpperCase();
+            const initials = (entry.displayName || '??')
+              .split(' ')
+              .map((w) => w[0])
+              .join('')
+              .substring(0, 2)
+              .toUpperCase();
 
-          return (
-            <AnimatedPressable
-              key={entry.userId}
-              style={styles.podiumItem}
-              onPress={() => router.push(`/profile/${entry.userId}` as any)}
-            >
-              <View
+            return (
+              <AnimatedPressable
+                key={entry.userId}
                 style={[
-                  styles.podiumAvatar,
-                  {
-                    width: size,
-                    height: size,
-                    borderColor: color,
-                  },
+                  styles.podiumItem,
+                  entry.rank === 1 && styles.podiumItemFirst,
                 ]}
+                onPress={() => router.push(`/profile/${entry.userId}` as any)}
               >
-                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                  {initials}
+                <View
+                  style={[
+                    styles.podiumAvatar,
+                    {
+                      width: size,
+                      height: size,
+                      borderColor: color,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                    {initials}
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.podiumName,
+                    entry.rank === 1 && styles.podiumNameFirst,
+                  ]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  {entry.displayName}
                 </Text>
-              </View>
 
-              <Text style={styles.podiumName} numberOfLines={1}>
-                {entry.displayName}
-              </Text>
+                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                  {entry.totalPoints.toLocaleString()} pts
+                </Text>
 
-              <Text style={[styles.podiumPoints, { color }]}>
-                {entry.totalPoints.toLocaleString()} pts
-              </Text>
-
-              <View
-                style={[
-                  styles.podiumBar,
-                  {
-                    height,
-                    backgroundColor: `${color}22`,
-                    borderColor: `${color}44`,
-                  },
-                ]}
-              >
-                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-              </View>
-            </AnimatedPressable>
-          );
-        })}
+                <View
+                  style={[
+                    styles.podiumBar,
+                    {
+                      height,
+                      backgroundColor: `${color}22`,
+                      borderColor: `${color}55`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                </View>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -370,66 +419,81 @@ export default function LeaderboardsScreen() {
   const renderLeaguePodium = () => {
     if (leagueTop3.length === 0) return null;
 
+    const podiumItems = getPodiumDisplayOrder(leagueTop3);
+
     return (
-      <View style={styles.podiumContainer}>
-        {leaguePodiumOrder.map((entry, i) => {
-          if (!entry) return null;
+      <View style={styles.podiumWrapper}>
+        <View style={styles.podiumContainer}>
+          {podiumItems.map((entry) => {
+            if (!entry) return null;
 
-          const color = podiumColorOrder[i] ?? podiumColors[i];
-          const size = podiumSizeOrder[i] ?? podiumSizes[i];
-          const height = podiumHeightOrder[i] ?? podiumHeights[i];
+            const color = getPodiumColor(entry.rank);
+            const size = getPodiumAvatarSize(entry.rank);
+            const height = getPodiumHeight(entry.rank);
 
-          const initials = entry.league.name
-            .split(' ')
-            .map((w) => w[0])
-            .join('')
-            .substring(0, 2)
-            .toUpperCase();
+            const initials = entry.league.name
+              .split(' ')
+              .map((w) => w[0])
+              .join('')
+              .substring(0, 2)
+              .toUpperCase();
 
-          return (
-            <AnimatedPressable
-              key={entry.league.id}
-              style={styles.podiumItem}
-              onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
-            >
-              <View
+            return (
+              <AnimatedPressable
+                key={entry.league.id}
                 style={[
-                  styles.podiumAvatar,
-                  {
-                    width: size,
-                    height: size,
-                    borderColor: color,
-                  },
+                  styles.podiumItem,
+                  entry.rank === 1 && styles.podiumItemFirst,
                 ]}
+                onPress={() => router.push(`/league-detail/${entry.league.id}` as any)}
               >
-                <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
-                  {initials}
+                <View
+                  style={[
+                    styles.podiumAvatar,
+                    {
+                      width: size,
+                      height: size,
+                      borderColor: color,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumInitials, { fontSize: size / 3 }]}>
+                    {initials}
+                  </Text>
+                </View>
+
+                <Text
+                  style={[
+                    styles.podiumName,
+                    entry.rank === 1 && styles.podiumNameFirst,
+                  ]}
+                  numberOfLines={2}
+                  adjustsFontSizeToFit
+                  minimumFontScale={0.78}
+                >
+                  {entry.league.name}
                 </Text>
-              </View>
 
-              <Text style={styles.podiumName} numberOfLines={1}>
-                {entry.league.name}
-              </Text>
+                <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
+                  {entry.combinedPoints.toLocaleString()} pts
+                </Text>
 
-              <Text style={[styles.podiumPoints, { color }]}>
-                {entry.combinedPoints.toLocaleString()} pts
-              </Text>
-
-              <View
-                style={[
-                  styles.podiumBar,
-                  {
-                    height,
-                    backgroundColor: `${color}22`,
-                    borderColor: `${color}44`,
-                  },
-                ]}
-              >
-                <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-              </View>
-            </AnimatedPressable>
-          );
-        })}
+                <View
+                  style={[
+                    styles.podiumBar,
+                    {
+                      height,
+                      backgroundColor: `${color}22`,
+                      borderColor: `${color}55`,
+                    },
+                  ]}
+                >
+                  <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                </View>
+              </AnimatedPressable>
+            );
+          })}
+        </View>
       </View>
     );
   };
@@ -546,7 +610,7 @@ const styles = StyleSheet.create({
   tabText: {
     color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 
   tabTextActive: {
@@ -556,7 +620,7 @@ const styles = StyleSheet.create({
   loadingContainer: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 60,
+    paddingVertical: 44,
     gap: 12,
   },
 
@@ -566,23 +630,34 @@ const styles = StyleSheet.create({
   },
 
   listContent: {
-    padding: 20,
+    paddingHorizontal: 20,
+    paddingTop: 14,
     paddingBottom: 40,
   },
 
+  podiumWrapper: {
+    width: '100%',
+    marginBottom: 24,
+  },
+
   podiumContainer: {
+    width: '100%',
     flexDirection: 'row',
-    justifyContent: 'center',
+    justifyContent: 'space-between',
     alignItems: 'flex-end',
     gap: 8,
-    marginBottom: 28,
-    paddingTop: 16,
+    paddingTop: 8,
   },
 
   podiumItem: {
     flex: 1,
+    maxWidth: '31.5%',
     alignItems: 'center',
-    gap: 6,
+    justifyContent: 'flex-end',
+  },
+
+  podiumItemFirst: {
+    maxWidth: '35%',
   },
 
   podiumAvatar: {
@@ -591,27 +666,39 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceHighlight,
     alignItems: 'center',
     justifyContent: 'center',
+    marginBottom: 5,
   },
 
   podiumInitials: {
     color: Colors.text,
-    fontWeight: '800',
+    fontWeight: '900',
   },
 
   podiumName: {
     color: Colors.text,
-    fontSize: 12,
-    fontWeight: '700',
+    fontSize: 10,
+    lineHeight: 12,
+    fontWeight: '800',
     textAlign: 'center',
+    width: '100%',
+    minHeight: 24,
+  },
+
+  podiumNameFirst: {
+    fontSize: 11,
+    lineHeight: 13,
   },
 
   podiumPoints: {
-    fontSize: 13,
-    fontWeight: '800',
+    fontSize: 10,
+    fontWeight: '900',
+    marginTop: 1,
+    marginBottom: 4,
   },
 
   podiumBar: {
-    width: '100%',
+    width: '74%',
+    minWidth: 34,
     borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
@@ -619,19 +706,19 @@ const styles = StyleSheet.create({
   },
 
   podiumRank: {
-    fontSize: 18,
+    fontSize: 17,
     fontWeight: '900',
   },
 
   rankRow: {
-    minHeight: 98,
+    minHeight: 86,
     flexDirection: 'row',
     alignItems: 'stretch',
     backgroundColor: Colors.surface,
-    borderRadius: 18,
-    paddingVertical: 14,
-    paddingLeft: 12,
-    paddingRight: 14,
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingLeft: 10,
+    paddingRight: 12,
     marginBottom: 12,
     borderWidth: 1,
     borderColor: Colors.border,
@@ -650,126 +737,133 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderTopLeftRadius: 18,
-    borderBottomLeftRadius: 18,
+    borderTopLeftRadius: 16,
+    borderBottomLeftRadius: 16,
   },
 
   rankColumn: {
-    width: 54,
+    width: 42,
     alignItems: 'center',
     justifyContent: 'center',
-    marginRight: 12,
+    marginRight: 10,
   },
 
   rankBadge: {
-    minWidth: 42,
-    height: 42,
-    borderRadius: 21,
+    minWidth: 34,
+    height: 34,
+    borderRadius: 17,
     backgroundColor: Colors.surfaceHighlight,
     borderWidth: 1,
     borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 7,
+    paddingHorizontal: 5,
   },
 
   rankBadgeText: {
     color: Colors.textSecondary,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '900',
   },
 
   rowMain: {
     flex: 1,
-    justifyContent: 'space-between',
     minWidth: 0,
+    justifyContent: 'space-between',
   },
 
   rowTop: {
     flexDirection: 'row',
     alignItems: 'flex-start',
     justifyContent: 'space-between',
-    gap: 12,
+    gap: 8,
   },
 
   nameBlock: {
     flex: 1,
     minWidth: 0,
+    paddingRight: 4,
   },
 
   displayName: {
     color: Colors.text,
-    fontSize: 24,
+    fontSize: 18,
+    lineHeight: 21,
     fontWeight: '900',
-    letterSpacing: -0.4,
+    letterSpacing: -0.25,
   },
 
   usernameText: {
     color: Colors.textMuted,
-    fontSize: 15,
-    fontWeight: '500',
-    marginTop: 4,
+    fontSize: 12,
+    lineHeight: 15,
+    fontWeight: '600',
+    marginTop: 2,
   },
 
   leagueMemberLine: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 5,
-    marginTop: 4,
+    marginTop: 3,
   },
 
   pointsColumn: {
-    minWidth: 86,
+    width: 66,
     alignItems: 'flex-end',
     justifyContent: 'flex-start',
-    paddingTop: 0,
+    paddingTop: 1,
   },
 
   pointsText: {
     color: Colors.text,
-    fontSize: 32,
+    fontSize: 23,
     fontWeight: '900',
-    lineHeight: 34,
-    letterSpacing: -0.7,
+    lineHeight: 25,
+    letterSpacing: -0.5,
   },
 
   pointsLabel: {
     color: Colors.textMuted,
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: '900',
-    letterSpacing: 1.3,
-    marginTop: 2,
+    letterSpacing: 1.2,
+    marginTop: 1,
   },
 
   rowBottom: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginTop: 12,
+    gap: 8,
+    marginTop: 8,
   },
 
   trendPill: {
+    maxWidth: '58%',
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
-    backgroundColor: 'rgba(255,255,255,0.06)',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.055)',
     borderWidth: 1,
     borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
   },
 
   trendText: {
     color: Colors.textSecondary,
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: '700',
   },
 
   rankMetaText: {
+    flexShrink: 1,
     color: Colors.textMuted,
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: '700',
+    textAlign: 'right',
   },
 
   emptyState: {
