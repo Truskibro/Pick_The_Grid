@@ -174,11 +174,6 @@ export default function LeaderboardsScreen() {
                   <Text style={styles.usernameText} numberOfLines={1}>@{item.username}</Text>
                 </View>
 
-                {/* Trend */}
-                <View style={styles.trendCol}>
-                  {renderTrendIcon(item)}
-                </View>
-
                 {/* Points pill */}
                 <View style={[
                   styles.pointsPill,
@@ -188,6 +183,11 @@ export default function LeaderboardsScreen() {
                     styles.pointsPillText,
                     accentColor && { color: accentColor },
                   ]}>{item.totalPoints.toLocaleString()}</Text>
+                </View>
+
+                {/* Trend */}
+                <View style={styles.trendCol}>
+                  {renderTrendIcon(item)}
                 </View>
               </AnimatedPressable>
             );
