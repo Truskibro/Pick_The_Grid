@@ -10,6 +10,11 @@ import {
   COMPLETED_RACE_IDS,
   SEED_USERS,
 } from '@/constants/seed-predictions';
+import {
+  MOCK_LEAGUE_MEMBERS,
+  scoreMockMember,
+} from '@/constants/mock-members';
+import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
@@ -392,39 +397,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       await loadFromLocal();
       if (session?.user) {
         await withTimeout(loadFromSupabase(), 30000, undefined);
-        // One-time points reset — wipes all earned points from Supabase so
-        // the leaderboard starts from scratch. Safe to run repeatedly but
-        // guarded by an AsyncStorage flag so it only fires once per device.
-        try {
-          const done = await AsyncStorage.getItem(STORAGE_KEYS.pointsResetV1);
-          if (!done && isSupabaseConfigured) {
-            console.log('[Reset] Wiping all earned points…');
-            await supabase
-              .from('user_predictions')
-              .update({ points_earned: 0, sprint_points_earned: 0 })
-              .eq('user_id', session.user.id)
-              .then(({ error }) => {
-                if (error) console.log('[Reset] predictions update error:', error.message);
-              });
-            await supabase
-              .from('profiles')
-              .update({ total_points: 0 })
-              .eq('id', session.user.id)
-              .then(({ error }) => {
-                if (error) console.log('[Reset] profile update error:', error.message);
-              });
-            // Also zero local predictions cache so the in-memory total is 0.
-            setPredictions(prev => {
-              const wiped = prev.map(p => ({ ...p, pointsEarned: 0, sprintPointsEarned: 0 }));
-              AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(wiped)).catch(() => {});
-              return wiped;
-            });
-            await AsyncStorage.setItem(STORAGE_KEYS.pointsResetV1, '1').catch(() => {});
-            console.log('[Reset] Points wipe complete');
-          }
-        } catch (e) {
-          console.log('[Reset] error:', e);
-        }
       }
       setIsLoading(false);
     };
@@ -946,12 +918,30 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [session]);
 
   const fetchGlobalLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
+    // Score mock members against fallback race results so seed users
+    // (Skye, Whitney, Bryan, Carlos) always appear with points on the
+    // global leaderboard even if they don't have Supabase profiles.
+    const mockEntries: LeaderboardEntry[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
+      const member = scoreMockMember(mock, MOCK_RACE_RESULTS);
+      return {
+        rank: 0,
+        userId: member.userId,
+        username: member.username,
+        displayName: member.displayName,
+        totalPoints: member.points,
+        previousRank: undefined,
+      };
+    });
+
     if (!isSupabaseConfigured) {
-      console.log('fetchGlobalLeaderboard: Supabase not configured');
-      return [];
+      console.log('fetchGlobalLeaderboard: Supabase not configured, returning mock members only');
+      return mockEntries
+        .sort((a, b) => b.totalPoints - a.totalPoints)
+        .map((e, i) => ({ ...e, rank: i + 1 }));
     }
+
     const profiles = await fetchAllProfilesSorted();
-    return profiles.map((p, i) => ({
+    const supabaseEntries: LeaderboardEntry[] = profiles.map((p, i) => ({
       rank: i + 1,
       userId: p.userId,
       username: p.username,
@@ -959,6 +949,18 @@ export const [GameProvider, useGame] = createContextHook(() => {
       totalPoints: p.totalPoints,
       previousRank: undefined,
     }));
+
+    // Merge mock members into Supabase results — dedupe by userId so real
+    // Supabase profiles take priority, but seed users still appear if missing.
+    const existingIds = new Set(supabaseEntries.map(e => e.userId));
+    const merged = [
+      ...supabaseEntries,
+      ...mockEntries.filter(m => !existingIds.has(m.userId)),
+    ];
+
+    return merged
+      .sort((a, b) => b.totalPoints - a.totalPoints)
+      .map((e, i) => ({ ...e, rank: i + 1 }));
   }, []);
 
   const scorePredictions = useCallback(async (_raceResults: RaceResult[]) => {
