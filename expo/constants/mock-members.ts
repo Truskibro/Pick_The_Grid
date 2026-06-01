@@ -1,93 +1,58 @@
-import { LeagueMember, Prediction } from '@/types';
+import { LeagueMember } from '@/types';
 import { RaceResult } from '@/types';
-import { calculatePoints } from '@/lib/scoring';
+import {
+  SEED_USERS,
+  scoreSeededPredictions,
+  COMPLETED_RACE_IDS,
+} from '@/constants/seed-predictions';
 
 /**
- * Mock league members with hard-coded predictions for the Miami GP (r06).
- * Their displayed points are computed live against whatever race result the
- * F1DataProvider has loaded, so they stay accurate as data arrives.
+ * Mock league member — a seed user whose predictions (from the spreadsheet)
+ * are scored against whatever race results the F1DataProvider has loaded.
+ *
+ * Points are computed live from `scoreSeededPredictions` which sums GP +
+ * sprint points across all completed races (r01, r02, r03, r06, r07).
+ * Cancelled races (Bahrain r04, Saudi r05) and upcoming races (Monaco r08+)
+ * are excluded.
  */
 export interface MockMember {
   userId: string;
   username: string;
   displayName: string;
-  raceId: string;
-  prediction: Omit<Prediction, 'id' | 'updatedAt'>;
   joinedAt: string;
 }
 
-export const MIAMI_RACE_ID = 'r06';
-
-
-export const MOCK_LEAGUE_MEMBERS: MockMember[] = [
-  {
-    userId: 'e11ea4f5-2ba4-4241-9791-b4b6a560534b',
-    username: 'sainz4ever55',
-    displayName: 'Sainz4Ever55',
-    raceId: MIAMI_RACE_ID,
-    joinedAt: '2026-03-01T00:00:00Z',
-    prediction: {
-      raceId: MIAMI_RACE_ID,
-      top10: ['ANT', 'RUS', 'NOR', 'PIA', 'VER', 'LEC', 'HAM', 'HAD', 'LIN', 'COL'],
-      fastestLap: 'ANT',
-      dnf: 'ALO',
-      pointsEarned: 0,
-      sprintTop8: ['ANT', 'RUS', 'PIA', 'NOR', 'VER', 'LEC', 'HAM', 'HAD'],
-      sprintPointsEarned: 0,
-    },
-  },
-  {
-    userId: '652154af-dc27-47b5-aa79-25903b9c4a1b',
-    username: 'whitney',
-    displayName: 'Whitney',
-    raceId: MIAMI_RACE_ID,
-    joinedAt: '2026-03-01T00:00:00Z',
-    prediction: {
-      raceId: MIAMI_RACE_ID,
-      top10: ['RUS', 'ANT', 'NOR', 'PIA', 'VER', 'LEC', 'HAM', 'HAD', 'LIN', 'COL'],
-      fastestLap: 'ANT',
-      dnf: 'STR',
-      pointsEarned: 0,
-      sprintTop8: ['ANT', 'RUS', 'PIA', 'NOR', 'VER', 'LEC', 'HAM', 'HAD'],
-      sprintPointsEarned: 0,
-    },
-  },
-];
+/**
+ * All four seed users from the 2026 Pick The Grid spreadsheet.
+ * Their predictions live in `constants/seed-predictions.ts`.
+ */
+export const MOCK_LEAGUE_MEMBERS: MockMember[] = SEED_USERS.map((u) => ({
+  userId: u.userId,
+  username: u.username,
+  displayName: u.displayName,
+  joinedAt: '2026-03-01T00:00:00Z',
+}));
 
 /**
- * Score a mock member's picks against the loaded Miami race result.
- * Returns a fully-formed LeagueMember with live points.
+ * Score a mock member's seeded predictions against all loaded race results.
+ * Returns a fully-formed LeagueMember with live points summed across
+ * every completed race before Monaco.
  */
 export function scoreMockMember(
   mock: MockMember,
-  raceResult: RaceResult | undefined,
+  raceResults: RaceResult[],
 ): LeagueMember {
-  let points = 0;
-
-  if (raceResult) {
-    const breakdown = calculatePoints(
-      {
-        id: `mock-${mock.userId}`,
-        raceId: mock.prediction.raceId,
-        top10: mock.prediction.top10,
-        fastestLap: mock.prediction.fastestLap,
-        dnf: mock.prediction.dnf,
-        pointsEarned: mock.prediction.pointsEarned,
-        sprintTop8: mock.prediction.sprintTop8,
-        sprintPointsEarned: mock.prediction.sprintPointsEarned,
-        updatedAt: new Date().toISOString(),
-      },
-      raceResult,
-    );
-    points = breakdown.totalPoints;
-  }
+  const points = scoreSeededPredictions(mock.userId, raceResults);
 
   return {
     userId: mock.userId,
     username: mock.username,
     displayName: mock.displayName,
-    role: 'member',
+    role: 'member' as const,
     points,
     joinedAt: mock.joinedAt,
   };
 }
+
+// Re-export for callers that need the race IDs
+export { COMPLETED_RACE_IDS };

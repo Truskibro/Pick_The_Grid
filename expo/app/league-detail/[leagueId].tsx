@@ -25,7 +25,6 @@ import * as Haptics from 'expo-haptics';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
 import {
-  MIAMI_RACE_ID,
   MOCK_LEAGUE_MEMBERS,
   scoreMockMember,
 } from '@/constants/mock-members';
@@ -46,17 +45,17 @@ export default function LeagueDetailScreen() {
     totalPoints,
   } = useGame();
 
-  const { getRaceResult } = useF1Data();
+  const { raceResults } = useF1Data();
   const { profile } = useUser();
 
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
 
-  // Inject mock league members (Sainz4Ever55, Whitney) with picks scored
-  // against the live Miami GP result.
-  const miamiResult = getRaceResult(MIAMI_RACE_ID);
+  // Inject mock league members (Skye, Whitney, Bryan, Carlos) with picks
+  // scored against all completed race results (r01–r07, excluding cancelled
+  // Bahrain & Saudi).  Points are summed across GP + sprint events.
   const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) =>
-    scoreMockMember(mock, miamiResult)
+    scoreMockMember(mock, raceResults)
   );
 
   // Always override current user with live profile data.
