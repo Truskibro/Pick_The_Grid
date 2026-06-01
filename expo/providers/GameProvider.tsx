@@ -5,6 +5,11 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { Prediction, League, LeagueMember, RaceResult, LeaderboardEntry } from '@/types';
 import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
+import {
+  SEED_PREDICTIONS,
+  COMPLETED_RACE_IDS,
+  SEED_USERS,
+} from '@/constants/seed-predictions';
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
@@ -156,8 +161,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (predResult.error) {
         console.log('Predictions load error:', predResult.error.message);
-      } else if (predResult.data && predResult.data.length > 0) {
-        const preds: Prediction[] = predResult.data.map((p: any) => ({
+      }
+
+      let preds: Prediction[] = [];
+
+      if (predResult.data && predResult.data.length > 0) {
+        preds = predResult.data.map((p: any) => ({
           id: p.id,
           raceId: p.race_id,
           top10: p.predicted_top10 || [],
@@ -168,9 +177,68 @@ export const [GameProvider, useGame] = createContextHook(() => {
           sprintPointsEarned: p.sprint_points_earned || 0,
           updatedAt: p.updated_at,
         }));
+        console.log('Loaded', preds.length, 'predictions from Supabase');
+      }
+
+      // ── Seed predictions for the four spreadsheet users ──
+      // If the signed-in user is one of the seed users and has missing
+      // predictions for any completed race, inject the seed picks and
+      // upsert them to Supabase so the scoring engine can award points.
+      const seedForUser = SEED_PREDICTIONS[userId];
+      if (seedForUser) {
+        const seedUser = SEED_USERS.find(u => u.userId === userId);
+        const existingRaceIds = new Set(preds.map(p => p.raceId));
+        let seeded = false;
+
+        for (const raceId of COMPLETED_RACE_IDS) {
+          if (existingRaceIds.has(raceId)) continue;
+          const rawPred = seedForUser[raceId];
+          if (!rawPred) continue;
+
+          const fullPred: Prediction = {
+            id: generateUuid(),
+            raceId: rawPred.raceId,
+            top10: rawPred.top10,
+            fastestLap: rawPred.fastestLap,
+            dnf: rawPred.dnf,
+            pointsEarned: 0,
+            sprintTop8: rawPred.sprintTop8,
+            sprintPointsEarned: 0,
+            updatedAt: '2026-01-01T00:00:00Z',
+          };
+
+          preds.push(fullPred);
+          seeded = true;
+
+          // Write to Supabase so the seed picks persist
+          supabase
+            .from('user_predictions')
+            .upsert({
+              user_id: userId,
+              race_id: fullPred.raceId,
+              predicted_top10: fullPred.top10,
+              predicted_fastest_lap: fullPred.fastestLap,
+              predicted_dnf: fullPred.dnf,
+              predicted_sprint_top8: fullPred.sprintTop8,
+              points_earned: 0,
+              sprint_points_earned: 0,
+              updated_at: fullPred.updatedAt,
+            }, { onConflict: 'user_id,race_id' })
+            .then(({ error }) => {
+              if (error) console.log('[Seed] Upsert error for', raceId, ':', error.message);
+              else console.log('[Seed] Wrote prediction for', seedUser?.displayName, raceId);
+            })
+            .catch(() => {});
+        }
+
+        if (seeded) {
+          console.log('[Seed] Injected seed predictions for user:', seedUser?.displayName);
+        }
+      }
+
+      if (preds.length > 0) {
         setPredictions(preds);
         await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(preds)).catch(() => {});
-        console.log('Loaded', preds.length, 'predictions from Supabase');
       }
 
       const membershipResult = await withTimeout(
@@ -745,6 +813,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const leagueMembersRef = useRef(leagueMembers);
   leagueMembersRef.current = leagueMembers;
 
+  // Keep a ref to predictions so scorePredictions can read the latest values
+  // after setPredictions settles, without depending on the predictions state
+  // (which would cause the callback to be recreated too often).
+  const predictionsRef = useRef(predictions);
+  predictionsRef.current = predictions;
+
   const fetchLeagueMembers = useCallback(async (leagueId: string): Promise<LeagueMember[]> => {
     if (!session?.user || !isSupabaseConfigured) {
       console.log('fetchLeagueMembers: no session or supabase not configured');
@@ -888,26 +962,47 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, []);
 
   const scorePredictions = useCallback(async (_raceResults: RaceResult[]) => {
-    // Scoring temporarily disabled — leaderboard reset to start from scratch.
-    console.log('[Scoring] Skipped: points reset is active');
-    return;
-    // eslint-disable-next-line no-unreachable
     let hasUpdates = false;
-    const updatedPreds = predictions.map(pred => {
-      if (pred.pointsEarned > 0) return pred;
-      if (pred.top10.length === 0) return pred;
 
-      const result = _raceResults.find(r => r.raceId === pred.raceId);
-      if (!result || result.classification.length === 0) return pred;
+    setPredictions(prev => {
+      const updatedPreds = prev.map(pred => {
+        if (pred.top10.length === 0) return pred;
 
-      console.log('[Scoring] Scoring prediction for race:', pred.raceId);
-      const breakdown = calculatePoints(pred, result);
+        const result = _raceResults.find(r => r.raceId === pred.raceId);
+        if (!result || result.classification.length === 0) return pred;
 
-      if (breakdown.totalPoints > 0) {
+        const breakdown = calculatePoints(pred, result);
+        const sprintBreakdown =
+          pred.sprintTop8.length > 0 &&
+          result.sprintClassification &&
+          result.sprintClassification.length > 0
+            ? calculateSprintPoints(pred.sprintTop8, result.sprintClassification)
+            : null;
+
+        const newGpPoints = breakdown.totalPoints;
+        const newSprintPoints = sprintBreakdown?.totalPoints ?? 0;
+
+        if (
+          newGpPoints === (pred.pointsEarned ?? 0) &&
+          newSprintPoints === (pred.sprintPointsEarned ?? 0)
+        ) {
+          return pred;
+        }
+
+        console.log(
+          '[Scoring] Race', pred.raceId,
+          'GP:', newGpPoints, '(was', pred.pointsEarned, ')',
+          'Sprint:', newSprintPoints, '(was', pred.sprintPointsEarned, ')'
+        );
         hasUpdates = true;
-        return { ...pred, pointsEarned: breakdown.totalPoints };
-      }
-      return pred;
+        return {
+          ...pred,
+          pointsEarned: newGpPoints,
+          sprintPointsEarned: newSprintPoints,
+        };
+      });
+
+      return hasUpdates ? updatedPreds : prev;
     });
 
     if (!hasUpdates) {
@@ -915,26 +1010,34 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return;
     }
 
-    setPredictions(updatedPreds);
-    await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(updatedPreds)).catch(() => {});
+    // After state settles, persist to AsyncStorage and Supabase.
+    const currentPreds = predictionsRef.current;
+    await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(currentPreds)).catch(() => {});
 
-    const newTotal = updatedPreds.reduce((sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0), 0);
+    const newTotal = currentPreds.reduce(
+      (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+      0
+    );
     console.log('[Scoring] New total points:', newTotal);
 
     if (session?.user && isSupabaseConfigured) {
-      for (const pred of updatedPreds) {
-        const original = predictions.find(p => p.raceId === pred.raceId);
-        if (original && (original.pointsEarned !== pred.pointsEarned || original.sprintPointsEarned !== pred.sprintPointsEarned)) {
-          console.log('[Scoring] Updating points in Supabase for race:', pred.raceId, '=', pred.pointsEarned, 'sprint:', pred.sprintPointsEarned);
-          await supabase
-            .from('user_predictions')
-            .update({ points_earned: pred.pointsEarned, sprint_points_earned: pred.sprintPointsEarned })
-            .eq('user_id', session.user.id)
-            .eq('race_id', pred.raceId)
-            .then(({ error }) => {
-              if (error) console.log('[Scoring] Supabase update error:', error.message);
-            });
-        }
+      for (const pred of currentPreds) {
+        if (pred.top10.length === 0) continue;
+        console.log(
+          '[Scoring] Updating points in Supabase for race:', pred.raceId,
+          'GP:', pred.pointsEarned, 'Sprint:', pred.sprintPointsEarned
+        );
+        await supabase
+          .from('user_predictions')
+          .update({
+            points_earned: pred.pointsEarned ?? 0,
+            sprint_points_earned: pred.sprintPointsEarned ?? 0,
+          })
+          .eq('user_id', session.user.id)
+          .eq('race_id', pred.raceId)
+          .then(({ error }) => {
+            if (error) console.log('[Scoring] Supabase update error:', error.message);
+          });
       }
 
       await supabase
@@ -946,11 +1049,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
           else console.log('[Scoring] Profile total_points updated to', newTotal);
         });
     }
-  }, [predictions, session]);
+  }, [session]);
 
-  // Points reset — totals always start from zero. New scoring can be
-  // re-enabled later by removing this override and restoring scorePredictions.
-  const totalPoints = useMemo(() => 0, []);
+  // Total points derived from all scored predictions (GP + sprint).
+  const totalPoints = useMemo(
+    () =>
+      predictions.reduce(
+        (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+        0
+      ),
+    [predictions]
+  );
 
   return useMemo(() => ({
     predictions,
