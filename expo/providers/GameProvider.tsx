@@ -205,9 +205,59 @@ export const [GameProvider, useGame] = createContextHook(() => {
         let seeded = false;
 
         for (const raceId of COMPLETED_RACE_IDS) {
-          if (existingRaceIds.has(raceId)) continue;
           const rawPred = seedForUser[raceId];
           if (!rawPred) continue;
+
+          // If the user already has a prediction from Supabase and it has
+          // non-zero points, keep it — don't overwrite scored predictions.
+          const existingPred = preds.find(p => p.raceId === raceId);
+          if (existingPred && (existingPred.pointsEarned ?? 0) > 0) continue;
+
+          // Remove any stale 0-point prediction for this race so the
+          // newly scored one replaces it.
+          if (existingPred) {
+            preds = preds.filter(p => p.raceId !== raceId);
+          }
+
+          const raceResult = MOCK_RACE_RESULTS.find(r => r.raceId === raceId);
+
+          // Score GP picks against canonical mock results so points show
+          // immediately on leaderboards, league detail, and race results.
+          let gpPoints = 0;
+          let sprintPts = 0;
+
+          if (raceResult && raceResult.classification.length > 0 && rawPred.top10.length > 0) {
+            const fullPred: Prediction = {
+              id: generateUuid(),
+              raceId: rawPred.raceId,
+              top10: rawPred.top10,
+              fastestLap: rawPred.fastestLap,
+              dnf: rawPred.dnf,
+              pointsEarned: 0,
+              sprintTop8: rawPred.sprintTop8,
+              sprintPointsEarned: 0,
+              updatedAt: '2026-01-01T00:00:00Z',
+            };
+            const breakdown = calculatePoints(fullPred, raceResult);
+            gpPoints = breakdown.totalPoints;
+          }
+
+          if (
+            raceResult &&
+            raceResult.sprintClassification &&
+            raceResult.sprintClassification.length > 0 &&
+            rawPred.sprintTop8.length > 0
+          ) {
+            const sprintBreakdown = calculateSprintPoints(rawPred.sprintTop8, raceResult.sprintClassification);
+            sprintPts = sprintBreakdown.totalPoints;
+          }
+
+          if (gpPoints > 0 || sprintPts > 0) {
+            console.log(
+              '[Seed] Scoring', seedUser?.displayName, raceId,
+              'GP:', gpPoints, 'Sprint:', sprintPts
+            );
+          }
 
           const fullPred: Prediction = {
             id: generateUuid(),
@@ -215,16 +265,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
             top10: rawPred.top10,
             fastestLap: rawPred.fastestLap,
             dnf: rawPred.dnf,
-            pointsEarned: 0,
+            pointsEarned: gpPoints,
             sprintTop8: rawPred.sprintTop8,
-            sprintPointsEarned: 0,
+            sprintPointsEarned: sprintPts,
             updatedAt: '2026-01-01T00:00:00Z',
           };
 
           preds.push(fullPred);
           seeded = true;
 
-          // Write to Supabase so the seed picks persist
+          // Write to Supabase so the seed picks and points persist
           supabase
             .from('user_predictions')
             .upsert({
@@ -234,8 +284,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
               predicted_fastest_lap: fullPred.fastestLap,
               predicted_dnf: fullPred.dnf,
               predicted_sprint_top8: fullPred.sprintTop8,
-              points_earned: 0,
-              sprint_points_earned: 0,
+              points_earned: fullPred.pointsEarned,
+              sprint_points_earned: fullPred.sprintPointsEarned,
               updated_at: fullPred.updatedAt,
             }, { onConflict: 'user_id,race_id' })
             .then(({ error }) => {
