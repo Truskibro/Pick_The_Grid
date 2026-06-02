@@ -474,7 +474,7 @@ export function scoreSeededPredictions(
   userId: string,
   raceResults: RaceResult[],
 ): number {
-  const userPreds = SEED_PREDICTIONS[userId];
+  const userPreds = SEED_PREDICTIONS[userId.toLowerCase()];
   if (!userPreds) return 0;
 
   let total = 0;

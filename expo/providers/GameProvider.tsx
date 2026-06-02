@@ -17,7 +17,12 @@ import {
 } from '@/constants/mock-members';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 
-const SEED_USER_IDS = new Set(SEED_USERS.map(u => u.userId));
+const SEED_USER_IDS = new Set(SEED_USERS.map(u => u.userId.toLowerCase()));
+
+/** Normalize a user ID to lowercase for consistent lookup. */
+function normId(id: string): string {
+  return id.toLowerCase();
+}
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
@@ -81,12 +86,13 @@ function mapMemberRows(
       ? localProfile.displayName
       : (profile?.display_name?.trim() || profile?.username?.trim() || 'Player');
     // For seed users, compute points from mock predictions + real results.
-    // For current user, use live totalPoints.  Everyone else defaults to 0.
+    // This gives seed users their correctly scored points even when they are
+    // the signed-in current user (whose Supabase profile has total_points: 0).
     let points = 0;
-    if (isCurrentUser) {
+    if (SEED_USER_IDS.has(normId(m.user_id))) {
+      points = scoreSeededPredictions(normId(m.user_id), MOCK_RACE_RESULTS);
+    } else if (isCurrentUser) {
       points = localProfile.totalPoints;
-    } else if (SEED_USER_IDS.has(m.user_id)) {
-      points = scoreSeededPredictions(m.user_id, MOCK_RACE_RESULTS);
     }
 
     return {
@@ -142,7 +148,7 @@ async function fetchAllProfilesSorted(): Promise<{ userId: string; username: str
 }
 
 export const [GameProvider, useGame] = createContextHook(() => {
-  const { session, profile: localProfile } = useUser();
+  const { session, profile: localProfile, updateProfile } = useUser();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [leagueMembers, setLeagueMembers] = useState<Record<string, LeagueMember[]>>({});
@@ -198,7 +204,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       // If the signed-in user is one of the seed users and has missing
       // predictions for any completed race, inject the seed picks and
       // upsert them to Supabase so the scoring engine can award points.
-      const seedForUser = SEED_PREDICTIONS[userId];
+      const seedForUser = SEED_PREDICTIONS[normId(userId)];
       if (seedForUser) {
         const seedUser = SEED_USERS.find(u => u.userId === userId);
         const existingRaceIds = new Set(preds.map(p => p.raceId));
@@ -297,6 +303,25 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
         if (seeded) {
           console.log('[Seed] Injected seed predictions for user:', seedUser?.displayName);
+
+          // Update the user's profile total_points in Supabase and local state
+          // so leaderboards, league detail, and the sync effect all show the
+          // correct scored points immediately.
+          const seedTotal = preds.reduce(
+            (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+            0
+          );
+          console.log('[Seed] Computed total for', seedUser?.displayName, ':', seedTotal);
+
+          supabase
+            .from('profiles')
+            .update({ total_points: seedTotal })
+            .eq('id', userId)
+            .then(({ error }) => {
+              if (error) console.log('[Seed] Profile update error:', error.message);
+              else console.log('[Seed] Updated profile total_points to', seedTotal);
+            })
+            .catch(() => {});
         }
       }
 
@@ -465,9 +490,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
   // Keep the current user's profile data in league members in sync.
   // Without this, changing the display name in Settings doesn't update the
   // already-loaded league member rows (which captured the old data at fetch time).
+  //
+  // IMPORTANT: Never override a seed user's points with profile total_points
+  // (which may be 0 if not yet synced). Seed users get their points from
+  // scoreSeededPredictions in mapMemberRows, and this effect preserves them.
   useEffect(() => {
     const userId = session?.user?.id;
     if (!userId) return;
+    const isSeed = SEED_USER_IDS.has(normId(userId));
     setLeagueMembers(prev => {
       let changed = false;
       const next: Record<string, LeagueMember[]> = {};
@@ -476,15 +506,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
           if (m.userId !== userId) return m;
           if (
             m.displayName === localProfile.displayName &&
-            m.username === localProfile.username &&
-            m.points === localProfile.totalPoints
+            m.username === localProfile.username
           ) return m;
           changed = true;
+          // For seed users, keep the scored points from mapMemberRows —
+          // don't overwrite with potentially-zero profile total_points.
           return {
             ...m,
             displayName: localProfile.displayName,
             username: localProfile.username,
-            points: localProfile.totalPoints,
+            points: isSeed ? m.points : localProfile.totalPoints,
           };
         });
         next[leagueId] = updatedMembers;
@@ -1011,11 +1042,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
     // Merge mock members into Supabase results — dedupe by userId.
     // For seed users, always use mock-scored points, never stale Supabase zeros.
-    const existingIds = new Set(supabaseEntries.map(e => e.userId));
+    const existingIds = new Set(supabaseEntries.map(e => normId(e.userId)));
     const merged = [
       ...supabaseEntries.map(e => {
-        if (SEED_USER_IDS.has(e.userId) && e.totalPoints === 0) {
-          const mockPoints = scoreSeededPredictions(e.userId, MOCK_RACE_RESULTS);
+        if (SEED_USER_IDS.has(normId(e.userId)) && e.totalPoints === 0) {
+          const mockPoints = scoreSeededPredictions(normId(e.userId), MOCK_RACE_RESULTS);
           if (mockPoints > 0) {
             console.log('[Leaderboard] Overriding seed user', e.displayName, 'points: 0 →', mockPoints);
             return { ...e, totalPoints: mockPoints };
@@ -1023,7 +1054,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         }
         return e;
       }),
-      ...mockEntries.filter(m => !existingIds.has(m.userId)),
+      ...mockEntries.filter(m => !existingIds.has(normId(m.userId))),
     ];
 
     return merged

@@ -52,11 +52,12 @@ export default function LeagueDetailScreen() {
 
   // Score seed users against canonical mock race results.
   // Build a map so we can override real members' points as well as
-  // inject missing mock members.
+  // inject missing mock members.  All IDs are normalized to lowercase
+  // for consistent matching regardless of Supabase UUID casing.
   const seedPointMap = new Map<string, number>();
   const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
     const scored = scoreMockMember(mock, MOCK_RACE_RESULTS);
-    seedPointMap.set(mock.userId, scored.points);
+    seedPointMap.set(mock.userId.toLowerCase(), scored.points);
     return scored;
   });
 
@@ -88,19 +89,19 @@ export default function LeagueDetailScreen() {
         },
       ];
 
-  const existingIds = new Set(baseMembers.map((m) => m.userId));
+  const existingIds = new Set(baseMembers.map((m) => m.userId.toLowerCase()));
 
   // Override seed users' points in baseMembers with mock-scored values.
   // If a seed user's Supabase profile has 0 points, swap in the real score.
   const finalMembers: LeagueMember[] = [
     ...baseMembers.map((m) => {
-      const seedPts = seedPointMap.get(m.userId);
+      const seedPts = seedPointMap.get(m.userId.toLowerCase());
       if (seedPts != null && seedPts > 0 && m.points === 0) {
         return { ...m, points: seedPts };
       }
       return m;
     }),
-    ...mockMembers.filter((m) => !existingIds.has(m.userId)),
+    ...mockMembers.filter((m) => !existingIds.has(m.userId.toLowerCase())),
   ];
 
   const isOwner = league?.ownerId === profile.id;
