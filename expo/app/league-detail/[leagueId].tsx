@@ -28,7 +28,7 @@ import {
   MOCK_LEAGUE_MEMBERS,
   scoreMockMember,
 } from '@/constants/mock-members';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { LeagueMember } from '@/types';
@@ -45,18 +45,17 @@ export default function LeagueDetailScreen() {
     totalPoints,
   } = useGame();
 
-  const { raceResults } = useF1Data();
   const { profile } = useUser();
 
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
 
-  // Score seed users (Skye, Whitney, Bryan, Carlos) against completed race
-  // results.  Build a map so we can override real members' points as well as
+  // Score seed users against canonical mock race results.
+  // Build a map so we can override real members' points as well as
   // inject missing mock members.
   const seedPointMap = new Map<string, number>();
   const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
-    const scored = scoreMockMember(mock, raceResults);
+    const scored = scoreMockMember(mock, MOCK_RACE_RESULTS);
     seedPointMap.set(mock.userId, scored.points);
     return scored;
   });

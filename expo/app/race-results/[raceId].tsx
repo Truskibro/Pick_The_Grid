@@ -90,6 +90,8 @@ export default function RaceResultsScreen() {
                 ? `${Colors.success}18`
                 : race.status === 'live'
                 ? `${Colors.f1Red}18`
+                : race.status === 'cancelled'
+                ? `${Colors.textMuted}18`
                 : `${Colors.info}18`
             }
           ]}>
@@ -100,6 +102,8 @@ export default function RaceResultsScreen() {
                   ? Colors.success
                   : race.status === 'live'
                   ? Colors.f1Red
+                  : race.status === 'cancelled'
+                  ? Colors.textMuted
                   : Colors.info
               }
             ]}>
@@ -143,6 +147,16 @@ export default function RaceResultsScreen() {
         {prediction && prediction.pointsEarned === 0 && result && result.classification.length > 0 && (
           <View style={styles.zeroPointsCard}>
             <Text style={styles.zeroPointsText}>No points earned for this race</Text>
+          </View>
+        )}
+
+        {race.status === 'cancelled' && (
+          <View style={styles.cancelledCard}>
+            <AlertTriangle size={24} color={Colors.textMuted} />
+            <Text style={styles.cancelledTitle}>Race Cancelled</Text>
+            <Text style={styles.cancelledText}>
+              This Grand Prix was cancelled and no results are available.
+            </Text>
           </View>
         )}
 
@@ -670,6 +684,26 @@ const styles = StyleSheet.create({
   zeroPointsText: {
     color: Colors.textMuted,
     fontSize: 13,
+  },
+  cancelledCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    padding: 28,
+    alignItems: 'center',
+    gap: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    marginBottom: 20,
+  },
+  cancelledTitle: {
+    color: Colors.textMuted,
+    fontSize: 16,
+    fontWeight: '600' as const,
+  },
+  cancelledText: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    textAlign: 'center' as const,
   },
   upcomingCard: {
     backgroundColor: Colors.surface,

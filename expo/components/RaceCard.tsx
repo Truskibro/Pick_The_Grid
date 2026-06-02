@@ -28,11 +28,13 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
   const statusColor =
     race.status === 'completed' ? Colors.success :
     race.status === 'live' ? Colors.f1Red :
+    race.status === 'cancelled' ? Colors.textMuted :
     Colors.info;
 
   const statusLabel =
     race.status === 'completed' ? 'COMPLETED' :
     race.status === 'live' ? 'LIVE' :
+    race.status === 'cancelled' ? 'CANCELLED' :
     'UPCOMING';
 
   const handleWatchLive = useCallback(async () => {

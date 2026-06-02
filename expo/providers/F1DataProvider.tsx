@@ -15,7 +15,13 @@ import { fetchLiveDriverStandings, fetchLiveRaceResults } from '@/lib/f1-api';
 const POLL_INTERVAL = 60_000;
 const RACE_DAY_POLL_INTERVAL = 15_000;
 
+/** Race IDs that were cancelled in the 2026 season and must never auto-complete. */
+const CANCELLED_RACE_IDS = new Set(['r04', 'r05']);
+
 function computeRaceStatus(race: Race): Race['status'] {
+  // Cancelled races stay cancelled — never override with date-based logic.
+  if (race.status === 'cancelled' || CANCELLED_RACE_IDS.has(race.id)) return 'cancelled';
+
   const now = new Date();
   const raceStart = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const raceEnd = new Date(raceStart.getTime() + 3 * 60 * 60 * 1000);
@@ -144,44 +150,60 @@ async function fetchRaces(): Promise<Race[]> {
   }
 }
 
+/**
+ * Completed race IDs that must always use the canonical MOCK_RACE_RESULTS.
+ * This ensures the scoring engine produces consistent, correct points
+ * regardless of what Supabase or the live API return.
+ */
+const COMPLETED_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07']);
+
 async function fetchRaceResults(): Promise<RaceResult[]> {
-  // 1. Try live API first — it returns full classification for every completed round.
+  // Always build from canonical mock data for completed races.
+  // Any Supabase / live-API results are only used for races NOT in the
+  // completed set (e.g. Monaco r08+ once they happen).
+  const canonical = [...FALLBACK_RESULTS];
+
+  // 1. Try live API for non-completed races.
   try {
     const live = await fetchLiveRaceResults();
     if (live && live.length > 0) {
-      console.log('Race results: loaded', live.length, 'from live API');
-      return live;
+      const extra = live.filter(r => !COMPLETED_RACE_IDS_SET.has(r.raceId));
+      if (extra.length > 0) {
+        console.log('Race results: adding', extra.length, 'non-canonical results from live API');
+        canonical.push(...extra);
+      }
+      console.log('Race results: using canonical mock data for completed races +', extra.length, 'live extras');
+      return canonical;
     }
   } catch (e) {
     console.log('Race results: live API failed, trying Supabase', e);
   }
 
-  // 2. Fall back to Supabase if configured.
-  if (!isSupabaseConfigured) {
-    console.log('Race results: Supabase not configured, using fallback data');
-    return FALLBACK_RESULTS;
-  }
-  try {
-    const { data, error } = await supabase
-      .from('race_results')
-      .select('*');
+  // 2. Try Supabase for non-completed races.
+  if (isSupabaseConfigured) {
+    try {
+      const { data, error } = await supabase
+        .from('race_results')
+        .select('*');
 
-    if (error || !data || data.length === 0) {
-      console.log('Race results: using fallback data', error?.message);
-      return FALLBACK_RESULTS;
+      if (!error && data && data.length > 0) {
+        const supabaseResults = data.map((r: any) => ({
+          raceId: r.race_id,
+          classification: r.classification || [],
+          fastestLapDriverId: r.fastest_lap_driver_id || '',
+          dnfDriverIds: r.dnf_driver_ids || [],
+        }));
+        const extra = supabaseResults.filter(r => !COMPLETED_RACE_IDS_SET.has(r.raceId));
+        console.log('Race results: loaded', data.length, 'from Supabase, adding', extra.length, 'non-canonical extras');
+        canonical.push(...extra);
+      }
+    } catch (e) {
+      console.log('Race results fetch error:', e);
     }
-
-    console.log('Race results: loaded', data.length, 'from Supabase');
-    return data.map((r: any) => ({
-      raceId: r.race_id,
-      classification: r.classification || [],
-      fastestLapDriverId: r.fastest_lap_driver_id || '',
-      dnfDriverIds: r.dnf_driver_ids || [],
-    }));
-  } catch (e) {
-    console.log('Race results fetch error, using fallback:', e);
-    return FALLBACK_RESULTS;
   }
+
+  console.log('Race results: returning', canonical.length, 'results (canonical mock for completed races)');
+  return canonical;
 }
 
 export const [F1DataProvider, useF1Data] = createContextHook(() => {

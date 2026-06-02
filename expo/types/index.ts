@@ -23,7 +23,7 @@ export interface Race {
   countryFlag: string;
   raceDate: string;
   raceTime: string;
-  status: 'upcoming' | 'live' | 'completed';
+  status: 'upcoming' | 'live' | 'completed' | 'cancelled';
   hasSprint: boolean;
   winner?: string;
   currentLap?: number;

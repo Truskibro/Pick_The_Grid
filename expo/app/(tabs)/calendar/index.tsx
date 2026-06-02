@@ -23,11 +23,13 @@ export default function CalendarScreen() {
     .slice()
     .sort((a, b) => new Date(b.raceDate).getTime() - new Date(a.raceDate).getTime());
   const live = races.filter(r => r.status === 'live');
+  const cancelled = races.filter(r => r.status === 'cancelled');
 
   const sections = [
     ...(live.length > 0 ? [{ title: 'LIVE NOW', data: live }] : []),
     ...(upcoming.length > 0 ? [{ title: 'UPCOMING', data: upcoming }] : []),
     ...(completed.length > 0 ? [{ title: 'COMPLETED', data: completed }] : []),
+    ...(cancelled.length > 0 ? [{ title: 'CANCELLED', data: cancelled }] : []),
   ];
 
   const allItems: Array<{ type: 'header'; title: string } | { type: 'race'; race: Race }> = [];
@@ -59,6 +61,8 @@ export default function CalendarScreen() {
               race={item.race}
               onPress={() => {
                 if (item.race.status === 'completed' || item.race.status === 'live') {
+                  router.push(`/race-results/${item.race.id}` as any);
+                } else if (item.race.status === 'cancelled') {
                   router.push(`/race-results/${item.race.id}` as any);
                 } else {
                   router.push(`/predict-race/${item.race.id}` as any);
