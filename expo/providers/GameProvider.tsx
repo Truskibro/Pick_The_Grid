@@ -9,12 +9,15 @@ import {
   SEED_PREDICTIONS,
   COMPLETED_RACE_IDS,
   SEED_USERS,
+  scoreSeededPredictions,
 } from '@/constants/seed-predictions';
 import {
   MOCK_LEAGUE_MEMBERS,
   scoreMockMember,
 } from '@/constants/mock-members';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
+
+const SEED_USER_IDS = new Set(SEED_USERS.map(u => u.userId));
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
@@ -77,8 +80,14 @@ function mapMemberRows(
     const displayName = isCurrentUser
       ? localProfile.displayName
       : (profile?.display_name?.trim() || profile?.username?.trim() || 'Player');
-    // Points reset — leaderboard starts from scratch for everyone.
-    const points = isCurrentUser ? localProfile.totalPoints : 0;
+    // For seed users, compute points from mock predictions + real results.
+    // For current user, use live totalPoints.  Everyone else defaults to 0.
+    let points = 0;
+    if (isCurrentUser) {
+      points = localProfile.totalPoints;
+    } else if (SEED_USER_IDS.has(m.user_id)) {
+      points = scoreSeededPredictions(m.user_id, MOCK_RACE_RESULTS);
+    }
 
     return {
       userId: m.user_id,
@@ -950,11 +959,20 @@ export const [GameProvider, useGame] = createContextHook(() => {
       previousRank: undefined,
     }));
 
-    // Merge mock members into Supabase results — dedupe by userId so real
-    // Supabase profiles take priority, but seed users still appear if missing.
+    // Merge mock members into Supabase results — dedupe by userId.
+    // For seed users, always use mock-scored points, never stale Supabase zeros.
     const existingIds = new Set(supabaseEntries.map(e => e.userId));
     const merged = [
-      ...supabaseEntries,
+      ...supabaseEntries.map(e => {
+        if (SEED_USER_IDS.has(e.userId) && e.totalPoints === 0) {
+          const mockPoints = scoreSeededPredictions(e.userId, MOCK_RACE_RESULTS);
+          if (mockPoints > 0) {
+            console.log('[Leaderboard] Overriding seed user', e.displayName, 'points: 0 →', mockPoints);
+            return { ...e, totalPoints: mockPoints };
+          }
+        }
+        return e;
+      }),
       ...mockEntries.filter(m => !existingIds.has(m.userId)),
     ];
 

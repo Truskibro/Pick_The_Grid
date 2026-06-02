@@ -51,12 +51,15 @@ export default function LeagueDetailScreen() {
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
 
-  // Inject mock league members (Skye, Whitney, Bryan, Carlos) with picks
-  // scored against all completed race results (r01–r07, excluding cancelled
-  // Bahrain & Saudi).  Points are summed across GP + sprint events.
-  const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) =>
-    scoreMockMember(mock, raceResults)
-  );
+  // Score seed users (Skye, Whitney, Bryan, Carlos) against completed race
+  // results.  Build a map so we can override real members' points as well as
+  // inject missing mock members.
+  const seedPointMap = new Map<string, number>();
+  const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
+    const scored = scoreMockMember(mock, raceResults);
+    seedPointMap.set(mock.userId, scored.points);
+    return scored;
+  });
 
   // Always override current user with live profile data.
   const members: LeagueMember[] = rawMembers.map((m) =>
@@ -88,8 +91,16 @@ export default function LeagueDetailScreen() {
 
   const existingIds = new Set(baseMembers.map((m) => m.userId));
 
+  // Override seed users' points in baseMembers with mock-scored values.
+  // If a seed user's Supabase profile has 0 points, swap in the real score.
   const finalMembers: LeagueMember[] = [
-    ...baseMembers,
+    ...baseMembers.map((m) => {
+      const seedPts = seedPointMap.get(m.userId);
+      if (seedPts != null && seedPts > 0 && m.points === 0) {
+        return { ...m, points: seedPts };
+      }
+      return m;
+    }),
     ...mockMembers.filter((m) => !existingIds.has(m.userId)),
   ];
 
