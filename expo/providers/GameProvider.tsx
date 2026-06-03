@@ -457,7 +457,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
       if (leagueData) setLeagues(JSON.parse(leagueData));
       if (memberData) setLeagueMembers(JSON.parse(memberData));
-      console.log('Loaded game data from local storage');
     } catch (e) {
       console.log('Error loading local game data:', e);
     }
@@ -473,7 +472,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       setIsLoading(false);
     };
     void load();
-  }, [session, loadFromSupabase, loadFromLocal]);
+  }, [session]);
 
   // Keep the current user's profile data in league members in sync.
   // Without this, changing the display name in Settings doesn't update the
@@ -1142,14 +1141,28 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [session]);
 
   // Total points derived from all scored predictions (GP + sprint).
-  const totalPoints = useMemo(
-    () =>
-      predictions.reduce(
+  // For seed users, always compute from canonical MOCK_RACE_RESULTS regardless
+  // of what predictions are in state — this guarantees correct points even if
+  // AsyncStorage has stale data or Supabase hasn't synced yet.
+  const totalPoints = useMemo(() => {
+    const userId = session?.user?.id;
+    if (userId && SEED_USER_IDS.has(normId(userId))) {
+      const seedTotal = scoreSeededPredictions(normId(userId), MOCK_RACE_RESULTS);
+      // Also compute from predictions for logging / comparison.
+      const predTotal = predictions.reduce(
         (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
         0
-      ),
-    [predictions]
-  );
+      );
+      if (seedTotal !== predTotal) {
+        console.log('[totalPoints] Seed canonical:', seedTotal, 'vs predictions:', predTotal, '— using canonical');
+      }
+      return seedTotal;
+    }
+    return predictions.reduce(
+      (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+      0
+    );
+  }, [predictions, session]);
 
   return useMemo(() => ({
     predictions,

@@ -465,13 +465,18 @@ export const [UserProvider, useUser] = createContextHook(() => {
           firstName: verifyData.first_name || '',
           lastName: verifyData.last_name || '',
           country: verifyData.country || '',
-          totalPoints: verifyData.total_points || 0,
+          // CRITICAL: Never let a Supabase read-back zero out a totalPoints
+          // that was just set. If the upsert was for totalPoints specifically,
+          // use the value we wrote, not whatever stale data came back.
+          totalPoints: updates.totalPoints != null
+            ? updates.totalPoints
+            : (verifyData.total_points || 0),
           rank: profile.rank,
           leaguesJoined: profile.leaguesJoined,
         };
         setProfile(confirmed);
         await AsyncStorage.setItem(STORAGE_KEYS.profile, JSON.stringify(confirmed));
-        console.log('Profile confirmed in Supabase:', confirmed.username, '/', confirmed.displayName);
+        console.log('Profile confirmed in Supabase:', confirmed.username, '/', confirmed.displayName, 'pts:', confirmed.totalPoints);
       }
     }
   }, [profile, session]);

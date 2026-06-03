@@ -91,12 +91,13 @@ export default function LeagueDetailScreen() {
 
   const existingIds = new Set(baseMembers.map((m) => m.userId.toLowerCase()));
 
-  // Override seed users' points in baseMembers with mock-scored values.
-  // If a seed user's Supabase profile has 0 points, swap in the real score.
+  // Always override seed users' points with canonical mock-scored values.
+  // Never trust Supabase profile data for seed users — it may contain stale
+  // or zero points from before the seed predictions were loaded.
   const finalMembers: LeagueMember[] = [
     ...baseMembers.map((m) => {
       const seedPts = seedPointMap.get(m.userId.toLowerCase());
-      if (seedPts != null && seedPts > 0 && m.points === 0) {
+      if (seedPts != null && seedPts > 0) {
         return { ...m, points: seedPts };
       }
       return m;
