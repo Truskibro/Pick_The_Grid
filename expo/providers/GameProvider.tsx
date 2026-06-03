@@ -206,39 +206,31 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
 
       // ── Seed predictions for the four spreadsheet users ──
-      // If the signed-in user is one of the seed users and has missing
-      // predictions for any completed race, inject the seed picks and
-      // upsert them to Supabase so the scoring engine can award points.
+      // If the signed-in user is one of the seed users, always rescore
+      // their predictions against canonical MOCK_RACE_RESULTS and overwrite
+      // any stale Supabase data. This ensures points are always correct
+      // even if a previous buggy run stored wrong scores.
       const seedForUser = SEED_PREDICTIONS[normId(userId)];
       if (seedForUser) {
-        const seedUser = SEED_USERS.find(u => u.userId === userId);
-        const existingRaceIds = new Set(preds.map(p => p.raceId));
-        let seeded = false;
+        const seedUser = SEED_USERS.find(u => normId(u.userId) === normId(userId));
+        let rescored = false;
 
         for (const raceId of COMPLETED_RACE_IDS) {
           const rawPred = seedForUser[raceId];
           if (!rawPred) continue;
 
-          // If the user already has a prediction from Supabase and it has
-          // non-zero points, keep it — don't overwrite scored predictions.
-          const existingPred = preds.find(p => p.raceId === raceId);
-          if (existingPred && (existingPred.pointsEarned ?? 0) > 0) continue;
-
-          // Remove any stale 0-point prediction for this race so the
-          // newly scored one replaces it.
-          if (existingPred) {
-            preds = preds.filter(p => p.raceId !== raceId);
-          }
+          // Always remove any existing prediction for this race so the
+          // freshly-scored one replaces it unconditionally.
+          preds = preds.filter(p => p.raceId !== raceId);
 
           const raceResult = MOCK_RACE_RESULTS.find(r => r.raceId === raceId);
 
-          // Score GP picks against canonical mock results so points show
-          // immediately on leaderboards, league detail, and race results.
+          // Score GP picks against canonical mock results.
           let gpPoints = 0;
           let sprintPts = 0;
 
           if (raceResult && raceResult.classification.length > 0 && rawPred.top10.length > 0) {
-            const fullPred: Prediction = {
+            const scoringPred: Prediction = {
               id: generateUuid(),
               raceId: rawPred.raceId,
               top10: rawPred.top10,
@@ -249,7 +241,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               sprintPointsEarned: 0,
               updatedAt: '2026-01-01T00:00:00Z',
             };
-            const breakdown = calculatePoints(fullPred, raceResult);
+            const breakdown = calculatePoints(scoringPred, raceResult);
             gpPoints = breakdown.totalPoints;
           }
 
@@ -261,13 +253,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
           ) {
             const sprintBreakdown = calculateSprintPoints(rawPred.sprintTop8, raceResult.sprintClassification);
             sprintPts = sprintBreakdown.totalPoints;
-          }
-
-          if (gpPoints > 0 || sprintPts > 0) {
-            console.log(
-              '[Seed] Scoring', seedUser?.displayName, raceId,
-              'GP:', gpPoints, 'Sprint:', sprintPts
-            );
           }
 
           const fullPred: Prediction = {
@@ -283,9 +268,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
           };
 
           preds.push(fullPred);
-          seeded = true;
+          rescored = true;
 
-          // Write to Supabase so the seed picks and points persist
+          console.log(
+            '[Seed]', seedUser?.displayName ?? 'seed user', raceId,
+            'GP:', gpPoints, 'Sprint:', sprintPts
+          );
+
+          // Write freshly-scored prediction to Supabase.
           supabase
             .from('user_predictions')
             .upsert({
@@ -301,26 +291,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
             }, { onConflict: 'user_id,race_id' })
             .then(({ error }) => {
               if (error) console.log('[Seed] Upsert error for', raceId, ':', error.message);
-              else console.log('[Seed] Wrote prediction for', seedUser?.displayName, raceId);
+              else console.log('[Seed] Wrote prediction for', seedUser?.displayName ?? 'seed user', raceId);
             })
             .catch(() => {});
         }
 
-        if (seeded) {
-          console.log('[Seed] Injected seed predictions for user:', seedUser?.displayName);
+        if (rescored) {
+          console.log('[Seed] Rescored all predictions for user:', seedUser?.displayName ?? 'seed user');
 
-          // Update the user's profile total_points in Supabase and local state
-          // so leaderboards, league detail, and the sync effect all show the
-          // correct scored points immediately.
+          // Always recompute total from freshly-scored predictions
+          // and update the profile in Supabase + local state.
           const seedTotal = preds.reduce(
             (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
             0
           );
-          console.log('[Seed] Computed total for', seedUser?.displayName, ':', seedTotal);
+          console.log('[Seed] Computed total for', seedUser?.displayName ?? 'seed user', ':', seedTotal);
 
-          // Update the local profile and Supabase in one call so the
-          // UserProvider, leaderboard, and league detail all see the
-          // scored points immediately.
           updateProfileRef.current({ totalPoints: seedTotal })
             .then(() => console.log('[Seed] Profile + local state updated to', seedTotal))
             .catch(() => {});
@@ -1043,16 +1029,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }));
 
     // Merge mock members into Supabase results — dedupe by userId.
-    // For seed users, always use mock-scored points, never stale Supabase zeros.
+    // For seed users, always use canonical mock-scored points regardless of
+    // what stale Supabase data says (previous buggy runs may have stored wrong totals).
     const existingIds = new Set(supabaseEntries.map(e => normId(e.userId)));
     const merged = [
       ...supabaseEntries.map(e => {
-        if (SEED_USER_IDS.has(normId(e.userId)) && e.totalPoints === 0) {
-          const mockPoints = scoreSeededPredictions(normId(e.userId), MOCK_RACE_RESULTS);
-          if (mockPoints > 0) {
-            console.log('[Leaderboard] Overriding seed user', e.displayName, 'points: 0 →', mockPoints);
-            return { ...e, totalPoints: mockPoints };
+        if (SEED_USER_IDS.has(normId(e.userId))) {
+          const canonicalPoints = scoreSeededPredictions(normId(e.userId), MOCK_RACE_RESULTS);
+          if (canonicalPoints !== e.totalPoints) {
+            console.log('[Leaderboard] Overriding seed user', e.displayName, 'points:', e.totalPoints, '→', canonicalPoints);
           }
+          return { ...e, totalPoints: canonicalPoints };
         }
         return e;
       }),
