@@ -183,11 +183,14 @@ create table if not exists races (
   country_flag text,
   race_date date not null,
   race_time text,
-  status text default 'upcoming' check (status in ('upcoming', 'live', 'completed')),
+  status text default 'upcoming' check (status in ('upcoming', 'live', 'completed', 'cancelled')),
+  has_sprint boolean default false,
   winner text,
   current_lap integer,
   total_laps integer
 );
+
+alter table races add column if not exists has_sprint boolean default false;
 
 alter table races enable row level security;
 drop policy if exists "Races are viewable by everyone" on races;
@@ -417,31 +420,32 @@ begin
 end $;
 
 -- ============================================
--- SEED: 2026 Races
+-- SEED: 2026 Races — matches official F1 2026 calendar
+-- Cancelled: Bahrain (r04) and Saudi Arabia (r05)
 -- ============================================
-insert into races (id, round, name, location, country, country_flag, race_date, race_time, status, total_laps) values
-  ('r01', 1, 'Australian Grand Prix', 'Melbourne', 'Australia', '🇦🇺', '2026-03-15', '06:00', 'upcoming', 58),
-  ('r02', 2, 'Chinese Grand Prix', 'Shanghai', 'China', '🇨🇳', '2026-03-22', '08:00', 'upcoming', 56),
-  ('r03', 3, 'Japanese Grand Prix', 'Suzuka', 'Japan', '🇯🇵', '2026-04-05', '06:00', 'upcoming', 53),
-  ('r04', 4, 'Bahrain Grand Prix', 'Sakhir', 'Bahrain', '🇧🇭', '2026-04-12', '16:00', 'upcoming', 57),
-  ('r05', 5, 'Saudi Arabian Grand Prix', 'Jeddah', 'Saudi Arabia', '🇸🇦', '2026-04-19', '18:00', 'upcoming', 50),
-  ('r06', 6, 'Miami Grand Prix', 'Miami', 'USA', '🇺🇸', '2026-05-03', '20:00', 'upcoming', 57),
-  ('r07', 7, 'Emilia Romagna Grand Prix', 'Imola', 'Italy', '🇮🇹', '2026-05-17', '14:00', 'upcoming', 63),
-  ('r08', 8, 'Monaco Grand Prix', 'Monte Carlo', 'Monaco', '🇲🇨', '2026-05-24', '14:00', 'upcoming', 78),
-  ('r09', 9, 'Spanish Grand Prix', 'Barcelona', 'Spain', '🇪🇸', '2026-06-07', '14:00', 'upcoming', 66),
-  ('r10', 10, 'Canadian Grand Prix', 'Montreal', 'Canada', '🇨🇦', '2026-06-14', '19:00', 'upcoming', 70),
-  ('r11', 11, 'Austrian Grand Prix', 'Spielberg', 'Austria', '🇦🇹', '2026-06-28', '14:00', 'upcoming', 71),
-  ('r12', 12, 'British Grand Prix', 'Silverstone', 'United Kingdom', '🇬🇧', '2026-07-05', '15:00', 'upcoming', 52),
-  ('r13', 13, 'Belgian Grand Prix', 'Spa-Francorchamps', 'Belgium', '🇧🇪', '2026-07-26', '14:00', 'upcoming', 44),
-  ('r14', 14, 'Hungarian Grand Prix', 'Budapest', 'Hungary', '🇭🇺', '2026-08-02', '14:00', 'upcoming', 70),
-  ('r15', 15, 'Dutch Grand Prix', 'Zandvoort', 'Netherlands', '🇳🇱', '2026-08-30', '14:00', 'upcoming', 72),
-  ('r16', 16, 'Italian Grand Prix', 'Monza', 'Italy', '🇮🇹', '2026-09-06', '14:00', 'upcoming', 53),
-  ('r17', 17, 'Azerbaijan Grand Prix', 'Baku', 'Azerbaijan', '🇦🇿', '2026-09-20', '12:00', 'upcoming', 51),
-  ('r18', 18, 'Singapore Grand Prix', 'Marina Bay', 'Singapore', '🇸🇬', '2026-10-04', '13:00', 'upcoming', 62),
-  ('r19', 19, 'United States Grand Prix', 'Austin', 'USA', '🇺🇸', '2026-10-18', '20:00', 'upcoming', 56),
-  ('r20', 20, 'Mexico City Grand Prix', 'Mexico City', 'Mexico', '🇲🇽', '2026-10-25', '20:00', 'upcoming', 71),
-  ('r21', 21, 'São Paulo Grand Prix', 'Interlagos', 'Brazil', '🇧🇷', '2026-11-08', '18:00', 'upcoming', 71),
-  ('r22', 22, 'Las Vegas Grand Prix', 'Las Vegas', 'USA', '🇺🇸', '2026-11-22', '03:00', 'upcoming', 50),
-  ('r23', 23, 'Qatar Grand Prix', 'Lusail', 'Qatar', '🇶🇦', '2026-11-29', '17:00', 'upcoming', 57),
-  ('r24', 24, 'Abu Dhabi Grand Prix', 'Yas Marina', 'UAE', '🇦🇪', '2026-12-06', '14:00', 'upcoming', 58)
+insert into races (id, round, name, location, country, country_flag, race_date, race_time, status, has_sprint, total_laps) values
+  ('r01', 1,  'Australian Grand Prix',     'Melbourne',      'Australia', '🇦🇺', '2026-03-08', '05:00', 'completed', false, 58),
+  ('r02', 2,  'Chinese Grand Prix',       'Shanghai',       'China',     '🇨🇳', '2026-03-15', '07:00', 'completed', true,  56),
+  ('r03', 3,  'Japanese Grand Prix',      'Suzuka',         'Japan',     '🇯🇵', '2026-03-29', '06:00', 'completed', false, 53),
+  ('r04', 4,  'Bahrain Grand Prix',       'Sakhir',         'Bahrain',   '🇧🇭', '2026-04-12', '16:00', 'cancelled', false, 57),
+  ('r05', 5,  'Saudi Arabian Grand Prix', 'Jeddah',          'Saudi Arabia', '🇸🇦', '2026-04-19', '18:00', 'cancelled', false, 50),
+  ('r06', 6,  'Miami Grand Prix',         'Miami',          'USA',       '🇺🇸', '2026-05-03', '20:00', 'completed', true,  57),
+  ('r07', 7,  'Canadian Grand Prix',      'Montreal',       'Canada',    '🇨🇦', '2026-05-24', '18:00', 'completed', true,  70),
+  ('r08', 8,  'Monaco Grand Prix',        'Monte Carlo',    'Monaco',    '🇲🇨', '2026-06-07', '13:00', 'upcoming',  false, 78),
+  ('r09', 9,  'Spanish Grand Prix',       'Barcelona',       'Spain',     '🇪🇸', '2026-06-14', '13:00', 'upcoming',  false, 66),
+  ('r10', 10, 'Austrian Grand Prix',      'Spielberg',      'Austria',   '🇦🇹', '2026-06-28', '13:00', 'upcoming',  false, 71),
+  ('r11', 11, 'British Grand Prix',       'Silverstone',    'United Kingdom', '🇬🇧', '2026-07-05', '14:00', 'upcoming', true,  52),
+  ('r12', 12, 'Belgian Grand Prix',       'Spa-Francorchamps', 'Belgium', '🇧🇪', '2026-07-19', '13:00', 'upcoming', false, 44),
+  ('r13', 13, 'Hungarian Grand Prix',     'Budapest',       'Hungary',   '🇭🇺', '2026-07-26', '13:00', 'upcoming',  false, 70),
+  ('r14', 14, 'Dutch Grand Prix',         'Zandvoort',      'Netherlands', '🇳🇱', '2026-08-23', '13:00', 'upcoming', true,  72),
+  ('r15', 15, 'Italian Grand Prix',       'Monza',          'Italy',     '🇮🇹', '2026-09-06', '13:00', 'upcoming',  false, 53),
+  ('r16', 16, 'Madrid Grand Prix',        'Madrid',         'Spain',     '🇪🇸', '2026-09-13', '13:00', 'upcoming',  false, 55),
+  ('r17', 17, 'Azerbaijan Grand Prix',    'Baku',           'Azerbaijan', '🇦🇿', '2026-09-27', '12:00', 'upcoming', false, 51),
+  ('r18', 18, 'Singapore Grand Prix',     'Marina Bay',     'Singapore', '🇸🇬', '2026-10-11', '12:00', 'upcoming', true,  62),
+  ('r19', 19, 'United States Grand Prix', 'Austin',         'USA',       '🇺🇸', '2026-10-25', '19:00', 'upcoming',  false, 56),
+  ('r20', 20, 'Mexico City Grand Prix',   'Mexico City',    'Mexico',    '🇲🇽', '2026-11-01', '20:00', 'upcoming',  false, 71),
+  ('r21', 21, 'São Paulo Grand Prix',     'Interlagos',     'Brazil',    '🇧🇷', '2026-11-08', '17:00', 'upcoming',  false, 71),
+  ('r22', 22, 'Las Vegas Grand Prix',     'Las Vegas',      'USA',       '🇺🇸', '2026-11-21', '06:00', 'upcoming',  false, 50),
+  ('r23', 23, 'Qatar Grand Prix',         'Lusail',         'Qatar',     '🇶🇦', '2026-11-29', '17:00', 'upcoming',  false, 57),
+  ('r24', 24, 'Abu Dhabi Grand Prix',     'Yas Marina',     'UAE',       '🇦🇪', '2026-12-06', '14:00', 'upcoming',  false, 58)
 on conflict (id) do nothing;

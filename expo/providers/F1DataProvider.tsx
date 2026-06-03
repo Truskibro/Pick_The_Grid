@@ -138,6 +138,7 @@ async function fetchRaces(): Promise<Race[]> {
       raceDate: r.race_date,
       raceTime: r.race_time || '14:00',
       status: r.status || 'upcoming',
+      hasSprint: r.has_sprint || false,
       winner: r.winner || undefined,
       currentLap: r.current_lap || undefined,
       totalLaps: r.total_laps || undefined,

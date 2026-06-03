@@ -160,6 +160,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const localProfileRef = useRef(localProfile);
   localProfileRef.current = localProfile;
 
+  // Ref for updateProfile so loadFromSupabase can update user points after
+  // seeding without adding updateProfile to its dependency array.
+  const updateProfileRef = useRef(updateProfile);
+  updateProfileRef.current = updateProfile;
+
   const loadFromSupabase = useCallback(async () => {
     if (!session?.user) return;
     if (!isSupabaseConfigured) {
@@ -313,14 +318,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
           );
           console.log('[Seed] Computed total for', seedUser?.displayName, ':', seedTotal);
 
-          supabase
-            .from('profiles')
-            .update({ total_points: seedTotal })
-            .eq('id', userId)
-            .then(({ error }) => {
-              if (error) console.log('[Seed] Profile update error:', error.message);
-              else console.log('[Seed] Updated profile total_points to', seedTotal);
-            })
+          // Update the local profile and Supabase in one call so the
+          // UserProvider, leaderboard, and league detail all see the
+          // scored points immediately.
+          updateProfileRef.current({ totalPoints: seedTotal })
+            .then(() => console.log('[Seed] Profile + local state updated to', seedTotal))
             .catch(() => {});
         }
       }
