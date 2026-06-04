@@ -124,5 +124,5 @@ export interface NotificationSettings {
 
 export const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;
 export const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
-export const FASTEST_LAP_BONUS = 10;
+export const FASTEST_LAP_BONUS = 1;
 export const DNF_BONUS = 10;
