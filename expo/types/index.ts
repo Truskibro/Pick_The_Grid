@@ -30,12 +30,27 @@ export interface Race {
   totalLaps?: number;
 }
 
+export type ClassificationStatus =
+  | 'finished'
+  | 'retired'
+  | 'dnf'
+  | 'dns';
+
 export interface RaceResult {
   raceId: string;
   classification: ClassificationEntry[];
-  fastestLapDriverId: string;
+  fastestLapDriverId: string | null;
   dnfDriverIds: string[];
-  /** Sprint classification when the weekend included a sprint race. */
+
+  /**
+   * DNS = Did Not Start.
+   * DNS is separate from DNF and should never award DNF prediction points.
+   */
+  dnsDriverIds?: string[];
+
+  /**
+   * Sprint classification when the weekend included a sprint race.
+   */
   sprintClassification?: ClassificationEntry[];
 }
 
@@ -45,7 +60,7 @@ export interface ClassificationEntry {
   time: string;
   gap: string;
   points: number;
-  status: 'finished' | 'retired' | 'dnf';
+  status: ClassificationStatus;
 }
 
 export interface Prediction {
