@@ -4,12 +4,13 @@ import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
 import { useGame } from '@/providers/GameProvider';
+import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import RaceCard from '@/components/RaceCard';
 import { Race } from '@/types';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { races, isRefreshing, refreshAll } = useF1Data();
+  const { races, isRefreshing, refreshAll, getRaceResult } = useF1Data();
   const { getPrediction } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -56,6 +57,32 @@ export default function CalendarScreen() {
               </View>
             );
           }
+          const raceId = item.race.id;
+          const prediction = getPrediction(raceId);
+          const result = getRaceResult(raceId);
+
+          // Compute points live from prediction + race result, matching
+          // the race-results screen — never trust stored pointsEarned.
+          let livePoints: number | undefined;
+          let liveSprintPoints: number | undefined;
+
+          if (prediction && result && result.classification.length > 0) {
+            const breakdown = calculatePoints(prediction, result);
+            livePoints = breakdown.totalPoints;
+
+            if (
+              prediction.sprintTop8.length > 0 &&
+              result.sprintClassification &&
+              result.sprintClassification.length > 0
+            ) {
+              const sprintBreakdown = calculateSprintPoints(
+                prediction.sprintTop8,
+                result.sprintClassification,
+              );
+              liveSprintPoints = sprintBreakdown.totalPoints;
+            }
+          }
+
           return (
             <RaceCard
               race={item.race}
@@ -68,8 +95,8 @@ export default function CalendarScreen() {
                   router.push(`/predict-race/${item.race.id}` as any);
                 }
               }}
-              pointsEarned={getPrediction(item.race.id)?.pointsEarned}
-              sprintPointsEarned={getPrediction(item.race.id)?.sprintPointsEarned}
+              pointsEarned={livePoints}
+              sprintPointsEarned={liveSprintPoints}
             />
           );
         }}
