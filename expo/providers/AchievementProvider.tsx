@@ -1,23 +1,23 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
+
 import {
   type AchievementState,
   type AchievementProgress,
   type AchievementTier,
   type AchievementDefinition,
   ALL_ACHIEVEMENTS,
-  ACHIEVEMENT_MAP,
   createEmptyProgress,
 } from '@/constants/achievements';
 import {
   evaluateAll,
-  buildMockInput,
   type AchievementInput,
   type EvaluationResult,
 } from '@/lib/achievement-engine';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
+import { useF1Data } from '@/providers/F1DataProvider';
 
 const STORAGE_KEY = 'apex_draft_achievements';
 
@@ -28,91 +28,148 @@ export interface AchievementUnlockEvent {
   dismissed: boolean;
 }
 
+function createEmptyAchievementState(): AchievementState {
+  const empty: AchievementState = {};
+
+  for (const def of ALL_ACHIEVEMENTS) {
+    empty[def.id] = createEmptyProgress(def.id);
+  }
+
+  return empty;
+}
+
+function fillMissingAchievements(parsed: AchievementState): AchievementState {
+  const filled: AchievementState = {};
+
+  for (const def of ALL_ACHIEVEMENTS) {
+    filled[def.id] = parsed[def.id] ?? createEmptyProgress(def.id);
+  }
+
+  return filled;
+}
+
+function areAchievementStatesEqual(a: AchievementState, b: AchievementState): boolean {
+  const aKeys = Object.keys(a);
+  const bKeys = Object.keys(b);
+
+  if (aKeys.length !== bKeys.length) return false;
+
+  for (const key of aKeys) {
+    const aProg = a[key];
+    const bProg = b[key];
+
+    if (!bProg) return false;
+
+    if (aProg.currentValue !== bProg.currentValue) return false;
+
+    if (aProg.unlockedTiers.length !== bProg.unlockedTiers.length) return false;
+
+    for (let i = 0; i < aProg.unlockedTiers.length; i++) {
+      if (aProg.unlockedTiers[i] !== bProg.unlockedTiers[i]) return false;
+    }
+  }
+
+  return true;
+}
+
 export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const [state, setState] = useState<AchievementState>({});
-  const [isLoaded, setIsLoaded] = useState<boolean>(false);
+  const [isLoaded, setIsLoaded] = useState(false);
   const [unlockQueue, setUnlockQueue] = useState<AchievementUnlockEvent[]>([]);
 
   const { predictions, leagues, leagueMembers, totalPoints } = useGame();
+  const { raceResults } = useF1Data();
   const { profile } = useUser();
 
   const stateRef = useRef(state);
   stateRef.current = state;
 
-  // Load persisted state from AsyncStorage on mount
   useEffect(() => {
     const load = async () => {
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
+
         if (raw) {
           const parsed: AchievementState = JSON.parse(raw);
-          // Ensure all known achievements have an entry
-          const filled: AchievementState = {};
-          for (const def of ALL_ACHIEVEMENTS) {
-            filled[def.id] = parsed[def.id] ?? createEmptyProgress(def.id);
-          }
-          setState(filled);
+          setState(fillMissingAchievements(parsed));
         } else {
-          const empty: AchievementState = {};
-          for (const def of ALL_ACHIEVEMENTS) {
-            empty[def.id] = createEmptyProgress(def.id);
-          }
-          setState(empty);
+          setState(createEmptyAchievementState());
         }
       } catch (e) {
         console.log('Failed to load achievements:', e);
-        const empty: AchievementState = {};
-        for (const def of ALL_ACHIEVEMENTS) {
-          empty[def.id] = createEmptyProgress(def.id);
-        }
-        setState(empty);
+        setState(createEmptyAchievementState());
       } finally {
         setIsLoaded(true);
       }
     };
+
     void load();
   }, []);
 
-  // Persist whenever state changes (after initial load)
   useEffect(() => {
     if (!isLoaded) return;
+
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current)).catch(() => {});
   }, [state, isLoaded]);
 
-  /**
-   * Build the evaluation input from live GameProvider data.
-   * TODO: Wire real race results from F1DataProvider once scoring is re-enabled.
-   * TODO: Wire edit counts and lock times from prediction flow metadata.
-   */
   const buildInput = useCallback((): AchievementInput => {
-    // For now, build mock input enriched with whatever real data we have.
-    // The engine gracefully handles empty collections.
-    return buildMockInput({
-      predictions,
-      totalPoints,
-      // TODO: populate raceResults from F1DataProvider
-      // TODO: populate leagueMemberships from leagueMembers data
-      // TODO: populate editCounts from prediction save metadata
-      // TODO: populate lockTimes from race calendar
-    });
-  }, [predictions, totalPoints]);
+    const raceResultsById: AchievementInput['raceResults'] = {};
 
-  /** Run evaluation and return newly unlocked achievements. */
+    for (const result of raceResults) {
+      raceResultsById[result.raceId] = result;
+    }
+
+    const leagueMemberships: AchievementInput['leagueMemberships'] = [];
+
+    for (const league of leagues) {
+      const members = leagueMembers[league.id] || [];
+
+      if (members.length === 0) continue;
+
+      const sortedMembers = [...members].sort((a, b) => b.points - a.points);
+      const currentIndex = sortedMembers.findIndex((member) => member.userId === profile.id);
+
+      if (currentIndex === -1) continue;
+
+      const rank = currentIndex + 1;
+
+      leagueMemberships.push({
+        leagueId: league.id,
+        rank,
+        seasonRank: rank,
+      });
+    }
+
+    return {
+      predictions,
+      raceResults: raceResultsById,
+      totalPoints,
+      leagueMemberships,
+      editCounts: {},
+      lockTimes: {},
+    };
+  }, [predictions, raceResults, totalPoints, leagues, leagueMembers, profile.id]);
+
   const evaluate = useCallback((): EvaluationResult => {
     const input = buildInput();
-    const result = evaluateAll(input, stateRef.current);
-    return result;
+    return evaluateAll(input, stateRef.current);
   }, [buildInput]);
 
-  /** Check for new unlocks and queue them for toast display. */
   const checkUnlocks = useCallback(() => {
+    if (!isLoaded) return;
+
     const result = evaluate();
+    const previousState = stateRef.current;
+
+    const stateChanged = !areAchievementStatesEqual(previousState, result.state);
+
+    if (stateChanged) {
+      setState(result.state);
+      stateRef.current = result.state;
+    }
+
     if (result.newlyUnlocked.length === 0) return;
 
-    // Update state
-    setState(result.state);
-
-    // Queue new unlock toasts
     setUnlockQueue((prev) => [
       ...prev,
       ...result.newlyUnlocked.map((u) => ({
@@ -122,58 +179,76 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         dismissed: false,
       })),
     ]);
-  }, [evaluate]);
+  }, [evaluate, isLoaded]);
 
-  /** Dismiss the front of the unlock queue. */
+  useEffect(() => {
+    if (!isLoaded) return;
+
+    checkUnlocks();
+  }, [isLoaded, predictions, raceResults, totalPoints, leagues, leagueMembers, checkUnlocks]);
+
   const dismissUnlock = useCallback(() => {
     setUnlockQueue((prev) => {
       if (prev.length === 0) return prev;
+
       const [head, ...rest] = prev;
+
       return [{ ...head, dismissed: true }, ...rest];
     });
-    // Remove fully after a short delay so the toast can animate out
+
     setTimeout(() => {
       setUnlockQueue((prev) => prev.filter((u) => !u.dismissed));
     }, 400);
   }, []);
 
-  /** Get progress for a specific achievement. */
   const getProgress = useCallback(
     (achievementId: string): AchievementProgress | undefined => {
       return state[achievementId];
     },
-    [state],
+    [state]
   );
 
-  /** Count unlocked achievements (visible only). */
   const unlockedCount = useMemo(() => {
     let count = 0;
+
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden) continue;
-      const prog = state[def.id];
-      if (prog && prog.unlockedTiers.length > 0) count++;
+
+      const progress = state[def.id];
+
+      if (progress && progress.unlockedTiers.length > 0) {
+        count++;
+      }
     }
+
     return count;
   }, [state]);
 
-  /** Count total possible unlocks (all tiers across all visible achievements). */
   const totalTiersCount = useMemo(() => {
     let count = 0;
+
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden || !def.tiers) continue;
+
       count += def.tiers.length;
     }
+
     return count;
   }, []);
 
-  /** Count unlocked tiers across all visible achievements. */
   const unlockedTiersCount = useMemo(() => {
     let count = 0;
+
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden) continue;
-      const prog = state[def.id];
-      if (prog) count += prog.unlockedTiers.length;
+
+      const progress = state[def.id];
+
+      if (progress) {
+        count += progress.unlockedTiers.length;
+      }
     }
+
     return count;
   }, [state]);
 
@@ -201,6 +276,6 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       dismissUnlock,
       getProgress,
       evaluate,
-    ],
+    ]
   );
 });
