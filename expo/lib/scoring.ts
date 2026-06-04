@@ -27,28 +27,64 @@ function normalizeDriverId(driverId: string | null | undefined): string | null {
   return String(driverId).trim().toUpperCase();
 }
 
-function getDnfDriverIds(result: RaceResult): Set<string> {
-  const dnfIds = new Set<string>();
+function normalizeStatus(status: string | null | undefined): string {
+  return String(status || '').trim().toLowerCase();
+}
 
-  if (Array.isArray(result.dnfDriverIds)) {
-    for (const driverId of result.dnfDriverIds) {
-      const normalized = normalizeDriverId(driverId);
-      if (normalized) dnfIds.add(normalized);
-    }
-  }
+/**
+ * Returns only true DNF/retired drivers.
+ *
+ * Important:
+ * - DNF / retired = eligible for DNF bonus.
+ * - DNS = did not start, NOT eligible for DNF bonus.
+ *
+ * This also protects against result data where dnfDriverIds accidentally includes
+ * all non-classified drivers, including DNS drivers.
+ */
+function getTrueDnfDriverIds(result: RaceResult): Set<string> {
+  const trueDnfIds = new Set<string>();
+  const dnsIds = new Set<string>();
 
   if (Array.isArray(result.classification)) {
     for (const entry of result.classification) {
-      const status = String(entry.status || '').toLowerCase();
+      const normalizedDriverId = normalizeDriverId(entry.driverId);
+      const status = normalizeStatus(entry.status);
 
-      if (status === 'dnf' || status === 'retired') {
-        const normalized = normalizeDriverId(entry.driverId);
-        if (normalized) dnfIds.add(normalized);
+      if (!normalizedDriverId) continue;
+
+      if (status === 'dns' || status === 'did not start') {
+        dnsIds.add(normalizedDriverId);
+        continue;
+      }
+
+      if (
+        status === 'dnf' ||
+        status === 'retired' ||
+        status === 'ret' ||
+        status === 'did not finish'
+      ) {
+        trueDnfIds.add(normalizedDriverId);
       }
     }
   }
 
-  return dnfIds;
+  /**
+   * Backward compatibility:
+   * If the app has a dnfDriverIds array, use it too, but do NOT include any
+   * driver that the classification marks as DNS.
+   */
+  if (Array.isArray(result.dnfDriverIds)) {
+    for (const driverId of result.dnfDriverIds) {
+      const normalizedDriverId = normalizeDriverId(driverId);
+
+      if (!normalizedDriverId) continue;
+      if (dnsIds.has(normalizedDriverId)) continue;
+
+      trueDnfIds.add(normalizedDriverId);
+    }
+  }
+
+  return trueDnfIds;
 }
 
 export function calculatePoints(
@@ -103,7 +139,7 @@ export function calculatePoints(
 
   let dnfPoints = 0;
   const predictedDnf = normalizeDriverId(prediction.dnf);
-  const actualDnfDriverIds = getDnfDriverIds(result);
+  const actualDnfDriverIds = getTrueDnfDriverIds(result);
 
   if (predictedDnf && actualDnfDriverIds.has(predictedDnf)) {
     dnfPoints = DNF_BONUS;
@@ -111,7 +147,7 @@ export function calculatePoints(
     console.log(`[Scoring] DNF correct: ${predictedDnf} = +${DNF_BONUS}`);
   } else if (predictedDnf) {
     console.log(
-      `[Scoring] DNF incorrect: predicted ${predictedDnf}, actual DNFs: ${
+      `[Scoring] DNF incorrect: predicted ${predictedDnf}, true DNFs: ${
         Array.from(actualDnfDriverIds).join(', ') || 'none'
       }`
     );
