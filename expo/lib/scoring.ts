@@ -31,19 +31,40 @@ function normalizeStatus(status: string | null | undefined): string {
   return String(status || '').trim().toLowerCase();
 }
 
+function isDnsStatus(status: string): boolean {
+  return (
+    status === 'dns' ||
+    status === 'did not start' ||
+    status === 'did_not_start'
+  );
+}
+
+function isTrueDnfStatus(status: string): boolean {
+  return (
+    status === 'dnf' ||
+    status === 'retired' ||
+    status === 'ret' ||
+    status === 'did not finish' ||
+    status === 'did_not_finish'
+  );
+}
+
 /**
- * Returns only true DNF/retired drivers.
- *
- * Important:
- * - DNF / retired = eligible for DNF bonus.
- * - DNS = did not start, NOT eligible for DNF bonus.
- *
- * This also protects against result data where dnfDriverIds accidentally includes
- * all non-classified drivers, including DNS drivers.
+ * DNS = Did Not Start.
+ * DNS is separate from DNF and should never award DNF prediction points.
  */
-function getTrueDnfDriverIds(result: RaceResult): Set<string> {
-  const trueDnfIds = new Set<string>();
+function getDnsDriverIds(result: RaceResult): Set<string> {
   const dnsIds = new Set<string>();
+
+  if (Array.isArray(result.dnsDriverIds)) {
+    for (const driverId of result.dnsDriverIds) {
+      const normalizedDriverId = normalizeDriverId(driverId);
+
+      if (normalizedDriverId) {
+        dnsIds.add(normalizedDriverId);
+      }
+    }
+  }
 
   if (Array.isArray(result.classification)) {
     for (const entry of result.classification) {
@@ -52,17 +73,38 @@ function getTrueDnfDriverIds(result: RaceResult): Set<string> {
 
       if (!normalizedDriverId) continue;
 
-      if (status === 'dns' || status === 'did not start') {
+      if (isDnsStatus(status)) {
         dnsIds.add(normalizedDriverId);
-        continue;
       }
+    }
+  }
 
-      if (
-        status === 'dnf' ||
-        status === 'retired' ||
-        status === 'ret' ||
-        status === 'did not finish'
-      ) {
+  return dnsIds;
+}
+
+/**
+ * Returns only true DNF/retired drivers.
+ *
+ * Important:
+ * - DNF / retired = eligible for DNF bonus.
+ * - DNS = did not start, NOT eligible for DNF bonus.
+ *
+ * This protects against older mock result data where dnfDriverIds may have
+ * accidentally included every non-finisher, including DNS drivers.
+ */
+function getTrueDnfDriverIds(result: RaceResult): Set<string> {
+  const trueDnfIds = new Set<string>();
+  const dnsIds = getDnsDriverIds(result);
+
+  if (Array.isArray(result.classification)) {
+    for (const entry of result.classification) {
+      const normalizedDriverId = normalizeDriverId(entry.driverId);
+      const status = normalizeStatus(entry.status);
+
+      if (!normalizedDriverId) continue;
+      if (dnsIds.has(normalizedDriverId)) continue;
+
+      if (isTrueDnfStatus(status)) {
         trueDnfIds.add(normalizedDriverId);
       }
     }
@@ -70,8 +112,8 @@ function getTrueDnfDriverIds(result: RaceResult): Set<string> {
 
   /**
    * Backward compatibility:
-   * If the app has a dnfDriverIds array, use it too, but do NOT include any
-   * driver that the classification marks as DNS.
+   * If a race result still has dnfDriverIds, use it, but never count a driver
+   * as DNF if the driver is also marked as DNS.
    */
   if (Array.isArray(result.dnfDriverIds)) {
     for (const driverId of result.dnfDriverIds) {
@@ -96,9 +138,9 @@ export function calculatePoints(
   const alreadyScoredDrivers = new Set<string>();
 
   const resultTop10 = result.classification
-    .filter((c) => c.position <= 10)
+    .filter((entry) => entry.position <= 10)
     .sort((a, b) => a.position - b.position)
-    .map((c) => normalizeDriverId(c.driverId));
+    .map((entry) => normalizeDriverId(entry.driverId));
 
   for (let i = 0; i < prediction.top10.length && i < 10; i++) {
     const predictedDriverId = normalizeDriverId(prediction.top10[i]);
@@ -139,9 +181,14 @@ export function calculatePoints(
 
   let dnfPoints = 0;
   const predictedDnf = normalizeDriverId(prediction.dnf);
+  const actualDnsDriverIds = getDnsDriverIds(result);
   const actualDnfDriverIds = getTrueDnfDriverIds(result);
 
-  if (predictedDnf && actualDnfDriverIds.has(predictedDnf)) {
+  if (predictedDnf && actualDnsDriverIds.has(predictedDnf)) {
+    console.log(
+      `[Scoring] DNF pick was DNS, no DNF points awarded: ${predictedDnf}`
+    );
+  } else if (predictedDnf && actualDnfDriverIds.has(predictedDnf)) {
     dnfPoints = DNF_BONUS;
 
     console.log(`[Scoring] DNF correct: ${predictedDnf} = +${DNF_BONUS}`);
@@ -149,7 +196,7 @@ export function calculatePoints(
     console.log(
       `[Scoring] DNF incorrect: predicted ${predictedDnf}, true DNFs: ${
         Array.from(actualDnfDriverIds).join(', ') || 'none'
-      }`
+      }, DNS: ${Array.from(actualDnsDriverIds).join(', ') || 'none'}`
     );
   }
 
@@ -177,9 +224,9 @@ export function calculateSprintPoints(
   const alreadyScoredDrivers = new Set<string>();
 
   const resultTop8 = sprintResult
-    .filter((c) => c.position <= 8)
+    .filter((entry) => entry.position <= 8)
     .sort((a, b) => a.position - b.position)
-    .map((c) => normalizeDriverId(c.driverId));
+    .map((entry) => normalizeDriverId(entry.driverId));
 
   for (let i = 0; i < sprintTop8.length && i < 8; i++) {
     const predictedDriverId = normalizeDriverId(sprintTop8[i]);
