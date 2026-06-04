@@ -46,12 +46,16 @@ const CATEGORY_LABELS: Record<AchievementCategory, string> = {
   league: 'League',
 };
 
-const HIDDEN_UNLOCK_COLORS = {
-  primary: Colors.f1Red,
-  secondary: '#050505',
-  glow: 'rgba(225, 6, 0, 0.35)',
-  border: 'rgba(225, 6, 0, 0.65)',
-  soft: 'rgba(225, 6, 0, 0.12)',
+const HIDDEN_COLORS = {
+  black: '#050505',
+  blackSoft: '#0A0A0A',
+  blackRaised: '#111111',
+  red: Colors.f1Red,
+  redDark: Colors.f1RedDark,
+  redSoft: 'rgba(225, 6, 0, 0.12)',
+  redGlow: 'rgba(225, 6, 0, 0.22)',
+  redBorder: 'rgba(225, 6, 0, 0.58)',
+  redBorderStrong: 'rgba(225, 6, 0, 0.88)',
 };
 
 function resolveIcon(iconName: string): React.ComponentType<any> {
@@ -65,7 +69,6 @@ function resolveIcon(iconName: string): React.ComponentType<any> {
 
 function getHighestTier(progress?: AchievementProgress): AchievementTier | null {
   if (!progress?.unlockedTiers?.length) return null;
-
   return progress.unlockedTiers[progress.unlockedTiers.length - 1];
 }
 
@@ -74,11 +77,7 @@ function isUnlocked(progress?: AchievementProgress): boolean {
 }
 
 function getAccentColor(def: AchievementDefinition, progress?: AchievementProgress): string {
-  const unlocked = isUnlocked(progress);
-
-  if (def.isHidden && unlocked) {
-    return HIDDEN_UNLOCK_COLORS.primary;
-  }
+  if (def.isHidden) return HIDDEN_COLORS.red;
 
   const highestTier = getHighestTier(progress);
 
@@ -90,11 +89,7 @@ function getAccentColor(def: AchievementDefinition, progress?: AchievementProgre
 }
 
 function getSoftGlow(def: AchievementDefinition, progress?: AchievementProgress): string {
-  const unlocked = isUnlocked(progress);
-
-  if (def.isHidden && unlocked) {
-    return HIDDEN_UNLOCK_COLORS.glow;
-  }
+  if (def.isHidden) return HIDDEN_COLORS.redGlow;
 
   const highestTier = getHighestTier(progress);
 
@@ -213,7 +208,10 @@ export default function AchievementsScreen() {
                   {
                     width:
                       totalTiersCount > 0
-                        ? `${Math.min(100, Math.round((unlockedTiersCount / totalTiersCount) * 100))}%`
+                        ? `${Math.min(
+                            100,
+                            Math.round((unlockedTiersCount / totalTiersCount) * 100)
+                          )}%`
                         : '0%',
                   },
                 ]}
@@ -243,7 +241,11 @@ export default function AchievementsScreen() {
               >
                 {active && (
                   <LinearGradient
-                    colors={[Colors.f1RedDark, Colors.f1Red]}
+                    colors={
+                      tab.key === 'hidden'
+                        ? [HIDDEN_COLORS.black, HIDDEN_COLORS.redDark]
+                        : [Colors.f1RedDark, Colors.f1Red]
+                    }
                     style={StyleSheet.absoluteFill}
                   />
                 )}
@@ -305,8 +307,9 @@ function AchievementCard({
 }) {
   const Icon = resolveIcon(def.icon);
   const unlocked = isUnlocked(progress);
-  const hiddenLocked = def.isHidden && !unlocked;
-  const hiddenUnlocked = def.isHidden && unlocked;
+  const hidden = def.isHidden;
+  const hiddenLocked = hidden && !unlocked;
+  const hiddenUnlocked = hidden && unlocked;
   const highestTier = getHighestTier(progress);
   const accentColor = getAccentColor(def, progress);
   const glowColor = getSoftGlow(def, progress);
@@ -317,28 +320,31 @@ function AchievementCard({
       onPress={onPress}
       style={[
         styles.card,
+        hidden && styles.hiddenCard,
         hiddenUnlocked && styles.hiddenUnlockedCard,
         hiddenLocked && styles.hiddenLockedCard,
-        unlocked && !hiddenUnlocked && { borderColor: `${accentColor}70` },
+        unlocked && !hidden && { borderColor: `${accentColor}70` },
       ]}
     >
-      {unlocked && (
+      {hidden ? (
         <LinearGradient
           colors={
             hiddenUnlocked
-              ? ['rgba(225,6,0,0.22)', 'rgba(0,0,0,0.94)']
-              : [glowColor, 'transparent']
+              ? ['rgba(225,6,0,0.20)', 'rgba(5,5,5,0.98)', 'rgba(0,0,0,1)']
+              : ['rgba(225,6,0,0.10)', 'rgba(5,5,5,0.98)', 'rgba(0,0,0,1)']
           }
           style={styles.cardGlow}
         />
+      ) : (
+        unlocked && <LinearGradient colors={[glowColor, 'transparent']} style={styles.cardGlow} />
       )}
 
       <View style={styles.cardHeader}>
         <View
           style={[
             styles.cardIconShell,
-            hiddenUnlocked
-              ? styles.hiddenUnlockedIconShell
+            hidden
+              ? styles.hiddenIconShell
               : {
                   backgroundColor: unlocked ? `${accentColor}22` : Colors.surfaceHighlight,
                   borderColor: unlocked ? `${accentColor}55` : Colors.border,
@@ -346,9 +352,9 @@ function AchievementCard({
           ]}
         >
           {hiddenLocked ? (
-            <icons.Lock size={22} color={Colors.textMuted} />
+            <icons.Lock size={22} color={HIDDEN_COLORS.red} />
           ) : (
-            <Icon size={22} color={hiddenUnlocked ? '#FFF' : accentColor} />
+            <Icon size={22} color={hidden ? '#FFF' : accentColor} />
           )}
         </View>
 
@@ -356,22 +362,24 @@ function AchievementCard({
           <Text
             style={[
               styles.cardName,
+              hidden && styles.hiddenCardName,
               hiddenLocked && styles.cardNameHidden,
-              hiddenUnlocked && styles.hiddenUnlockedTitle,
             ]}
             numberOfLines={1}
           >
             {hiddenLocked ? 'Hidden Badge' : def.name}
           </Text>
 
-          <Text style={styles.cardCategory}>{CATEGORY_LABELS[def.category]}</Text>
+          <Text style={[styles.cardCategory, hidden && styles.hiddenCardCategory]}>
+            {hidden ? 'Secret' : CATEGORY_LABELS[def.category]}
+          </Text>
         </View>
 
         {unlocked && (
           <View
             style={[
               styles.unlockedBadge,
-              hiddenUnlocked
+              hidden
                 ? styles.hiddenUnlockedPill
                 : {
                     borderColor: `${accentColor}80`,
@@ -379,14 +387,14 @@ function AchievementCard({
                   },
             ]}
           >
-            <icons.Check size={11} color={hiddenUnlocked ? '#FFF' : accentColor} />
+            <icons.Check size={11} color={hidden ? '#FFF' : accentColor} />
             <Text
               style={[
                 styles.unlockedBadgeText,
-                { color: hiddenUnlocked ? '#FFF' : accentColor },
+                { color: hidden ? '#FFF' : accentColor },
               ]}
             >
-              {hiddenUnlocked ? 'UNLOCKED' : highestTier ? TIER_LABELS[highestTier] : 'Unlocked'}
+              {hidden ? 'UNLOCKED' : highestTier ? TIER_LABELS[highestTier] : 'Unlocked'}
             </Text>
           </View>
         )}
@@ -395,7 +403,7 @@ function AchievementCard({
       <Text
         style={[
           styles.cardDesc,
-          hiddenUnlocked && styles.hiddenUnlockedDesc,
+          hidden && styles.hiddenCardDesc,
         ]}
         numberOfLines={2}
       >
@@ -404,7 +412,7 @@ function AchievementCard({
 
       {hiddenLocked && def.unlockHint && (
         <View style={styles.hiddenHint}>
-          <icons.EyeOff size={13} color={Colors.textMuted} />
+          <icons.EyeOff size={13} color={HIDDEN_COLORS.red} />
           <Text style={styles.hiddenHintText}>{def.unlockHint}</Text>
         </View>
       )}
@@ -465,23 +473,30 @@ function AchievementDetailModal({
 
   const Icon = resolveIcon(def.icon);
   const unlocked = isUnlocked(progress);
-  const hiddenLocked = def.isHidden && !unlocked;
-  const hiddenUnlocked = def.isHidden && unlocked;
+  const hidden = def.isHidden;
+  const hiddenLocked = hidden && !unlocked;
+  const hiddenUnlocked = hidden && unlocked;
   const accentColor = getAccentColor(def, progress);
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalSheet} onPress={() => {}}>
-          <View style={styles.modalHandle} />
+        <Pressable
+          style={[
+            styles.modalSheet,
+            hidden && styles.hiddenModalSheet,
+          ]}
+          onPress={() => {}}
+        >
+          <View style={[styles.modalHandle, hidden && styles.hiddenModalHandle]} />
 
           <ScrollView contentContainerStyle={styles.modalScrollContent}>
             <View style={styles.modalHeader}>
               <View
                 style={[
                   styles.modalIconShell,
-                  hiddenUnlocked
-                    ? styles.hiddenUnlockedModalIcon
+                  hidden
+                    ? styles.hiddenModalIcon
                     : {
                         backgroundColor: hiddenLocked ? Colors.surfaceHighlight : `${accentColor}22`,
                         borderColor: hiddenLocked ? Colors.border : `${accentColor}70`,
@@ -489,36 +504,21 @@ function AchievementDetailModal({
                 ]}
               >
                 {hiddenLocked ? (
-                  <icons.Lock size={32} color={Colors.textMuted} />
+                  <icons.Lock size={32} color={HIDDEN_COLORS.red} />
                 ) : (
-                  <Icon size={32} color={hiddenUnlocked ? '#FFF' : accentColor} />
+                  <Icon size={32} color={hidden ? '#FFF' : accentColor} />
                 )}
               </View>
 
-              <Text
-                style={[
-                  styles.modalName,
-                  hiddenUnlocked && styles.hiddenUnlockedModalTitle,
-                ]}
-              >
+              <Text style={[styles.modalName, hidden && styles.hiddenModalName]}>
                 {hiddenLocked ? 'Hidden Badge' : def.name}
               </Text>
 
-              <Text
-                style={[
-                  styles.modalCategoryBadge,
-                  hiddenUnlocked && styles.hiddenUnlockedModalBadge,
-                ]}
-              >
-                {CATEGORY_LABELS[def.category]}
+              <Text style={[styles.modalCategoryBadge, hidden && styles.hiddenModalCategoryBadge]}>
+                {hidden ? 'Secret' : CATEGORY_LABELS[def.category]}
               </Text>
 
-              <Text
-                style={[
-                  styles.modalDesc,
-                  hiddenUnlocked && styles.hiddenUnlockedModalDesc,
-                ]}
-              >
+              <Text style={[styles.modalDesc, hidden && styles.hiddenModalDesc]}>
                 {hiddenLocked ? 'Complete a secret objective to reveal this badge.' : def.description}
               </Text>
             </View>
@@ -625,7 +625,7 @@ function AchievementDetailModal({
             ) : (
               def.unlockHint && (
                 <View style={styles.hiddenConditionCard}>
-                  <icons.Lock size={18} color={Colors.textMuted} />
+                  <icons.Lock size={18} color={HIDDEN_COLORS.red} />
                   <Text style={styles.hiddenConditionText}>{def.unlockHint}</Text>
                 </View>
               )
@@ -779,13 +779,18 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
+  hiddenCard: {
+    backgroundColor: HIDDEN_COLORS.black,
+    borderColor: HIDDEN_COLORS.redBorder,
+  },
+
   hiddenLockedCard: {
-    opacity: 0.82,
+    opacity: 0.96,
   },
 
   hiddenUnlockedCard: {
-    backgroundColor: '#070707',
-    borderColor: HIDDEN_UNLOCK_COLORS.border,
+    backgroundColor: HIDDEN_COLORS.black,
+    borderColor: HIDDEN_COLORS.redBorderStrong,
     borderWidth: 1.5,
   },
 
@@ -810,9 +815,9 @@ const styles = StyleSheet.create({
     marginRight: 12,
   },
 
-  hiddenUnlockedIconShell: {
-    backgroundColor: Colors.f1Red,
-    borderColor: '#000',
+  hiddenIconShell: {
+    backgroundColor: HIDDEN_COLORS.blackRaised,
+    borderColor: HIDDEN_COLORS.redBorder,
   },
 
   cardTitleBlock: {
@@ -827,13 +832,13 @@ const styles = StyleSheet.create({
     letterSpacing: -0.2,
   },
 
-  cardNameHidden: {
-    color: Colors.textMuted,
-    fontStyle: 'italic',
+  hiddenCardName: {
+    color: '#FFF',
   },
 
-  hiddenUnlockedTitle: {
-    color: '#FFF',
+  cardNameHidden: {
+    color: '#F2F2F2',
+    fontStyle: 'italic',
   },
 
   cardCategory: {
@@ -843,6 +848,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.5,
     marginTop: 2,
+  },
+
+  hiddenCardCategory: {
+    color: HIDDEN_COLORS.red,
   },
 
   unlockedBadge: {
@@ -856,8 +865,8 @@ const styles = StyleSheet.create({
   },
 
   hiddenUnlockedPill: {
-    backgroundColor: '#0B0B0B',
-    borderColor: Colors.f1Red,
+    backgroundColor: HIDDEN_COLORS.redDark,
+    borderColor: HIDDEN_COLORS.red,
   },
 
   unlockedBadgeText: {
@@ -874,21 +883,23 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  hiddenUnlockedDesc: {
-    color: '#D8D8D8',
+  hiddenCardDesc: {
+    color: '#C8C8C8',
   },
 
   hiddenHint: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.03)',
+    backgroundColor: HIDDEN_COLORS.blackSoft,
     borderRadius: 8,
     padding: 10,
     marginBottom: 10,
+    borderWidth: 1,
+    borderColor: HIDDEN_COLORS.redBorder,
   },
 
   hiddenHintText: {
-    color: Colors.textMuted,
+    color: '#BDBDBD',
     fontSize: 11,
     lineHeight: 15,
     flex: 1,
@@ -896,16 +907,16 @@ const styles = StyleSheet.create({
   },
 
   hiddenRevealBox: {
-    backgroundColor: '#0D0D0D',
+    backgroundColor: HIDDEN_COLORS.blackSoft,
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
-    borderColor: 'rgba(225,6,0,0.45)',
+    borderColor: HIDDEN_COLORS.redBorder,
     marginTop: 2,
   },
 
   hiddenRevealLabel: {
-    color: Colors.f1Red,
+    color: HIDDEN_COLORS.red,
     fontSize: 10,
     fontWeight: '900',
     letterSpacing: 1,
@@ -913,7 +924,7 @@ const styles = StyleSheet.create({
   },
 
   hiddenRevealText: {
-    color: Colors.textSecondary,
+    color: '#D8D8D8',
     fontSize: 12,
     lineHeight: 17,
   },
@@ -948,7 +959,7 @@ const styles = StyleSheet.create({
 
   modalBackdrop: {
     flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.72)',
+    backgroundColor: 'rgba(0,0,0,0.78)',
     justifyContent: 'flex-end',
   },
 
@@ -961,6 +972,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
   },
 
+  hiddenModalSheet: {
+    backgroundColor: HIDDEN_COLORS.black,
+    borderColor: HIDDEN_COLORS.redBorder,
+  },
+
   modalHandle: {
     width: 36,
     height: 4,
@@ -969,6 +985,10 @@ const styles = StyleSheet.create({
     alignSelf: 'center',
     marginTop: 12,
     marginBottom: 8,
+  },
+
+  hiddenModalHandle: {
+    backgroundColor: HIDDEN_COLORS.red,
   },
 
   modalScrollContent: {
@@ -992,9 +1012,9 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  hiddenUnlockedModalIcon: {
-    backgroundColor: Colors.f1Red,
-    borderColor: '#000',
+  hiddenModalIcon: {
+    backgroundColor: HIDDEN_COLORS.redDark,
+    borderColor: HIDDEN_COLORS.red,
   },
 
   modalName: {
@@ -1005,7 +1025,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  hiddenUnlockedModalTitle: {
+  hiddenModalName: {
     color: '#FFF',
   },
 
@@ -1023,9 +1043,9 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  hiddenUnlockedModalBadge: {
+  hiddenModalCategoryBadge: {
     color: '#FFF',
-    backgroundColor: Colors.f1RedDark,
+    backgroundColor: HIDDEN_COLORS.redDark,
   },
 
   modalDesc: {
@@ -1037,7 +1057,7 @@ const styles = StyleSheet.create({
     marginTop: 10,
   },
 
-  hiddenUnlockedModalDesc: {
+  hiddenModalDesc: {
     color: '#DADADA',
   },
 
@@ -1134,16 +1154,16 @@ const styles = StyleSheet.create({
   hiddenConditionCard: {
     flexDirection: 'row',
     alignItems: 'flex-start',
-    backgroundColor: 'rgba(255,255,255,0.04)',
+    backgroundColor: HIDDEN_COLORS.blackSoft,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1,
-    borderColor: Colors.border,
+    borderColor: HIDDEN_COLORS.redBorder,
     marginTop: 24,
   },
 
   hiddenConditionText: {
-    color: Colors.textMuted,
+    color: '#C8C8C8',
     fontSize: 13,
     lineHeight: 19,
     flex: 1,
@@ -1152,16 +1172,16 @@ const styles = StyleSheet.create({
   },
 
   hiddenUnlockedModalBox: {
-    backgroundColor: '#070707',
+    backgroundColor: HIDDEN_COLORS.blackSoft,
     borderRadius: 14,
     padding: 16,
     borderWidth: 1.5,
-    borderColor: Colors.f1Red,
+    borderColor: HIDDEN_COLORS.redBorderStrong,
     marginTop: 24,
   },
 
   hiddenUnlockedModalBoxLabel: {
-    color: Colors.f1Red,
+    color: HIDDEN_COLORS.red,
     fontSize: 11,
     fontWeight: '900',
     letterSpacing: 1.2,
