@@ -1,4 +1,12 @@
-import { Prediction, RaceResult, ClassificationEntry, F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS } from '@/types';
+import {
+  Prediction,
+  RaceResult,
+  ClassificationEntry,
+  F1_POINTS,
+  SPRINT_POINTS,
+  FASTEST_LAP_BONUS,
+  DNF_BONUS,
+} from '@/types';
 
 export interface ScoringBreakdown {
   positionPoints: number;
@@ -20,45 +28,59 @@ export function calculatePoints(
 ): ScoringBreakdown {
   let positionPoints = 0;
   const correctPositions: number[] = [];
+  const alreadyScoredDrivers = new Set<string>();
 
   const resultTop10 = result.classification
-    .filter(c => c.position <= 10)
+    .filter((c) => c.position <= 10)
     .sort((a, b) => a.position - b.position)
-    .map(c => c.driverId);
+    .map((c) => c.driverId);
 
   for (let i = 0; i < prediction.top10.length && i < 10; i++) {
     const predictedDriverId = prediction.top10[i];
-    const actualIndex = resultTop10.indexOf(predictedDriverId);
+    const actualDriverId = resultTop10[i];
 
-    if (actualIndex === i) {
+    if (!predictedDriverId || alreadyScoredDrivers.has(predictedDriverId)) {
+      continue;
+    }
+
+    if (predictedDriverId === actualDriverId) {
       positionPoints += F1_POINTS[i];
       correctPositions.push(i);
-      console.log(`[Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${F1_POINTS[i]}`);
-    } else if (actualIndex !== -1 && Math.abs(actualIndex - i) === 1) {
-      const partialPoints = Math.floor(F1_POINTS[i] * 0.5);
-      positionPoints += partialPoints;
-      console.log(`[Scoring] Off-by-one at P${i + 1}: predicted ${predictedDriverId}, actual P${actualIndex + 1} = +${partialPoints}`);
-    } else if (actualIndex !== -1) {
-      const partialPoints = Math.floor(F1_POINTS[i] * 0.25);
-      positionPoints += partialPoints;
-      console.log(`[Scoring] In top 10 at P${i + 1}: predicted ${predictedDriverId}, actual P${actualIndex + 1} = +${partialPoints}`);
+      alreadyScoredDrivers.add(predictedDriverId);
+
+      console.log(
+        `[Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${F1_POINTS[i]}`
+      );
     }
   }
 
   let fastestLapPoints = 0;
+
   if (prediction.fastestLap && prediction.fastestLap === result.fastestLapDriverId) {
     fastestLapPoints = FASTEST_LAP_BONUS;
-    console.log(`[Scoring] Fastest lap correct: ${prediction.fastestLap} = +${FASTEST_LAP_BONUS}`);
+
+    console.log(
+      `[Scoring] Fastest lap correct: ${prediction.fastestLap} = +${FASTEST_LAP_BONUS}`
+    );
   }
 
   let dnfPoints = 0;
-  if (prediction.dnf && result.dnfDriverIds.includes(prediction.dnf)) {
+
+  if (
+    prediction.dnf &&
+    Array.isArray(result.dnfDriverIds) &&
+    result.dnfDriverIds.includes(prediction.dnf)
+  ) {
     dnfPoints = DNF_BONUS;
+
     console.log(`[Scoring] DNF correct: ${prediction.dnf} = +${DNF_BONUS}`);
   }
 
   const totalPoints = positionPoints + fastestLapPoints + dnfPoints;
-  console.log(`[Scoring] Total: ${totalPoints} (pos: ${positionPoints}, fl: ${fastestLapPoints}, dnf: ${dnfPoints})`);
+
+  console.log(
+    `[Scoring] Total: ${totalPoints} (pos: ${positionPoints}, fl: ${fastestLapPoints}, dnf: ${dnfPoints})`
+  );
 
   return {
     positionPoints,
@@ -79,23 +101,29 @@ export function calculateSprintPoints(
 ): SprintScoringBreakdown {
   let positionPoints = 0;
   const correctPositions: number[] = [];
+  const alreadyScoredDrivers = new Set<string>();
 
   const resultTop8 = sprintResult
-    .filter(c => c.position <= 8)
+    .filter((c) => c.position <= 8)
     .sort((a, b) => a.position - b.position)
-    .map(c => c.driverId);
+    .map((c) => c.driverId);
 
   for (let i = 0; i < sprintTop8.length && i < 8; i++) {
     const predictedDriverId = sprintTop8[i];
-    const actualIndex = resultTop8.indexOf(predictedDriverId);
+    const actualDriverId = resultTop8[i];
 
-    if (actualIndex === i) {
+    if (!predictedDriverId || alreadyScoredDrivers.has(predictedDriverId)) {
+      continue;
+    }
+
+    if (predictedDriverId === actualDriverId) {
       positionPoints += SPRINT_POINTS[i];
       correctPositions.push(i);
-    } else if (actualIndex !== -1 && Math.abs(actualIndex - i) === 1) {
-      positionPoints += Math.floor(SPRINT_POINTS[i] * 0.5);
-    } else if (actualIndex !== -1) {
-      positionPoints += Math.floor(SPRINT_POINTS[i] * 0.25);
+      alreadyScoredDrivers.add(predictedDriverId);
+
+      console.log(
+        `[Sprint Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${SPRINT_POINTS[i]}`
+      );
     }
   }
 
