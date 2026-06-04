@@ -112,12 +112,12 @@ export default function RaceResultsScreen() {
           </View>
         </View>
 
-        {prediction && prediction.pointsEarned > 0 && (
+        {prediction && (prediction.pointsEarned + (prediction.sprintPointsEarned ?? 0)) > 0 && (
           <View style={styles.pointsCard}>
             <Trophy size={24} color={Colors.warning} />
             <View style={styles.pointsCardContent}>
               <Text style={styles.pointsCardLabel}>POINTS EARNED</Text>
-              <Text style={styles.pointsCardValue}>{prediction.pointsEarned}</Text>
+              <Text style={styles.pointsCardValue}>{prediction.pointsEarned + (prediction.sprintPointsEarned ?? 0)}</Text>
             </View>
             {breakdown && (
               <View style={styles.pointsBreakdownRow}>
@@ -144,7 +144,7 @@ export default function RaceResultsScreen() {
           </View>
         )}
 
-        {prediction && prediction.pointsEarned === 0 && result && result.classification.length > 0 && (
+        {prediction && (prediction.pointsEarned + (prediction.sprintPointsEarned ?? 0)) === 0 && result && result.classification.length > 0 && (
           <View style={styles.zeroPointsCard}>
             <Text style={styles.zeroPointsText}>No points earned for this race</Text>
           </View>

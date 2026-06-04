@@ -10,9 +10,10 @@ interface RaceCardProps {
   onPress?: () => void;
   showStatus?: boolean;
   pointsEarned?: number;
+  sprintPointsEarned?: number;
 }
 
-export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned }: RaceCardProps) {
+export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned, sprintPointsEarned }: RaceCardProps) {
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -100,10 +101,10 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
           </View>
         )}
 
-        {race.status === 'completed' && pointsEarned !== undefined && pointsEarned > 0 && (
+        {race.status === 'completed' && pointsEarned !== undefined && (pointsEarned + (sprintPointsEarned ?? 0)) > 0 && (
           <View style={styles.pointsRow}>
             <Zap size={11} color={Colors.warning} />
-            <Text style={styles.pointsText}>+{pointsEarned} pts earned</Text>
+            <Text style={styles.pointsText}>+{pointsEarned + (sprintPointsEarned ?? 0)} pts earned</Text>
           </View>
         )}
 

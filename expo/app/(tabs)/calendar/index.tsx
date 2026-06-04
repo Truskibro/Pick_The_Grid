@@ -69,6 +69,7 @@ export default function CalendarScreen() {
                 }
               }}
               pointsEarned={getPrediction(item.race.id)?.pointsEarned}
+              sprintPointsEarned={getPrediction(item.race.id)?.sprintPointsEarned}
             />
           );
         }}

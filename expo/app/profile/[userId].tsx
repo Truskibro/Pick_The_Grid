@@ -28,7 +28,8 @@ import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useAchievements } from '@/providers/AchievementProvider';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
-import { MOCK_LEAGUE_MEMBERS } from '@/constants/mock-members';
+import { MOCK_LEAGUE_MEMBERS, scoreMockMember } from '@/constants/mock-members';
+import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 import {
   VISIBLE_ACHIEVEMENTS,
   HIDDEN_ACHIEVEMENTS,
@@ -186,11 +187,12 @@ export default function ProfileScreen() {
       // 3. Try mock members (Sainz4Ever55, Whitney etc.)
       const mockMember = MOCK_LEAGUE_MEMBERS.find((m) => m.userId === userId);
       if (mockMember) {
+        const scored = scoreMockMember(mockMember, MOCK_RACE_RESULTS);
         setProfile({
           ...buildFallbackProfile(userId),
           username: mockMember.username,
           displayName: mockMember.displayName,
-          totalPoints: 0,
+          totalPoints: scored.points,
           globalRank: 0,
         });
         setLoading(false);
