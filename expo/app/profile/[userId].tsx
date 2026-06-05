@@ -117,7 +117,9 @@ async function fetchFromSupabase(userId: string): Promise<ProfileData | null> {
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { fetchGlobalLeaderboard, leagues, predictions } = useGame();
+  // Only subscribe to fetchGlobalLeaderboard — the rest we read via refs
+  // to avoid ProfileScreen re-rendering on every prediction/league change.
+  const gameCtx = useGame();
   const { profile: currentUserProfile } = useUser();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -126,14 +128,14 @@ export default function ProfileScreen() {
   const slideAnim = useRef(new Animated.Value(20)).current;
 
   // Stable refs so effect doesn't re-run on every context change
-  const fetchGlobalLeaderboardRef = useRef(fetchGlobalLeaderboard);
-  fetchGlobalLeaderboardRef.current = fetchGlobalLeaderboard;
+  const fetchGlobalLeaderboardRef = useRef(gameCtx.fetchGlobalLeaderboard);
+  fetchGlobalLeaderboardRef.current = gameCtx.fetchGlobalLeaderboard;
   const currentUserProfileRef = useRef(currentUserProfile);
   currentUserProfileRef.current = currentUserProfile;
-  const predictionsRef = useRef(predictions);
-  predictionsRef.current = predictions;
-  const leaguesRef = useRef(leagues);
-  leaguesRef.current = leagues;
+  const predictionsRef = useRef(gameCtx.predictions);
+  predictionsRef.current = gameCtx.predictions;
+  const leaguesRef = useRef(gameCtx.leagues);
+  leaguesRef.current = gameCtx.leagues;
 
   useEffect(() => {
     if (!userId) return;
