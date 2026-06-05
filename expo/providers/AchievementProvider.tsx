@@ -18,8 +18,15 @@ import {
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
+import type { Race } from '@/types';
 
 const STORAGE_KEY = 'apex_draft_achievements';
+
+/** Returns true only when every non-cancelled race is completed. */
+function isSeasonOver(races: Race[] | undefined | null): boolean {
+  if (!races || races.length === 0) return false;
+  return races.every((r) => r.status === 'completed' || r.status === 'cancelled');
+}
 
 export interface AchievementUnlockEvent {
   achievementId: string;
@@ -93,7 +100,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     getLeagueMembers,
   } = useGame();
 
-  const { raceResults = [] } = useF1Data();
+  const { raceResults = [], races = [] } = useF1Data();
   const { profile } = useUser();
 
   const stateRef = useRef<AchievementState>(state);
@@ -146,6 +153,9 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       raceResultsById[result.raceId] = result;
     }
 
+    /** Season is over only when every non-cancelled race is completed. */
+    const seasonOver = isSeasonOver(races);
+
     const leagueMemberships: AchievementInput['leagueMemberships'] = [];
 
     for (const league of leagues ?? []) {
@@ -165,7 +175,9 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       leagueMemberships.push({
         leagueId: league.id,
         rank,
-        seasonRank: rank,
+        // Only include seasonRank when the season has concluded.
+        // Otherwise the engine would award Season Champion mid-season.
+        seasonRank: seasonOver ? rank : undefined,
       });
     }
 
@@ -180,6 +192,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   }, [
     predictions,
     raceResults,
+    races,
     totalPoints,
     leagues,
     getLeagueMembers,
@@ -239,6 +252,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     isLoaded,
     predictions,
     raceResults,
+    races,
     totalPoints,
     leagues,
     checkUnlocks,
