@@ -118,6 +118,10 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const stateRef = useRef<AchievementState>(state);
   stateRef.current = state;
 
+  // Stable refs for callbacks to avoid context value recreation
+  const evaluateRef = useRef<() => EvaluationResult>(() => ({ state: createEmptyAchievementState(), newlyUnlocked: [] }));
+  const getProgressRef = useRef<(id: string) => AchievementProgress | undefined>(() => undefined);
+
   useEffect(() => {
     const load = async () => {
       try {
@@ -211,7 +215,9 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     profile.id,
   ]);
 
-  const evaluate = useCallback((): EvaluationResult => {
+  // Always-available evaluate that reads latest state via refs — avoids
+  // being a dependency for the context value useMemo.
+  evaluateRef.current = (): EvaluationResult => {
     const input = buildInput();
     const safeExistingState = fillMissingAchievements(stateRef.current);
 
@@ -225,12 +231,12 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         newlyUnlocked: [],
       };
     }
-  }, [buildInput]);
+  };
 
   const checkUnlocks = useCallback(() => {
     if (!isLoaded) return;
 
-    const result = evaluate();
+    const result = evaluateRef.current();
     const previousState = fillMissingAchievements(stateRef.current);
     const nextState = fillMissingAchievements(result.state);
 
@@ -254,7 +260,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         dismissed: false,
       })),
     ]);
-  }, [evaluate, isLoaded]);
+  }, [isLoaded]);
 
   useEffect(() => {
     if (!isLoaded) return;
@@ -284,11 +290,15 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     }, 400);
   }, []);
 
+  getProgressRef.current = (achievementId: string): AchievementProgress | undefined => {
+    return stateRef.current[achievementId];
+  };
+
   const getProgress = useCallback(
     (achievementId: string): AchievementProgress | undefined => {
-      return state[achievementId];
+      return getProgressRef.current(achievementId);
     },
-    [state]
+    []
   );
 
   const unlockedCount = useMemo(() => {
@@ -346,7 +356,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       checkUnlocks,
       dismissUnlock,
       getProgress,
-      evaluate,
+      evaluate: evaluateRef.current,
     }),
     [
       state,
@@ -358,7 +368,6 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       checkUnlocks,
       dismissUnlock,
       getProgress,
-      evaluate,
     ]
   );
 });

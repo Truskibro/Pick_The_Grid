@@ -420,6 +420,7 @@ export default function ProfileScreen() {
 
             <ProfileAchievements
               isOwnProfile={!!currentUserProfile && currentUserProfile.id === userId}
+              key={userId}
             />
           </LinearGradient>
         </Animated.View>
@@ -435,20 +436,23 @@ export default function ProfileScreen() {
 /*  ProfileAchievements — shows badge progress     */
 /* ─────────────────────────────────────────────── */
 
-function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
+const ProfileAchievements = React.memo(function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
   const { state, unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
 
-  // Collect unlocked visible achievements
-  const unlockedVisible = VISIBLE_ACHIEVEMENTS.filter((def) => {
-    const prog = state[def.id];
-    return (prog?.unlockedTiers?.length ?? 0) > 0;
-  });
+  // Memoize filtered achievement lists to avoid recomputation on re-renders
+  const unlockedVisible = useMemo(() => {
+    return VISIBLE_ACHIEVEMENTS.filter((def) => {
+      const prog = state[def.id];
+      return (prog?.unlockedTiers?.length ?? 0) > 0;
+    });
+  }, [state]);
 
-  // Collect unlocked hidden achievements
-  const unlockedHidden = HIDDEN_ACHIEVEMENTS.filter((def) => {
-    const prog = state[def.id];
-    return (prog?.unlockedTiers?.length ?? 0) > 0;
-  });
+  const unlockedHidden = useMemo(() => {
+    return HIDDEN_ACHIEVEMENTS.filter((def) => {
+      const prog = state[def.id];
+      return (prog?.unlockedTiers?.length ?? 0) > 0;
+    });
+  }, [state]);
 
   const hasAnyUnlocked = unlockedVisible.length > 0 || unlockedHidden.length > 0;
 
@@ -537,7 +541,7 @@ function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
       )}
     </View>
   );
-}
+});
 
 const paStyles = StyleSheet.create({
   container: {
