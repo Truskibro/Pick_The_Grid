@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -117,7 +117,7 @@ async function fetchFromSupabase(userId: string): Promise<ProfileData | null> {
 
 export default function ProfileScreen() {
   const { userId } = useLocalSearchParams<{ userId: string }>();
-  const { getLeagueMembers, fetchGlobalLeaderboard, leagues, predictions } = useGame();
+  const { fetchGlobalLeaderboard, leagues, predictions } = useGame();
   const { profile: currentUserProfile } = useUser();
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
@@ -125,27 +125,40 @@ export default function ProfileScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
 
+  // Stable refs so effect doesn't re-run on every context change
+  const fetchGlobalLeaderboardRef = useRef(fetchGlobalLeaderboard);
+  fetchGlobalLeaderboardRef.current = fetchGlobalLeaderboard;
+  const currentUserProfileRef = useRef(currentUserProfile);
+  currentUserProfileRef.current = currentUserProfile;
+  const predictionsRef = useRef(predictions);
+  predictionsRef.current = predictions;
+  const leaguesRef = useRef(leagues);
+  leaguesRef.current = leagues;
+
   useEffect(() => {
     if (!userId) return;
 
     let cancelled = false;
+    const cp = currentUserProfileRef.current;
+    const preds = predictionsRef.current;
+    const lgs = leaguesRef.current;
 
     const load = async () => {
       setLoading(true);
 
       // 0. If viewing your own profile, use the local UserProvider data immediately
-      if (currentUserProfile && currentUserProfile.id === userId && currentUserProfile.id !== 'guest') {
-        const predictionsMade = predictions.filter((p) => (p.top10?.length ?? 0) > 0 || p.fastestLap || p.dnf).length;
+      if (cp && cp.id === userId && cp.id !== 'guest') {
+        const predictionsMade = preds.filter((p) => (p.top10?.length ?? 0) > 0 || p.fastestLap || p.dnf).length;
         setProfile({
-          id: currentUserProfile.id,
-          username: currentUserProfile.username,
-          displayName: currentUserProfile.displayName,
-          firstName: currentUserProfile.firstName,
-          lastName: currentUserProfile.lastName,
-          country: currentUserProfile.country,
-          totalPoints: currentUserProfile.totalPoints,
-          globalRank: currentUserProfile.rank,
-          leaguesJoined: leagues.length,
+          id: cp.id,
+          username: cp.username,
+          displayName: cp.displayName,
+          firstName: cp.firstName,
+          lastName: cp.lastName,
+          country: cp.country,
+          totalPoints: cp.totalPoints,
+          globalRank: cp.rank,
+          leaguesJoined: lgs.length,
           predictionsMade,
         });
         setLoading(false);
@@ -167,7 +180,7 @@ export default function ProfileScreen() {
 
       // 2. Try leaderboard data
       try {
-        const leaderboard = await fetchGlobalLeaderboard();
+        const leaderboard = await fetchGlobalLeaderboardRef.current();
         const lbEntry = leaderboard.find((e) => e.userId === userId);
         if (lbEntry) {
           setProfile({
@@ -209,7 +222,7 @@ export default function ProfileScreen() {
     return () => {
       cancelled = true;
     };
-  }, [userId, fetchGlobalLeaderboard, getLeagueMembers, currentUserProfile, leagues, predictions]);
+  }, [userId]);
 
   useEffect(() => {
     if (!loading) {
