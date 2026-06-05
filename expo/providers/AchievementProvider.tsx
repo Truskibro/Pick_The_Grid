@@ -50,7 +50,19 @@ function fillMissingAchievements(parsed: AchievementState | null | undefined): A
   const safeParsed = parsed ?? {};
 
   for (const def of ALL_ACHIEVEMENTS) {
-    filled[def.id] = safeParsed[def.id] ?? createEmptyProgress(def.id);
+    const existing = safeParsed[def.id];
+
+    if (existing && Array.isArray(existing.unlockedTiers)) {
+      // Normalise fields that may be missing from older persisted data.
+      filled[def.id] = {
+        achievementId: existing.achievementId ?? def.id,
+        unlockedTiers: existing.unlockedTiers,
+        currentValue: existing.currentValue ?? 0,
+        unlockedAt: existing.unlockedAt ?? {},
+      };
+    } else {
+      filled[def.id] = createEmptyProgress(def.id);
+    }
   }
 
   return filled;

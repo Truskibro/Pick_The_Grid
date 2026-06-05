@@ -441,13 +441,13 @@ function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
   // Collect unlocked visible achievements
   const unlockedVisible = VISIBLE_ACHIEVEMENTS.filter((def) => {
     const prog = state[def.id];
-    return prog && prog.unlockedTiers.length > 0;
+    return (prog?.unlockedTiers?.length ?? 0) > 0;
   });
 
   // Collect unlocked hidden achievements
   const unlockedHidden = HIDDEN_ACHIEVEMENTS.filter((def) => {
     const prog = state[def.id];
-    return prog && prog.unlockedTiers.length > 0;
+    return (prog?.unlockedTiers?.length ?? 0) > 0;
   });
 
   const hasAnyUnlocked = unlockedVisible.length > 0 || unlockedHidden.length > 0;
@@ -490,7 +490,8 @@ function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
           <View style={paStyles.badgeRow}>
             {unlockedVisible.map((def) => {
               const prog = state[def.id];
-              const highestTier = prog?.unlockedTiers[prog.unlockedTiers.length - 1] ?? 'bronze';
+              const tiers = prog?.unlockedTiers ?? [];
+              const highestTier = tiers.length > 0 ? tiers[tiers.length - 1] : 'bronze';
               const tierColors = TIER_COLORS[highestTier as AchievementTier];
               return (
                 <View
