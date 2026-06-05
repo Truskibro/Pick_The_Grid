@@ -15,9 +15,11 @@ interface TimeLeft {
   seconds: number;
 }
 
+const LOCK_MINUTES = 5;
+
 function getTimeLeft(targetDate: string, targetTime: string): TimeLeft {
   const target = new Date(`${targetDate}T${targetTime}:00Z`);
-  const lockTime = new Date(target.getTime() - 60 * 60 * 1000);
+  const lockTime = new Date(target.getTime() - LOCK_MINUTES * 60 * 1000);
   const now = new Date();
   const diff = lockTime.getTime() - now.getTime();
 
@@ -35,7 +37,7 @@ function getTimeLeft(targetDate: string, targetTime: string): TimeLeft {
 
 function isLocked(targetDate: string, targetTime: string): boolean {
   const target = new Date(`${targetDate}T${targetTime}:00Z`);
-  const lockTime = new Date(target.getTime() - 60 * 60 * 1000);
+  const lockTime = new Date(target.getTime() - LOCK_MINUTES * 60 * 1000);
   return new Date() >= lockTime;
 }
 
@@ -53,7 +55,7 @@ export default function CountdownTimer({ targetDate, targetTime, compact }: Coun
   }, [targetDate, targetTime]);
 
   useEffect(() => {
-    if (timeLeft.days === 0 && timeLeft.hours < 2) {
+    if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes < 15) {
       const pulse = Animated.loop(
         Animated.sequence([
           Animated.timing(pulseAnim, { toValue: 0.6, duration: 800, useNativeDriver: true }),
