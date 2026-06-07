@@ -249,10 +249,10 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const raceResults = useMemo(() => resultsQuery.data ?? FALLBACK_RESULTS, [resultsQuery.data]);
 
   const nextRace = useMemo(() => {
-    const upcoming = races.filter(r => r.status === 'upcoming');
-    if (upcoming.length > 0) return upcoming[0];
     const live = races.filter(r => r.status === 'live');
     if (live.length > 0) return live[0];
+    const upcoming = races.filter(r => r.status === 'upcoming');
+    if (upcoming.length > 0) return upcoming[0];
     return undefined;
   }, [races]);
 
