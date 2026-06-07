@@ -40,6 +40,8 @@ export default function PredictRaceScreen() {
   const raceResult = raceId ? getRaceResult(raceId) : undefined;
   const raceIsCompleted = race?.status === 'completed';
 
+  const existingPrediction = race ? getPrediction(race.id) : undefined;
+
   // Compute scoring breakdown when race is completed and results exist
   const completedBreakdown = useMemo(() => {
     if (!raceIsCompleted || !existingPrediction || !raceResult || raceResult.classification.length === 0) return null;
@@ -54,8 +56,6 @@ export default function PredictRaceScreen() {
       navigation.setOptions({ title: race.name });
     }
   }, [race, navigation]);
-
-  const existingPrediction = race ? getPrediction(race.id) : undefined;
 
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>(existingPrediction?.top10 || []);
   const [sprintTop8, setSprintTop8] = useState<string[]>(existingPrediction?.sprintTop8 || []);
