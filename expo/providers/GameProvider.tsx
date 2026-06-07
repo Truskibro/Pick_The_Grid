@@ -224,11 +224,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
         console.log('Predictions load error:', predResult.error.message);
       }
 
-      let preds: Prediction[] = [];
+      // Read local predictions so we can merge instead of replace.
+      let localPreds: Prediction[] = [];
+      try {
+        const raw = await AsyncStorage.getItem(STORAGE_KEYS.predictions);
+        if (raw) {
+          localPreds = (JSON.parse(raw) as Prediction[]).map(normalizePrediction);
+        }
+      } catch {
+        // Ignore corrupt local data — remote/Supabase is source of truth.
+      }
+
+      const remoteMap = new Map<string, Prediction>();
 
       if (predResult.data && predResult.data.length > 0) {
-        preds = predResult.data.map((p: any) =>
-          normalizePrediction({
+        for (const p of predResult.data as any[]) {
+          const pred = normalizePrediction({
             id: p.id,
             raceId: p.race_id,
             top10: p.predicted_top10 || [],
@@ -238,8 +249,50 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintTop8: p.predicted_sprint_top8 || [],
             sprintPointsEarned: p.sprint_points_earned || 0,
             updatedAt: p.updated_at,
-          })
-        );
+          });
+          remoteMap.set(pred.raceId, pred);
+        }
+      }
+
+      let preds: Prediction[] = [...remoteMap.values()];
+
+      // Merge local predictions that don't exist remotely — and sync them up.
+      for (const lp of localPreds) {
+        if (!remoteMap.has(lp.raceId)) {
+          // Don't sync already-scored predictions from local — they may be stale.
+          const race = getRaceById(lp.raceId) ?? RACES.find((r) => r.id === lp.raceId);
+          const raceCompleted = race?.status === 'completed';
+
+          preds.push(lp);
+
+          // Sync to Supabase so the user doesn't lose their picks on next load.
+          if (!raceCompleted) {
+            supabase
+              .from('user_predictions')
+              .upsert(
+                {
+                  user_id: userId,
+                  race_id: lp.raceId,
+                  predicted_top10: lp.top10,
+                  predicted_fastest_lap: lp.fastestLap,
+                  predicted_dnf: lp.dnf,
+                  predicted_sprint_top8: lp.sprintTop8,
+                  points_earned: lp.pointsEarned ?? 0,
+                  sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                  updated_at: lp.updatedAt,
+                },
+                { onConflict: 'user_id,race_id' }
+              )
+              .then(({ error }) => {
+                if (error) {
+                  console.log('[loadFromSupabase] Sync upsert error for', lp.raceId, ':', error.message);
+                } else {
+                  console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
+                }
+              })
+              .catch(() => {});
+          }
+        }
       }
 
       const seedForUser = SEED_PREDICTIONS[normId(userId)];
