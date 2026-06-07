@@ -256,42 +256,38 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       let preds: Prediction[] = [...remoteMap.values()];
 
-      // Merge local predictions that don't exist remotely — and sync them up.
+      // Merge local predictions that don't exist remotely — and sync them all up.
+      // Always push local picks to Supabase so the user never loses their data
+      // across devices, even for completed races where picks may not yet be scored.
       for (const lp of localPreds) {
         if (!remoteMap.has(lp.raceId)) {
-          // Don't sync already-scored predictions from local — they may be stale.
-          const race = getRaceById(lp.raceId) ?? RACES.find((r) => r.id === lp.raceId);
-          const raceCompleted = race?.status === 'completed';
-
           preds.push(lp);
 
           // Sync to Supabase so the user doesn't lose their picks on next load.
-          if (!raceCompleted) {
-            supabase
-              .from('user_predictions')
-              .upsert(
-                {
-                  user_id: userId,
-                  race_id: lp.raceId,
-                  predicted_top10: lp.top10,
-                  predicted_fastest_lap: lp.fastestLap,
-                  predicted_dnf: lp.dnf,
-                  predicted_sprint_top8: lp.sprintTop8,
-                  points_earned: lp.pointsEarned ?? 0,
-                  sprint_points_earned: lp.sprintPointsEarned ?? 0,
-                  updated_at: lp.updatedAt,
-                },
-                { onConflict: 'user_id,race_id' }
-              )
-              .then(({ error }) => {
-                if (error) {
-                  console.log('[loadFromSupabase] Sync upsert error for', lp.raceId, ':', error.message);
-                } else {
-                  console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
-                }
-              })
-              .catch(() => {});
-          }
+          supabase
+            .from('user_predictions')
+            .upsert(
+              {
+                user_id: userId,
+                race_id: lp.raceId,
+                predicted_top10: lp.top10,
+                predicted_fastest_lap: lp.fastestLap,
+                predicted_dnf: lp.dnf,
+                predicted_sprint_top8: lp.sprintTop8,
+                points_earned: lp.pointsEarned ?? 0,
+                sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                updated_at: lp.updatedAt,
+              },
+              { onConflict: 'user_id,race_id' }
+            )
+            .then(({ error }) => {
+              if (error) {
+                console.log('[loadFromSupabase] Sync upsert error for', lp.raceId, ':', error.message);
+              } else {
+                console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
+              }
+            })
+            .catch(() => {});
         }
       }
 
@@ -615,7 +611,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
 
       const now = new Date().toISOString();
-      const userId = session?.user?.id;
 
       const existingPrediction = predictionsRef.current.find(
         (p) => p.raceId === prediction.raceId
@@ -651,70 +646,83 @@ export const [GameProvider, useGame] = createContextHook(() => {
         console.log('[savePrediction] Local AsyncStorage save failed:', e);
       }
 
+      // Always try Supabase — use the session userId if available, otherwise
+      // fall back to reading it from the supabase auth directly.
+      const resolveUserId = async (): Promise<string | null> => {
+        if (session?.user?.id) return session.user.id;
+
+        // Session may not be in React state yet — ask Supabase directly.
+        try {
+          const { data } = await supabase.auth.getSession();
+          return data.session?.user?.id ?? null;
+        } catch {
+          return null;
+        }
+      };
+
+      const userId = await resolveUserId();
+
       if (!userId || !isSupabaseConfigured) {
-        console.log('[savePrediction] Saved locally only:', savedPrediction.raceId);
+        console.log('[savePrediction] Saved locally only:', savedPrediction.raceId, userId ? '(Supabase not configured)' : '(no user session)');
         return;
       }
 
-      try {
-        const { data, error } = await supabase
-          .from('user_predictions')
-          .upsert(
-            {
-              user_id: userId,
-              race_id: savedPrediction.raceId,
-              predicted_top10: savedPrediction.top10,
-              predicted_fastest_lap: savedPrediction.fastestLap,
-              predicted_dnf: savedPrediction.dnf,
-              predicted_sprint_top8: savedPrediction.sprintTop8,
-              points_earned: savedPrediction.pointsEarned,
-              sprint_points_earned: savedPrediction.sprintPointsEarned,
-              updated_at: savedPrediction.updatedAt,
-            },
-            { onConflict: 'user_id,race_id' }
-          )
-          .select()
-          .single();
+      // Fire-and-forget upsert with retry on network errors.
+      const doUpsert = async (attempt: number): Promise<void> => {
+        try {
+          const { error } = await supabase
+            .from('user_predictions')
+            .upsert(
+              {
+                user_id: userId,
+                race_id: savedPrediction.raceId,
+                predicted_top10: savedPrediction.top10,
+                predicted_fastest_lap: savedPrediction.fastestLap,
+                predicted_dnf: savedPrediction.dnf,
+                predicted_sprint_top8: savedPrediction.sprintTop8,
+                points_earned: savedPrediction.pointsEarned,
+                sprint_points_earned: savedPrediction.sprintPointsEarned,
+                updated_at: savedPrediction.updatedAt,
+              },
+              { onConflict: 'user_id,race_id' }
+            );
 
-        if (error) {
-          console.log('[savePrediction] Supabase upsert failed:', error.message);
-          return;
+          if (error) {
+            // 42P01 = relation does not exist — table missing, not recoverable.
+            if (error.code === '42P01') {
+              console.log('[savePrediction] Table does not exist — run supabase-schema.sql');
+              return;
+            }
+
+            // Network / timeout — retry once.
+            const isNetworkError =
+              error.message?.includes('fetch') ||
+              error.message?.includes('network') ||
+              error.message?.includes('timeout') ||
+              error.message?.includes('abort');
+
+            if (isNetworkError && attempt < 2) {
+              console.log('[savePrediction] Network error on attempt', attempt, '— retrying...');
+              await new Promise((r) => setTimeout(r, 1500));
+              return doUpsert(attempt + 1);
+            }
+
+            console.log('[savePrediction] Supabase upsert failed:', error.message, error.code);
+            return;
+          }
+
+          console.log('[savePrediction] Synced to Supabase:', savedPrediction.raceId);
+        } catch (e: any) {
+          if (attempt < 2) {
+            console.log('[savePrediction] Exception on attempt', attempt, '— retrying...');
+            await new Promise((r) => setTimeout(r, 1500));
+            return doUpsert(attempt + 1);
+          }
+          console.log('[savePrediction] Supabase save exception after retries:', e?.message || e);
         }
+      };
 
-        if (!data) {
-          console.log('[savePrediction] Supabase saved but returned no row');
-          return;
-        }
-
-        const confirmedPrediction: Prediction = normalizePrediction({
-          id: data.id,
-          raceId: data.race_id,
-          top10: data.predicted_top10 || [],
-          fastestLap: data.predicted_fastest_lap || null,
-          dnf: data.predicted_dnf || null,
-          pointsEarned: data.points_earned || 0,
-          sprintTop8: data.predicted_sprint_top8 || [],
-          sprintPointsEarned: data.sprint_points_earned || 0,
-          updatedAt: data.updated_at || now,
-        });
-
-        const confirmedPredictions = [
-          ...predictionsRef.current.filter((p) => p.raceId !== confirmedPrediction.raceId),
-          confirmedPrediction,
-        ];
-
-        setPredictions(confirmedPredictions);
-        predictionsRef.current = confirmedPredictions;
-
-        await AsyncStorage.setItem(
-          STORAGE_KEYS.predictions,
-          JSON.stringify(confirmedPredictions)
-        );
-
-        console.log('[savePrediction] Saved and confirmed:', confirmedPrediction.raceId);
-      } catch (e) {
-        console.log('[savePrediction] Supabase save exception:', e);
-      }
+      void doUpsert(1);
     },
     [session, getRaceById]
   );

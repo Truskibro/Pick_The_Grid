@@ -2,7 +2,7 @@
 
 const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
 const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
-const FASTEST_LAP_BONUS = 10;
+const FASTEST_LAP_BONUS = 1;
 const DNF_BONUS = 10;
 
 interface ClassificationEntry {
@@ -41,16 +41,19 @@ function calculatePoints(prediction: { top10: string[], fastestLap: string | nul
     .sort((a, b) => a.position - b.position)
     .map(c => c.driverId);
 
+  const alreadyScored = new Set<string>();
+
   for (let i = 0; i < prediction.top10.length && i < 10; i++) {
     const predictedDriverId = prediction.top10[i];
-    const actualIndex = resultTop10.indexOf(predictedDriverId);
+    const actualDriverId = resultTop10[i];
 
-    if (actualIndex === i) {
+    if (!predictedDriverId) continue;
+    if (alreadyScored.has(predictedDriverId)) continue;
+    alreadyScored.add(predictedDriverId);
+
+    // Exact position match only — no partial credit.
+    if (predictedDriverId === actualDriverId) {
       positionPoints += F1_POINTS[i];
-    } else if (actualIndex !== -1 && Math.abs(actualIndex - i) === 1) {
-      positionPoints += Math.floor(F1_POINTS[i] * 0.5);
-    } else if (actualIndex !== -1) {
-      positionPoints += Math.floor(F1_POINTS[i] * 0.25);
     }
   }
 
@@ -60,7 +63,32 @@ function calculatePoints(prediction: { top10: string[], fastestLap: string | nul
   }
 
   let dnfPoints = 0;
-  if (prediction.dnf && result.dnfDriverIds.includes(prediction.dnf)) {
+  // Use the real DNF detection: classification status + dnfDriverIds array.
+  const dnsIds = new Set<string>();
+  for (const c of result.classification) {
+    const status = (c.status || '').trim().toLowerCase();
+    if (status === 'dns' || status === 'did not start' || status === 'did_not_start') {
+      dnsIds.add(c.driverId);
+    }
+  }
+  // Also collect from dnsDriverIds if present.
+  if ('dnsDriverIds' in result && Array.isArray((result as any).dnsDriverIds)) {
+    for (const id of (result as any).dnsDriverIds) dnsIds.add(id);
+  }
+
+  const trueDnfIds = new Set<string>();
+  for (const c of result.classification) {
+    if (dnsIds.has(c.driverId)) continue;
+    const status = (c.status || '').trim().toLowerCase();
+    if (status === 'dnf' || status === 'retired' || status === 'ret' || status === 'did not finish' || status === 'did_not_finish') {
+      trueDnfIds.add(c.driverId);
+    }
+  }
+  for (const id of result.dnfDriverIds) {
+    if (!dnsIds.has(id)) trueDnfIds.add(id);
+  }
+
+  if (prediction.dnf && trueDnfIds.has(prediction.dnf)) {
     dnfPoints = DNF_BONUS;
   }
 
@@ -74,16 +102,19 @@ function calculateSprintPoints(sprintTop8: string[], sprintResult: Classificatio
     .sort((a, b) => a.position - b.position)
     .map(c => c.driverId);
 
+  const alreadyScored = new Set<string>();
+
   for (let i = 0; i < sprintTop8.length && i < 8; i++) {
     const predictedDriverId = sprintTop8[i];
-    const actualIndex = resultTop8.indexOf(predictedDriverId);
+    const actualDriverId = resultTop8[i];
 
-    if (actualIndex === i) {
+    if (!predictedDriverId) continue;
+    if (alreadyScored.has(predictedDriverId)) continue;
+    alreadyScored.add(predictedDriverId);
+
+    // Exact position match only — no partial credit.
+    if (predictedDriverId === actualDriverId) {
       positionPoints += SPRINT_POINTS[i];
-    } else if (actualIndex !== -1 && Math.abs(actualIndex - i) === 1) {
-      positionPoints += Math.floor(SPRINT_POINTS[i] * 0.5);
-    } else if (actualIndex !== -1) {
-      positionPoints += Math.floor(SPRINT_POINTS[i] * 0.25);
     }
   }
 
@@ -115,11 +146,12 @@ const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 18, driverId: 'ALO', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 19, driverId: 'BOT', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 20, driverId: 'HAD', time: '', gap: 'DNF', points: 0, status: 'dnf' },
-      { position: 21, driverId: 'PIA', time: '', gap: 'DNS', points: 0, status: 'dnf' },
-      { position: 22, driverId: 'HUL', time: '', gap: 'DNS', points: 0, status: 'dnf' },
+      { position: 21, driverId: 'PIA', time: '', gap: 'DNS', points: 0, status: 'dns' },
+      { position: 22, driverId: 'HUL', time: '', gap: 'DNS', points: 0, status: 'dns' },
     ],
     fastestLapDriverId: 'ANT',
-    dnfDriverIds: ['STR', 'ALO', 'BOT', 'HAD', 'PIA', 'HUL'],
+    dnfDriverIds: ['STR', 'ALO', 'BOT', 'HAD'],
+    dnsDriverIds: ['PIA', 'HUL'],
   },
   {
     raceId: 'r02',
@@ -142,13 +174,14 @@ const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 16, driverId: 'VER', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 17, driverId: 'ALO', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 18, driverId: 'STR', time: '', gap: 'DNF', points: 0, status: 'dnf' },
-      { position: 19, driverId: 'PIA', time: '', gap: 'DNS', points: 0, status: 'dnf' },
-      { position: 20, driverId: 'NOR', time: '', gap: 'DNS', points: 0, status: 'dnf' },
-      { position: 21, driverId: 'BOR', time: '', gap: 'DNS', points: 0, status: 'dnf' },
-      { position: 22, driverId: 'ALB', time: '', gap: 'DNS', points: 0, status: 'dnf' },
+      { position: 19, driverId: 'PIA', time: '', gap: 'DNS', points: 0, status: 'dns' },
+      { position: 20, driverId: 'NOR', time: '', gap: 'DNS', points: 0, status: 'dns' },
+      { position: 21, driverId: 'BOR', time: '', gap: 'DNS', points: 0, status: 'dns' },
+      { position: 22, driverId: 'ALB', time: '', gap: 'DNS', points: 0, status: 'dns' },
     ],
     fastestLapDriverId: 'ANT',
-    dnfDriverIds: ['VER', 'ALO', 'STR', 'PIA', 'NOR', 'BOR', 'ALB'],
+    dnfDriverIds: ['VER', 'ALO', 'STR'],
+    dnsDriverIds: ['PIA', 'NOR', 'BOR', 'ALB'],
     sprintClassification: [
       { position: 1, driverId: 'RUS', time: '', gap: 'Leader', points: 8, status: 'finished' },
       { position: 2, driverId: 'LEC', time: '', gap: '+0.674s', points: 7, status: 'finished' },
@@ -252,10 +285,11 @@ const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 19, driverId: 'RUS', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 20, driverId: 'ALO', time: '', gap: 'DNF', points: 0, status: 'dnf' },
       { position: 21, driverId: 'ALB', time: '', gap: 'DNF', points: 0, status: 'dnf' },
-      { position: 22, driverId: 'LIN', time: '', gap: 'DNS', points: 0, status: 'dnf' },
+      { position: 22, driverId: 'LIN', time: '', gap: 'DNS', points: 0, status: 'dns' },
     ],
     fastestLapDriverId: 'ANT',
-    dnfDriverIds: ['PER', 'NOR', 'RUS', 'ALO', 'ALB', 'LIN'],
+    dnfDriverIds: ['PER', 'NOR', 'RUS', 'ALO', 'ALB'],
+    dnsDriverIds: ['LIN'],
     sprintClassification: [
       { position: 1, driverId: 'RUS', time: '', gap: 'Leader', points: 8, status: 'finished' },
       { position: 2, driverId: 'NOR', time: '', gap: '+1.272s', points: 7, status: 'finished' },
