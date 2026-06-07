@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
-import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, seedRacesToSupabase } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import {
@@ -542,6 +542,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
       await loadFromLocal();
 
       if (session?.user) {
+        // Seed races in Supabase if needed (enables prediction saves to work)
+        seedRacesToSupabase().catch(() => {});
         await withTimeout(loadFromSupabase(), 30000, undefined);
       }
 
@@ -691,6 +693,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
             // 42P01 = relation does not exist — table missing, not recoverable.
             if (error.code === '42P01') {
               console.log('[savePrediction] Table does not exist — run supabase-fix-predictions.sql in the Supabase SQL Editor');
+              return;
+            }
+
+            // Foreign-key violation (23503) — races table exists but is empty.
+            // The app now auto-seeds races; this should resolve on next startup.
+            if (error.code === '23503') {
+              console.log(
+                '[savePrediction] Foreign key violation — races table may be empty. Auto-seed will run on next app launch.',
+                error.details ?? ''
+              );
               return;
             }
 

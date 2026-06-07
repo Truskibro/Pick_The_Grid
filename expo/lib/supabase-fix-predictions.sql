@@ -48,6 +48,7 @@ create table races (
 
 alter table races enable row level security;
 create policy "races_select" on races for select using (true);
+create policy "races_insert" on races for insert with check (true);
 
 -- ----------------------------------------------------------------
 -- RACE RESULTS
@@ -63,6 +64,7 @@ create table race_results (
 
 alter table race_results enable row level security;
 create policy "race_results_select" on race_results for select using (true);
+create policy "race_results_insert" on race_results for insert with check (true);
 
 -- ----------------------------------------------------------------
 -- USER PREDICTIONS (text race_id + sprint columns)
