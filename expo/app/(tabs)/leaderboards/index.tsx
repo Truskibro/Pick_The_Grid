@@ -7,7 +7,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Minus,
@@ -36,7 +36,7 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
-  const { leagues, getLeagueMembers, fetchGlobalLeaderboard } = useGame();
+  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -63,9 +63,17 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(false);
   }, [fetchGlobalLeaderboard]);
 
+  // Refresh leaderboard whenever the tab is focused.
+  useFocusEffect(
+    useCallback(() => {
+      void loadLeaderboard();
+    }, [loadLeaderboard])
+  );
+
+  // Also refresh when local totalPoints changes (scoring completed).
   useEffect(() => {
     void loadLeaderboard();
-  }, [loadLeaderboard]);
+  }, [totalPoints, loadLeaderboard]);
 
   const leagueRankings: LeagueRanking[] = useMemo(() => {
     return leagues

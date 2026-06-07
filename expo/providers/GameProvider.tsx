@@ -1153,6 +1153,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [session]);
 
   const fetchGlobalLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
+    const userId = session?.user?.id;
+    const localDisplayName = localProfileRef.current.displayName;
+    const localUsername = localProfileRef.current.username;
+
+    // Locally-computed totalPoints — always authoritative for the current user.
+    const localTotal = predictionsRef.current.reduce(
+      (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+      0
+    );
+
     const mockEntries: LeaderboardEntry[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
       const member = scoreMockMember(mock, MOCK_RACE_RESULTS);
 
@@ -1167,7 +1177,34 @@ export const [GameProvider, useGame] = createContextHook(() => {
     });
 
     if (!isSupabaseConfigured) {
-      return mockEntries
+      const entries = [...mockEntries];
+
+      // Inject the current user when not already present.
+      if (userId && !SEED_USER_IDS.has(normId(userId))) {
+        const alreadyPresent = entries.some((e) => normId(e.userId) === normId(userId));
+
+        if (!alreadyPresent) {
+          entries.push({
+            rank: 0,
+            userId,
+            username: localUsername,
+            displayName: localDisplayName,
+            totalPoints: localTotal,
+            previousRank: undefined,
+          });
+        } else {
+          // Override the existing entry with local points.
+          entries.forEach((e) => {
+            if (normId(e.userId) === normId(userId)) {
+              e.totalPoints = localTotal;
+              e.displayName = localDisplayName;
+              e.username = localUsername;
+            }
+          });
+        }
+      }
+
+      return entries
         .sort((a, b) => b.totalPoints - a.totalPoints)
         .map((e, i) => ({ ...e, rank: i + 1 }));
     }
@@ -1193,15 +1230,43 @@ export const [GameProvider, useGame] = createContextHook(() => {
           return { ...e, totalPoints: canonicalPoints };
         }
 
+        // Use locally-computed points for the current user — this is always
+        // more up-to-date than Supabase after scoring.
+        if (userId && normId(e.userId) === normId(userId)) {
+          return {
+            ...e,
+            totalPoints: localTotal,
+            displayName: localDisplayName,
+            username: localUsername,
+          };
+        }
+
         return e;
       }),
       ...mockEntries.filter((m) => !existingIds.has(normId(m.userId))),
     ];
 
+    // If the current user is logged in but not in Supabase profiles yet,
+    // add them from local state so they can see their own rank.
+    if (userId && !SEED_USER_IDS.has(normId(userId))) {
+      const alreadyPresent = merged.some((e) => normId(e.userId) === normId(userId));
+
+      if (!alreadyPresent) {
+        merged.push({
+          rank: 0,
+          userId,
+          username: localUsername,
+          displayName: localDisplayName,
+          totalPoints: localTotal,
+          previousRank: undefined,
+        });
+      }
+    }
+
     return merged
       .sort((a, b) => b.totalPoints - a.totalPoints)
       .map((e, i) => ({ ...e, rank: i + 1 }));
-  }, []);
+  }, [session]);
 
   const scorePredictions = useCallback(
     async (_raceResults: RaceResult[]) => {

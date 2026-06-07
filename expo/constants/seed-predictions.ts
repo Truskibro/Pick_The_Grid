@@ -96,7 +96,7 @@ export const SEED_USERS: SeedUser[] = [
 // Completed race IDs
 // ---------------------------------------------------------------------------
 
-export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07'] as const;
+export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07', 'r08'] as const;
 
 // ---------------------------------------------------------------------------
 // Raw prediction type
@@ -241,6 +241,27 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       ]),
       sprintPointsEarned: 0,
     },
+
+    r08: {
+      raceId: 'r08',
+      top10: map([
+        'K. Antonelli',
+        'L. Hamilton',
+        'O. Piastri',
+        'I. Hadjar',
+        'L. Lawson',
+        'A. Lindblad',
+        'C. Leclerc',
+        'P. Gasly',
+        'A. Albon',
+        'E. Ocon',
+      ]),
+      fastestLap: mapOne('K. Antonelli'),
+      dnf: mapOne('L. Stroll'),
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
   },
 
   '652154af-dc27-47b5-aa79-25903b9c4a1b': {
@@ -373,6 +394,27 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
         'L. Hamilton',
         'I. Hadjar',
       ]),
+      sprintPointsEarned: 0,
+    },
+
+    r08: {
+      raceId: 'r08',
+      top10: map([
+        'K. Antonelli',
+        'L. Hamilton',
+        'I. Hadjar',
+        'O. Piastri',
+        'C. Leclerc',
+        'A. Lindblad',
+        'L. Lawson',
+        'P. Gasly',
+        'A. Albon',
+        'S. Perez',
+      ]),
+      fastestLap: mapOne('K. Antonelli'),
+      dnf: mapOne('M. Verstappen'),
+      pointsEarned: 0,
+      sprintTop8: [],
       sprintPointsEarned: 0,
     },
   },
@@ -509,6 +551,27 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       ]),
       sprintPointsEarned: 0,
     },
+
+    r08: {
+      raceId: 'r08',
+      top10: map([
+        'K. Antonelli',
+        'L. Hamilton',
+        'O. Piastri',
+        'I. Hadjar',
+        'L. Lawson',
+        'A. Lindblad',
+        'P. Gasly',
+        'A. Albon',
+        'E. Ocon',
+        'S. Perez',
+      ]),
+      fastestLap: mapOne('L. Hamilton'),
+      dnf: mapOne('L. Norris'),
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
   },
 
   'e11ea4f5-2ba4-4241-9791-b4b6a560534b': {
@@ -641,6 +704,27 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
         'L. Hamilton',
         'I. Hadjar',
       ]),
+      sprintPointsEarned: 0,
+    },
+
+    r08: {
+      raceId: 'r08',
+      top10: map([
+        'C. Leclerc',
+        'K. Antonelli',
+        'O. Piastri',
+        'L. Hamilton',
+        'L. Norris',
+        'I. Hadjar',
+        'L. Lawson',
+        'A. Lindblad',
+        'P. Gasly',
+        'A. Albon',
+      ]),
+      fastestLap: mapOne('C. Leclerc'),
+      dnf: mapOne('C. Sainz'),
+      pointsEarned: 0,
+      sprintTop8: [],
       sprintPointsEarned: 0,
     },
   },
