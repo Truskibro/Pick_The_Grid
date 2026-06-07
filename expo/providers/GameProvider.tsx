@@ -34,7 +34,6 @@ const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
   leagues: 'apex_draft_leagues',
   leagueMembers: 'apex_draft_league_members',
-  pointsResetV1: 'apex_draft_points_reset_v1',
 } as const;
 
 function generateId(): string {
@@ -76,6 +75,19 @@ function withTimeout<T>(
       }, ms)
     ),
   ]);
+}
+
+function normalizePrediction(prediction: Prediction): Prediction {
+  return {
+    ...prediction,
+    top10: prediction.top10 ?? [],
+    fastestLap: prediction.fastestLap ?? null,
+    dnf: prediction.dnf ?? null,
+    pointsEarned: prediction.pointsEarned ?? 0,
+    sprintTop8: prediction.sprintTop8 ?? [],
+    sprintPointsEarned: prediction.sprintPointsEarned ?? 0,
+    updatedAt: prediction.updatedAt ?? new Date().toISOString(),
+  };
 }
 
 function mapMemberRows(
@@ -155,8 +167,6 @@ async function fetchAllProfilesSorted(): Promise<
       return [];
     }
 
-    console.log('fetchAllProfilesSorted: loaded', data.length, 'profiles for leaderboard');
-
     return data.map((p: any) => ({
       userId: p.id,
       username: p.username?.trim() || 'unknown',
@@ -198,7 +208,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }
 
     const userId = session.user.id;
-    console.log('loadFromSupabase: starting for user:', userId);
 
     try {
       const predResult = await withTimeout(
@@ -214,19 +223,19 @@ export const [GameProvider, useGame] = createContextHook(() => {
       let preds: Prediction[] = [];
 
       if (predResult.data && predResult.data.length > 0) {
-        preds = predResult.data.map((p: any) => ({
-          id: p.id,
-          raceId: p.race_id,
-          top10: p.predicted_top10 || [],
-          fastestLap: p.predicted_fastest_lap || null,
-          dnf: p.predicted_dnf || null,
-          pointsEarned: p.points_earned || 0,
-          sprintTop8: p.predicted_sprint_top8 || [],
-          sprintPointsEarned: p.sprint_points_earned || 0,
-          updatedAt: p.updated_at,
-        }));
-
-        console.log('Loaded', preds.length, 'predictions from Supabase');
+        preds = predResult.data.map((p: any) =>
+          normalizePrediction({
+            id: p.id,
+            raceId: p.race_id,
+            top10: p.predicted_top10 || [],
+            fastestLap: p.predicted_fastest_lap || null,
+            dnf: p.predicted_dnf || null,
+            pointsEarned: p.points_earned || 0,
+            sprintTop8: p.predicted_sprint_top8 || [],
+            sprintPointsEarned: p.sprint_points_earned || 0,
+            updatedAt: p.updated_at,
+          })
+        );
       }
 
       const seedForUser = SEED_PREDICTIONS[normId(userId)];
@@ -248,7 +257,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
           let sprintPts = 0;
 
           if (raceResult && raceResult.classification.length > 0 && rawPred.top10.length > 0) {
-            const scoringPred: Prediction = {
+            const scoringPred: Prediction = normalizePrediction({
               id: generateUuid(),
               raceId: rawPred.raceId,
               top10: rawPred.top10,
@@ -258,7 +267,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               sprintTop8: rawPred.sprintTop8,
               sprintPointsEarned: 0,
               updatedAt: '2026-01-01T00:00:00Z',
-            };
+            });
 
             const breakdown = calculatePoints(scoringPred, raceResult);
             gpPoints = breakdown.totalPoints;
@@ -278,7 +287,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintPts = sprintBreakdown.totalPoints;
           }
 
-          const fullPred: Prediction = {
+          const fullPred: Prediction = normalizePrediction({
             id: generateUuid(),
             raceId: rawPred.raceId,
             top10: rawPred.top10,
@@ -288,7 +297,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintTop8: rawPred.sprintTop8,
             sprintPointsEarned: sprintPts,
             updatedAt: '2026-01-01T00:00:00Z',
-          };
+          });
 
           preds.push(fullPred);
           rescored = true;
@@ -322,8 +331,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
             .then(({ error }) => {
               if (error) {
                 console.log('[Seed] Upsert error for', raceId, ':', error.message);
-              } else {
-                console.log('[Seed] Wrote prediction for', seedUser?.displayName ?? 'seed user', raceId);
               }
             })
             .catch(() => {});
@@ -335,17 +342,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
             0
           );
 
-          console.log('[Seed] Computed total for', seedUser?.displayName ?? 'seed user', ':', seedTotal);
-
           await updateProfileRef.current({ totalPoints: seedTotal }).catch(() => {});
         }
       }
 
-      if (preds.length > 0) {
-        setPredictions(preds);
-        predictionsRef.current = preds;
-        await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(preds)).catch(() => {});
-      }
+      setPredictions(preds);
+      predictionsRef.current = preds;
+
+      await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(preds)).catch(() => {});
 
       const membershipResult = await withTimeout(
         supabase.from('league_members').select('league_id').eq('user_id', userId),
@@ -358,8 +362,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
 
       const myLeagueIds: string[] = (membershipResult.data || []).map((m: any) => m.league_id);
-
-      console.log('User is member of', myLeagueIds.length, 'leagues');
 
       let allLeagueData: any[] = [];
 
@@ -385,32 +387,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
         for (const ol of ownedResult.data) {
           if (!allLeagueData.some((l: any) => l.id === ol.id)) {
             allLeagueData.push(ol);
-          }
-        }
-      }
-
-      if (myLeagueIds.length === 0) {
-        const fallbackMembership = await withTimeout(
-          supabase.from('league_members').select('league_id').eq('user_id', userId),
-          8000,
-          { data: null, error: { message: 'timeout' } } as any
-        );
-
-        const fallbackIds: string[] = (fallbackMembership.data || []).map((m: any) => m.league_id);
-
-        if (fallbackIds.length > 0) {
-          const fallbackLeagues = await withTimeout(
-            supabase.from('leagues').select('*').in('id', fallbackIds),
-            8000,
-            { data: null, error: { message: 'timeout' } } as any
-          );
-
-          if (!fallbackLeagues.error && fallbackLeagues.data) {
-            for (const fl of fallbackLeagues.data) {
-              if (!allLeagueData.some((l: any) => l.id === fl.id)) {
-                allLeagueData.push(fl);
-              }
-            }
           }
         }
       }
@@ -471,7 +447,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
       setLeagues(leaguesWithCounts);
       setLeagueMembers(membersMap);
 
-      console.log('loadFromSupabase: done, loaded', leaguesWithCounts.length, 'leagues');
+      await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(leaguesWithCounts)).catch(() => {});
+      await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(membersMap)).catch(() => {});
     } catch (e) {
       console.log('loadFromSupabase: top-level error:', e);
     }
@@ -487,13 +464,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (predData) {
         const parsed: Prediction[] = JSON.parse(predData);
-
-        const normalized = parsed.map((p) => ({
-          ...p,
-          sprintTop8: p.sprintTop8 ?? [],
-          sprintPointsEarned: p.sprintPointsEarned ?? 0,
-          pointsEarned: p.pointsEarned ?? 0,
-        }));
+        const normalized = parsed.map(normalizePrediction);
 
         setPredictions(normalized);
         predictionsRef.current = normalized;
@@ -577,88 +548,105 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const savePrediction = useCallback(
     async (prediction: Omit<Prediction, 'id' | 'updatedAt'>) => {
       const now = new Date().toISOString();
+      const userId = session?.user?.id;
 
-      const localPred: Prediction = {
-        id: generateId(),
-        ...prediction,
+      const existingPrediction = predictionsRef.current.find(
+        (p) => p.raceId === prediction.raceId
+      );
+
+      const savedPrediction: Prediction = normalizePrediction({
+        id: existingPrediction?.id || generateId(),
+        raceId: prediction.raceId,
+        top10: prediction.top10 ?? [],
+        fastestLap: prediction.fastestLap ?? null,
+        dnf: prediction.dnf ?? null,
+        pointsEarned: existingPrediction?.pointsEarned ?? prediction.pointsEarned ?? 0,
+        sprintTop8: prediction.sprintTop8 ?? [],
+        sprintPointsEarned:
+          existingPrediction?.sprintPointsEarned ?? prediction.sprintPointsEarned ?? 0,
         updatedAt: now,
-      };
-
-      setPredictions((prev) => {
-        const filtered = prev.filter((p) => p.raceId !== prediction.raceId);
-        const existing = prev.find((p) => p.raceId === prediction.raceId);
-
-        const merged: Prediction = existing
-          ? { ...existing, ...prediction, updatedAt: now }
-          : localPred;
-
-        const updated = [...filtered, merged];
-
-        predictionsRef.current = updated;
-
-        AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(updated)).catch(() => {});
-
-        return updated;
       });
 
-      if (session?.user && isSupabaseConfigured) {
-        try {
-          const { error: upsertError } = await supabase
-            .from('user_predictions')
-            .upsert(
-              {
-                user_id: session.user.id,
-                race_id: prediction.raceId,
-                predicted_top10: prediction.top10,
-                predicted_fastest_lap: prediction.fastestLap,
-                predicted_dnf: prediction.dnf,
-                predicted_sprint_top8: prediction.sprintTop8,
-                points_earned: prediction.pointsEarned,
-                sprint_points_earned: prediction.sprintPointsEarned,
-                updated_at: now,
-              },
-              { onConflict: 'user_id,race_id' }
-            );
+      const nextPredictions = [
+        ...predictionsRef.current.filter((p) => p.raceId !== prediction.raceId),
+        savedPrediction,
+      ];
 
-          if (upsertError) {
-            console.log('Prediction upsert error:', upsertError.message);
-            return;
-          }
+      setPredictions(nextPredictions);
+      predictionsRef.current = nextPredictions;
 
-          const { data: verifyData, error: verifyError } = await supabase
-            .from('user_predictions')
-            .select('*')
-            .eq('user_id', session.user.id)
-            .eq('race_id', prediction.raceId)
-            .single();
+      try {
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.predictions,
+          JSON.stringify(nextPredictions)
+        );
+      } catch (e) {
+        console.log('[savePrediction] Local AsyncStorage save failed:', e);
+      }
 
-          if (!verifyError && verifyData) {
-            const saved: Prediction = {
-              id: verifyData.id,
-              raceId: verifyData.race_id,
-              top10: verifyData.predicted_top10 || [],
-              fastestLap: verifyData.predicted_fastest_lap || null,
-              dnf: verifyData.predicted_dnf || null,
-              pointsEarned: verifyData.points_earned || 0,
-              sprintTop8: verifyData.predicted_sprint_top8 || [],
-              sprintPointsEarned: verifyData.sprint_points_earned || 0,
-              updatedAt: verifyData.updated_at,
-            };
+      if (!userId || !isSupabaseConfigured) {
+        console.log('[savePrediction] Saved locally only:', savedPrediction.raceId);
+        return;
+      }
 
-            setPredictions((prev) => {
-              const filtered = prev.filter((p) => p.raceId !== prediction.raceId);
-              const updated = [...filtered, saved];
+      try {
+        const { data, error } = await supabase
+          .from('user_predictions')
+          .upsert(
+            {
+              user_id: userId,
+              race_id: savedPrediction.raceId,
+              predicted_top10: savedPrediction.top10,
+              predicted_fastest_lap: savedPrediction.fastestLap,
+              predicted_dnf: savedPrediction.dnf,
+              predicted_sprint_top8: savedPrediction.sprintTop8,
+              points_earned: savedPrediction.pointsEarned,
+              sprint_points_earned: savedPrediction.sprintPointsEarned,
+              updated_at: savedPrediction.updatedAt,
+            },
+            { onConflict: 'user_id,race_id' }
+          )
+          .select()
+          .single();
 
-              predictionsRef.current = updated;
-
-              AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(updated)).catch(() => {});
-
-              return updated;
-            });
-          }
-        } catch (e) {
-          console.log('Prediction save to Supabase failed:', e);
+        if (error) {
+          console.log('[savePrediction] Supabase upsert failed:', error.message);
+          return;
         }
+
+        if (!data) {
+          console.log('[savePrediction] Supabase saved but returned no row');
+          return;
+        }
+
+        const confirmedPrediction: Prediction = normalizePrediction({
+          id: data.id,
+          raceId: data.race_id,
+          top10: data.predicted_top10 || [],
+          fastestLap: data.predicted_fastest_lap || null,
+          dnf: data.predicted_dnf || null,
+          pointsEarned: data.points_earned || 0,
+          sprintTop8: data.predicted_sprint_top8 || [],
+          sprintPointsEarned: data.sprint_points_earned || 0,
+          updatedAt: data.updated_at || now,
+        });
+
+        const confirmedPredictions = [
+          ...predictionsRef.current.filter((p) => p.raceId !== confirmedPrediction.raceId),
+          confirmedPrediction,
+        ];
+
+        setPredictions(confirmedPredictions);
+        predictionsRef.current = confirmedPredictions;
+
+        await AsyncStorage.setItem(
+          STORAGE_KEYS.predictions,
+          JSON.stringify(confirmedPredictions)
+        );
+
+        console.log('[savePrediction] Saved and confirmed:', confirmedPrediction.raceId);
+      } catch (e) {
+        console.log('[savePrediction] Supabase save exception:', e);
       }
     },
     [session]
@@ -713,8 +701,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
             if (error) console.log('League member insert error:', error.message);
           });
 
-        const createdAt = insertedLeague?.created_at || new Date().toISOString();
-
         const league: League = {
           id: leagueId,
           name,
@@ -723,23 +709,32 @@ export const [GameProvider, useGame] = createContextHook(() => {
           joinCode,
           ownerId: session.user.id,
           memberCount: 1,
-          createdAt,
+          createdAt: insertedLeague?.created_at || new Date().toISOString(),
         };
 
-        setLeagues((prev) => [...prev, league]);
-        setLeagueMembers((prev) => ({
-          ...prev,
-          [league.id]: [
-            {
-              userId: session.user.id,
-              username: ownerName,
-              displayName: ownerDisplayName,
-              role: 'owner',
-              points: localProfileRef.current.totalPoints,
-              joinedAt: new Date().toISOString(),
-            },
-          ],
-        }));
+        const ownerMember: LeagueMember = {
+          userId: session.user.id,
+          username: ownerName,
+          displayName: ownerDisplayName,
+          role: 'owner',
+          points: localProfileRef.current.totalPoints,
+          joinedAt: new Date().toISOString(),
+        };
+
+        setLeagues((prev) => {
+          const updated = [...prev, league];
+          AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
+
+        setLeagueMembers((prev) => {
+          const updated = {
+            ...prev,
+            [league.id]: [ownerMember],
+          };
+          AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
 
         return league;
       }
@@ -786,8 +781,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       displayName: string
     ): Promise<boolean> => {
       if (session?.user && isSupabaseConfigured) {
-        console.log('joinLeague: joining league', leagueId);
-
         const { error: joinError } = await supabase
           .from('league_members')
           .insert({
@@ -836,20 +829,20 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
           setLeagues((prev) => {
             const filtered = prev.filter((l) => l.id !== leagueId);
-            return [...filtered, mappedLeague];
+            const updated = [...filtered, mappedLeague];
+            AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updated)).catch(() => {});
+            return updated;
           });
-        } else {
-          setLeagues((prev) =>
-            prev.map((l) => (l.id === leagueId ? { ...l, memberCount } : l))
-          );
         }
 
-        setLeagueMembers((prev) => ({
-          ...prev,
-          [leagueId]: fetchedMembers,
-        }));
-
-        console.log('Joined league, loaded', fetchedMembers.length, 'members');
+        setLeagueMembers((prev) => {
+          const updated = {
+            ...prev,
+            [leagueId]: fetchedMembers,
+          };
+          AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
 
         return true;
       }
@@ -900,8 +893,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const findLeagueByCode = useCallback(
     async (code: string): Promise<League | undefined> => {
       if (session?.user && isSupabaseConfigured) {
-        console.log('Finding league by code:', code);
-
         const result = await withTimeout(
           supabase.from('leagues').select('*').eq('join_code', code.toUpperCase()).single(),
           8000,
@@ -935,7 +926,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
         setLeagues((prev) => {
           if (prev.some((l) => l.id === foundLeague.id)) return prev;
-          return [...prev, foundLeague];
+          const updated = [...prev, foundLeague];
+          AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updated)).catch(() => {});
+          return updated;
         });
 
         return foundLeague;
@@ -956,25 +949,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const fetchLeagueMembers = useCallback(
     async (leagueId: string): Promise<LeagueMember[]> => {
       if (!session?.user || !isSupabaseConfigured) {
-        console.log('fetchLeagueMembers: no session or supabase not configured');
         return leagueMembersRef.current[leagueId] || [];
       }
 
       const userId = session.user.id;
 
-      console.log(
-        'fetchLeagueMembers: fetching for league',
-        leagueId,
-        'current displayName:',
-        localProfileRef.current.displayName
-      );
-
       try {
         const memberRows = await fetchLeagueMembersJoined(leagueId);
 
         if (memberRows.length === 0) {
-          console.log('fetchLeagueMembers: no member rows found, creating owner fallback');
-
           const league = leagues.find((l) => l.id === leagueId);
 
           const fallback: LeagueMember[] = [
@@ -993,7 +976,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
             },
           ];
 
-          setLeagueMembers((prev) => ({ ...prev, [leagueId]: fallback }));
+          setLeagueMembers((prev) => {
+            const updated = { ...prev, [leagueId]: fallback };
+            AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updated)).catch(() => {});
+            return updated;
+          });
 
           return fallback;
         }
@@ -1013,17 +1000,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
           });
         }
 
-        console.log(
-          'fetchLeagueMembers:',
-          resolved.length,
-          'members ->',
-          resolved.map((m: LeagueMember) => `${m.displayName} (@${m.username}) ${m.points}`).join(', ')
-        );
-
-        setLeagueMembers((prev) => ({
-          ...prev,
-          [leagueId]: resolved,
-        }));
+        setLeagueMembers((prev) => {
+          const updated = {
+            ...prev,
+            [leagueId]: resolved,
+          };
+          AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updated)).catch(() => {});
+          return updated;
+        });
 
         return resolved;
       } catch (e) {
@@ -1049,31 +1033,24 @@ export const [GameProvider, useGame] = createContextHook(() => {
         }
       }
 
-      setLeagues((prev) => prev.filter((l) => l.id !== leagueId));
-      setLeagueMembers((prev) => {
-        const updated = { ...prev };
-        delete updated[leagueId];
+      setLeagues((prev) => {
+        const updated = prev.filter((l) => l.id !== leagueId);
+        AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updated)).catch(() => {});
         return updated;
       });
 
-      if (!session?.user) {
-        setLeagues((prev) => {
-          void AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(prev));
-          return prev;
-        });
-
-        setLeagueMembers((prev) => {
-          void AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(prev));
-          return prev;
-        });
-      }
+      setLeagueMembers((prev) => {
+        const updated = { ...prev };
+        delete updated[leagueId];
+        AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updated)).catch(() => {});
+        return updated;
+      });
     },
     [session]
   );
 
   const refreshLeagues = useCallback(async () => {
     if (session?.user) {
-      console.log('Refreshing leagues...');
       await withTimeout(loadFromSupabase(), 20000, undefined);
     }
   }, [session, loadFromSupabase]);
@@ -1123,8 +1100,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
     });
 
     if (!isSupabaseConfigured) {
-      console.log('fetchGlobalLeaderboard: Supabase not configured, returning mock members only');
-
       return mockEntries
         .sort((a, b) => b.totalPoints - a.totalPoints)
         .map((e, i) => ({ ...e, rank: i + 1 }));
@@ -1147,17 +1122,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       ...supabaseEntries.map((e) => {
         if (SEED_USER_IDS.has(normId(e.userId))) {
           const canonicalPoints = scoreSeededPredictions(normId(e.userId), MOCK_RACE_RESULTS);
-
-          if (canonicalPoints !== e.totalPoints) {
-            console.log(
-              '[Leaderboard] Overriding seed user',
-              e.displayName,
-              'points:',
-              e.totalPoints,
-              '→',
-              canonicalPoints
-            );
-          }
 
           return { ...e, totalPoints: canonicalPoints };
         }
@@ -1204,21 +1168,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
           return pred;
         }
 
-        console.log(
-          '[Scoring] Race',
-          pred.raceId,
-          'GP:',
-          newGpPoints,
-          '(was',
-          pred.pointsEarned,
-          ')',
-          'Sprint:',
-          newSprintPoints,
-          '(was',
-          pred.sprintPointsEarned,
-          ')'
-        );
-
         hasUpdates = true;
 
         return {
@@ -1229,7 +1178,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       });
 
       if (!hasUpdates) {
-        console.log('[Scoring] No new points to award');
         return;
       }
 
@@ -1237,8 +1185,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
         (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
         0
       );
-
-      console.log('[Scoring] New total points:', newTotal);
 
       setPredictions(updatedPreds);
       predictionsRef.current = updatedPreds;
@@ -1270,21 +1216,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
           next[leagueId] = updatedMembers;
         }
 
+        if (changed) {
+          AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(next)).catch(() => {});
+        }
+
         return changed ? next : prev;
       });
 
       if (session?.user && isSupabaseConfigured) {
         for (const pred of updatedPreds) {
           if (pred.top10.length === 0) continue;
-
-          console.log(
-            '[Scoring] Updating points in Supabase for race:',
-            pred.raceId,
-            'GP:',
-            pred.pointsEarned,
-            'Sprint:',
-            pred.sprintPointsEarned
-          );
 
           await supabase
             .from('user_predictions')
@@ -1295,7 +1236,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
             .eq('user_id', session.user.id)
             .eq('race_id', pred.raceId)
             .then(({ error }) => {
-              if (error) console.log('[Scoring] Supabase prediction update error:', error.message);
+              if (error) {
+                console.log('[Scoring] Supabase prediction update error:', error.message);
+              }
             });
         }
 
@@ -1310,8 +1253,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
           .then(({ error }) => {
             if (error) {
               console.log('[Scoring] Profile points update error:', error.message);
-            } else {
-              console.log('[Scoring] Profile total_points updated to', newTotal);
             }
           });
       }
@@ -1323,18 +1264,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
     const userId = session?.user?.id;
 
     if (userId && SEED_USER_IDS.has(normId(userId))) {
-      const seedTotal = scoreSeededPredictions(normId(userId), MOCK_RACE_RESULTS);
-
-      const predTotal = predictions.reduce(
-        (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
-        0
-      );
-
-      if (seedTotal !== predTotal) {
-        console.log('[totalPoints] Seed canonical:', seedTotal, 'vs predictions:', predTotal, '— using canonical');
-      }
-
-      return seedTotal;
+      return scoreSeededPredictions(normId(userId), MOCK_RACE_RESULTS);
     }
 
     return predictions.reduce(
