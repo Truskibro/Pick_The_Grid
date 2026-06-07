@@ -40,30 +40,323 @@ export const DRIVERS: Driver[] = [
 ];
 
 export const RACES: Race[] = [
-  { id: 'r01', round: 1, name: 'Australian Grand Prix', location: 'Melbourne', country: 'Australia', countryFlag: '', raceDate: '2026-03-08', raceTime: '05:00', status: 'upcoming', hasSprint: false, totalLaps: 58 },
-  { id: 'r02', round: 2, name: 'Chinese Grand Prix', location: 'Shanghai', country: 'China', countryFlag: '', raceDate: '2026-03-15', raceTime: '07:00', status: 'upcoming', hasSprint: true, totalLaps: 56 },
-  { id: 'r03', round: 3, name: 'Japanese Grand Prix', location: 'Suzuka', country: 'Japan', countryFlag: '', raceDate: '2026-03-29', raceTime: '06:00', status: 'upcoming', hasSprint: false, totalLaps: 53 },
-  { id: 'r04', round: 4, name: 'Bahrain Grand Prix', location: 'Sakhir', country: 'Bahrain', countryFlag: '', raceDate: '2026-04-12', raceTime: '16:00', status: 'cancelled', hasSprint: false, totalLaps: 57 },
-  { id: 'r05', round: 5, name: 'Saudi Arabian Grand Prix', location: 'Jeddah', country: 'Saudi Arabia', countryFlag: '', raceDate: '2026-04-19', raceTime: '18:00', status: 'cancelled', hasSprint: false, totalLaps: 50 },
-  { id: 'r06', round: 6, name: 'Miami Grand Prix', location: 'Miami', country: 'USA', countryFlag: '', raceDate: '2026-05-03', raceTime: '20:00', status: 'upcoming', hasSprint: true, totalLaps: 57 },
-  { id: 'r07', round: 7, name: 'Canadian Grand Prix', location: 'Montreal', country: 'Canada', countryFlag: '', raceDate: '2026-05-24', raceTime: '18:00', status: 'upcoming', hasSprint: true, totalLaps: 70 },
-  { id: 'r08', round: 8, name: 'Monaco Grand Prix', location: 'Monte Carlo', country: 'Monaco', countryFlag: '', raceDate: '2026-06-07', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 78 },
-  { id: 'r09', round: 9, name: 'Spanish Grand Prix', location: 'Barcelona', country: 'Spain', countryFlag: '', raceDate: '2026-06-14', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 66 },
-  { id: 'r10', round: 10, name: 'Austrian Grand Prix', location: 'Spielberg', country: 'Austria', countryFlag: '', raceDate: '2026-06-28', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 71 },
-  { id: 'r11', round: 11, name: 'British Grand Prix', location: 'Silverstone', country: 'United Kingdom', countryFlag: '', raceDate: '2026-07-05', raceTime: '14:00', status: 'upcoming', hasSprint: true, totalLaps: 52 },
-  { id: 'r12', round: 12, name: 'Belgian Grand Prix', location: 'Spa-Francorchamps', country: 'Belgium', countryFlag: '', raceDate: '2026-07-19', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 44 },
-  { id: 'r13', round: 13, name: 'Hungarian Grand Prix', location: 'Budapest', country: 'Hungary', countryFlag: '', raceDate: '2026-07-26', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 70 },
-  { id: 'r14', round: 14, name: 'Dutch Grand Prix', location: 'Zandvoort', country: 'Netherlands', countryFlag: '', raceDate: '2026-08-23', raceTime: '13:00', status: 'upcoming', hasSprint: true, totalLaps: 72 },
-  { id: 'r15', round: 15, name: 'Italian Grand Prix', location: 'Monza', country: 'Italy', countryFlag: '', raceDate: '2026-09-06', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 53 },
-  { id: 'r16', round: 16, name: 'Madrid Grand Prix', location: 'Madrid', country: 'Spain', countryFlag: '', raceDate: '2026-09-13', raceTime: '13:00', status: 'upcoming', hasSprint: false, totalLaps: 55 },
-  { id: 'r17', round: 17, name: 'Azerbaijan Grand Prix', location: 'Baku', country: 'Azerbaijan', countryFlag: '', raceDate: '2026-09-27', raceTime: '12:00', status: 'upcoming', hasSprint: false, totalLaps: 51 },
-  { id: 'r18', round: 18, name: 'Singapore Grand Prix', location: 'Marina Bay', country: 'Singapore', countryFlag: '', raceDate: '2026-10-11', raceTime: '12:00', status: 'upcoming', hasSprint: true, totalLaps: 62 },
-  { id: 'r19', round: 19, name: 'United States Grand Prix', location: 'Austin', country: 'USA', countryFlag: '', raceDate: '2026-10-25', raceTime: '19:00', status: 'upcoming', hasSprint: false, totalLaps: 56 },
-  { id: 'r20', round: 20, name: 'Mexico City Grand Prix', location: 'Mexico City', country: 'Mexico', countryFlag: '', raceDate: '2026-11-01', raceTime: '20:00', status: 'upcoming', hasSprint: false, totalLaps: 71 },
-  { id: 'r21', round: 21, name: 'São Paulo Grand Prix', location: 'Interlagos', country: 'Brazil', countryFlag: '', raceDate: '2026-11-08', raceTime: '17:00', status: 'upcoming', hasSprint: false, totalLaps: 71 },
-  { id: 'r22', round: 22, name: 'Las Vegas Grand Prix', location: 'Las Vegas', country: 'USA', countryFlag: '', raceDate: '2026-11-21', raceTime: '06:00', status: 'upcoming', hasSprint: false, totalLaps: 50 },
-  { id: 'r23', round: 23, name: 'Qatar Grand Prix', location: 'Lusail', country: 'Qatar', countryFlag: '', raceDate: '2026-11-29', raceTime: '17:00', status: 'upcoming', hasSprint: false, totalLaps: 57 },
-  { id: 'r24', round: 24, name: 'Abu Dhabi Grand Prix', location: 'Yas Marina', country: 'UAE', countryFlag: '', raceDate: '2026-12-06', raceTime: '14:00', status: 'upcoming', hasSprint: false, totalLaps: 58 },
+  {
+    id: 'r01',
+    round: 1,
+    name: 'Australian Grand Prix',
+    location: 'Melbourne',
+    country: 'Australia',
+    countryFlag: '',
+    raceDate: '2026-03-08',
+    raceTime: '05:00',
+    status: 'completed',
+    hasSprint: false,
+    winner: 'RUS',
+    totalLaps: 58,
+  },
+  {
+    id: 'r02',
+    round: 2,
+    name: 'Chinese Grand Prix',
+    location: 'Shanghai',
+    country: 'China',
+    countryFlag: '',
+    raceDate: '2026-03-15',
+    raceTime: '07:00',
+    status: 'completed',
+    hasSprint: true,
+    winner: 'ANT',
+    totalLaps: 56,
+  },
+  {
+    id: 'r03',
+    round: 3,
+    name: 'Japanese Grand Prix',
+    location: 'Suzuka',
+    country: 'Japan',
+    countryFlag: '',
+    raceDate: '2026-03-29',
+    raceTime: '06:00',
+    status: 'completed',
+    hasSprint: false,
+    winner: 'ANT',
+    totalLaps: 53,
+  },
+  {
+    id: 'r04',
+    round: 4,
+    name: 'Bahrain Grand Prix',
+    location: 'Sakhir',
+    country: 'Bahrain',
+    countryFlag: '',
+    raceDate: '2026-04-12',
+    raceTime: '16:00',
+    status: 'cancelled',
+    hasSprint: false,
+    totalLaps: 57,
+  },
+  {
+    id: 'r05',
+    round: 5,
+    name: 'Saudi Arabian Grand Prix',
+    location: 'Jeddah',
+    country: 'Saudi Arabia',
+    countryFlag: '',
+    raceDate: '2026-04-19',
+    raceTime: '18:00',
+    status: 'cancelled',
+    hasSprint: false,
+    totalLaps: 50,
+  },
+  {
+    id: 'r06',
+    round: 6,
+    name: 'Miami Grand Prix',
+    location: 'Miami',
+    country: 'USA',
+    countryFlag: '',
+    raceDate: '2026-05-03',
+    raceTime: '20:00',
+    status: 'completed',
+    hasSprint: true,
+    winner: 'ANT',
+    totalLaps: 57,
+  },
+  {
+    id: 'r07',
+    round: 7,
+    name: 'Canadian Grand Prix',
+    location: 'Montreal',
+    country: 'Canada',
+    countryFlag: '',
+    raceDate: '2026-05-24',
+    raceTime: '18:00',
+    status: 'completed',
+    hasSprint: true,
+    winner: 'ANT',
+    totalLaps: 70,
+  },
+  {
+    id: 'r08',
+    round: 8,
+    name: 'Monaco Grand Prix',
+    location: 'Monte Carlo',
+    country: 'Monaco',
+    countryFlag: '',
+    raceDate: '2026-06-07',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 78,
+  },
+  {
+    id: 'r09',
+    round: 9,
+    name: 'Spanish Grand Prix',
+    location: 'Barcelona',
+    country: 'Spain',
+    countryFlag: '',
+    raceDate: '2026-06-14',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 66,
+  },
+  {
+    id: 'r10',
+    round: 10,
+    name: 'Austrian Grand Prix',
+    location: 'Spielberg',
+    country: 'Austria',
+    countryFlag: '',
+    raceDate: '2026-06-28',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 71,
+  },
+  {
+    id: 'r11',
+    round: 11,
+    name: 'British Grand Prix',
+    location: 'Silverstone',
+    country: 'United Kingdom',
+    countryFlag: '',
+    raceDate: '2026-07-05',
+    raceTime: '14:00',
+    status: 'upcoming',
+    hasSprint: true,
+    totalLaps: 52,
+  },
+  {
+    id: 'r12',
+    round: 12,
+    name: 'Belgian Grand Prix',
+    location: 'Spa-Francorchamps',
+    country: 'Belgium',
+    countryFlag: '',
+    raceDate: '2026-07-19',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 44,
+  },
+  {
+    id: 'r13',
+    round: 13,
+    name: 'Hungarian Grand Prix',
+    location: 'Budapest',
+    country: 'Hungary',
+    countryFlag: '',
+    raceDate: '2026-07-26',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 70,
+  },
+  {
+    id: 'r14',
+    round: 14,
+    name: 'Dutch Grand Prix',
+    location: 'Zandvoort',
+    country: 'Netherlands',
+    countryFlag: '',
+    raceDate: '2026-08-23',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: true,
+    totalLaps: 72,
+  },
+  {
+    id: 'r15',
+    round: 15,
+    name: 'Italian Grand Prix',
+    location: 'Monza',
+    country: 'Italy',
+    countryFlag: '',
+    raceDate: '2026-09-06',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 53,
+  },
+  {
+    id: 'r16',
+    round: 16,
+    name: 'Madrid Grand Prix',
+    location: 'Madrid',
+    country: 'Spain',
+    countryFlag: '',
+    raceDate: '2026-09-13',
+    raceTime: '13:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 55,
+  },
+  {
+    id: 'r17',
+    round: 17,
+    name: 'Azerbaijan Grand Prix',
+    location: 'Baku',
+    country: 'Azerbaijan',
+    countryFlag: '',
+    raceDate: '2026-09-27',
+    raceTime: '12:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 51,
+  },
+  {
+    id: 'r18',
+    round: 18,
+    name: 'Singapore Grand Prix',
+    location: 'Marina Bay',
+    country: 'Singapore',
+    countryFlag: '',
+    raceDate: '2026-10-11',
+    raceTime: '12:00',
+    status: 'upcoming',
+    hasSprint: true,
+    totalLaps: 62,
+  },
+  {
+    id: 'r19',
+    round: 19,
+    name: 'United States Grand Prix',
+    location: 'Austin',
+    country: 'USA',
+    countryFlag: '',
+    raceDate: '2026-10-25',
+    raceTime: '19:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 56,
+  },
+  {
+    id: 'r20',
+    round: 20,
+    name: 'Mexico City Grand Prix',
+    location: 'Mexico City',
+    country: 'Mexico',
+    countryFlag: '',
+    raceDate: '2026-11-01',
+    raceTime: '20:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 71,
+  },
+  {
+    id: 'r21',
+    round: 21,
+    name: 'São Paulo Grand Prix',
+    location: 'Interlagos',
+    country: 'Brazil',
+    countryFlag: '',
+    raceDate: '2026-11-08',
+    raceTime: '17:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 71,
+  },
+  {
+    id: 'r22',
+    round: 22,
+    name: 'Las Vegas Grand Prix',
+    location: 'Las Vegas',
+    country: 'USA',
+    countryFlag: '',
+    raceDate: '2026-11-21',
+    raceTime: '06:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 50,
+  },
+  {
+    id: 'r23',
+    round: 23,
+    name: 'Qatar Grand Prix',
+    location: 'Lusail',
+    country: 'Qatar',
+    countryFlag: '',
+    raceDate: '2026-11-29',
+    raceTime: '17:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 57,
+  },
+  {
+    id: 'r24',
+    round: 24,
+    name: 'Abu Dhabi Grand Prix',
+    location: 'Yas Marina',
+    country: 'UAE',
+    countryFlag: '',
+    raceDate: '2026-12-06',
+    raceTime: '14:00',
+    status: 'upcoming',
+    hasSprint: false,
+    totalLaps: 58,
+  },
 ];
 
 export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
@@ -82,17 +375,16 @@ export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
 /**
  * Real 2026 F1 season race results for completed races before Monaco.
  *
- * Used as fallback when Supabase / live API don't return data.
+ * Used as fallback when Supabase / live API doesn't return data.
  * Excludes: Bahrain (r04) and Saudi Arabia (r05) — both cancelled.
- * Upcoming: Monaco (r08+) — not included.
+ * Upcoming: Monaco (r08+) — not included in results.
  *
  * DNS is separate from DNF:
- * - DNS drivers should use status: 'dns'
- * - DNS drivers should be listed in dnsDriverIds
- * - DNS drivers should NOT be listed in dnfDriverIds
+ * - DNS drivers use status: 'dns'
+ * - DNS drivers are listed in dnsDriverIds
+ * - DNS drivers are NOT listed in dnfDriverIds
  */
 export const MOCK_RACE_RESULTS: RaceResult[] = [
-  // ── r01: Australian GP (2026-03-08) — GP only, no sprint ──
   {
     raceId: 'r01',
     classification: [
@@ -123,8 +415,6 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
     dnfDriverIds: ['STR', 'ALO', 'BOT', 'HAD'],
     dnsDriverIds: ['PIA', 'HUL'],
   },
-
-  // ── r02: Chinese GP (2026-03-15) — Sprint + GP ──
   {
     raceId: 'r02',
     classification: [
@@ -165,8 +455,6 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 8, driverId: 'BEA', time: '33:50.269', gap: '+11.271s', points: 1, status: 'finished' as const },
     ],
   },
-
-  // ── r03: Japanese GP (2026-03-29) — GP only, no sprint ──
   {
     raceId: 'r03',
     classification: [
@@ -197,8 +485,6 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
     dnfDriverIds: ['STR', 'BEA'],
     dnsDriverIds: [],
   },
-
-  // ── r06: Miami GP (2026-05-03) — Sprint + GP ──
   {
     raceId: 'r06',
     classification: [
@@ -239,8 +525,6 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 8, driverId: 'GAS', time: '29:45.570', gap: '+30.525s', points: 1, status: 'finished' as const },
     ],
   },
-
-  // ── r07: Canadian GP (2026-05-24) — Sprint + GP ──
   {
     raceId: 'r07',
     classification: [
@@ -292,7 +576,14 @@ export function getDriverById(id: string): Driver | undefined {
 }
 
 export function getNextRace(): Race | undefined {
-  return RACES.find((r) => r.status === 'upcoming');
+  return [...RACES]
+    .filter((race) => race.status === 'upcoming')
+    .sort((a, b) => {
+      const aTime = new Date(`${a.raceDate}T${a.raceTime}:00Z`).getTime();
+      const bTime = new Date(`${b.raceDate}T${b.raceTime}:00Z`).getTime();
+
+      return aTime - bTime;
+    })[0];
 }
 
 export function getRaceById(id: string): Race | undefined {

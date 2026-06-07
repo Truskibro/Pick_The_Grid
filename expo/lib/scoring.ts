@@ -88,9 +88,6 @@ function getDnsDriverIds(result: RaceResult): Set<string> {
  * Important:
  * - DNF / retired = eligible for DNF bonus.
  * - DNS = did not start, NOT eligible for DNF bonus.
- *
- * This protects against older mock result data where dnfDriverIds may have
- * accidentally included every non-finisher, including DNS drivers.
  */
 function getTrueDnfDriverIds(result: RaceResult): Set<string> {
   const trueDnfIds = new Set<string>();
