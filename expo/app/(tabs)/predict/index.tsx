@@ -1,15 +1,17 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Animated, Modal, Pressable, TextInput, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2 } from 'lucide-react-native';
+import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import { useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
-import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, Driver } from '@/types';
+import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, Driver, Race } from '@/types';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import CountdownTimer, { isLocked } from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import { calculatePoints } from '@/lib/scoring';
 
 type PickerMode = { type: 'fl' } | { type: 'dnf' } | null;
 
@@ -26,10 +28,31 @@ const SPRINT_PODIUM_COLORS: Record<number, string> = {
 };
 
 export default function PredictScreen() {
-  const { nextRace, drivers, getTeamById } = useF1Data();
+  const router = useRouter();
+  const { nextRace, drivers, getTeamById, races, raceResults, getRaceResult } = useF1Data();
   const { savePrediction, getPrediction } = useGame();
   const { isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
+
+  // Find the most recently completed race (for showing results after race ends)
+  const recentCompletedRace = useMemo<Race | undefined>(() => {
+    const completed = races.filter(r => r.status === 'completed');
+    if (completed.length === 0) return undefined;
+    // Sort by date descending to get most recent
+    return completed.sort((a, b) => {
+      const aTime = new Date(`${a.raceDate}T${a.raceTime}:00Z`).getTime();
+      const bTime = new Date(`${b.raceDate}T${b.raceTime}:00Z`).getTime();
+      return bTime - aTime;
+    })[0];
+  }, [races]);
+
+  const recentPrediction = recentCompletedRace ? getPrediction(recentCompletedRace.id) : undefined;
+  const recentResult = recentCompletedRace ? getRaceResult(recentCompletedRace.id) : undefined;
+  const recentBreakdown = useMemo(() => {
+    if (!recentPrediction || !recentResult || recentResult.classification.length === 0) return null;
+    return calculatePoints(recentPrediction, recentResult);
+  }, [recentPrediction, recentResult]);
+  const recentPredPoints = (recentPrediction?.pointsEarned ?? 0) + (recentPrediction?.sprintPointsEarned ?? 0);
 
   const existingPrediction = nextRace ? getPrediction(nextRace.id) : undefined;
 
@@ -293,6 +316,9 @@ export default function PredictScreen() {
     );
   }
 
+  // Show the most recently completed race result card when user had predictions
+  const showRecentResults = recentCompletedRace && recentPrediction && recentPrediction.top10.length > 0 && recentResult;
+
   const filledCount = selectedDrivers.length;
   const progress = filledCount / 10;
 
@@ -303,6 +329,101 @@ export default function PredictScreen() {
           contentContainerStyle={styles.scrollContent}
           showsVerticalScrollIndicator={false}
         >
+          {/* Recently completed race results */}
+          {showRecentResults && recentResult && (
+            <View style={styles.recentResultsSection}>
+              <View style={styles.recentResultsHeader}>
+                <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  <View style={styles.recentResultsDot} />
+                  <Text style={styles.recentResultsBadge}>RACE COMPLETE</Text>
+                </View>
+                <Text style={styles.recentResultsTitle}>{recentCompletedRace!.name}</Text>
+              </View>
+
+              <View style={styles.recentResultsCard}>
+                {/* Points earned */}
+                <View style={styles.recentPointsRow}>
+                  <Trophy size={22} color={recentPredPoints > 0 ? Colors.warning : Colors.textMuted} />
+                  <View style={styles.recentPointsBlock}>
+                    <Text style={styles.recentPointsValue}>
+                      {recentPredPoints}
+                    </Text>
+                    <Text style={styles.recentPointsLabel}>PTS EARNED</Text>
+                  </View>
+                </View>
+
+                {/* Breakdown chips */}
+                {recentBreakdown && recentPredPoints > 0 && (
+                  <View style={styles.recentBreakdownRow}>
+                    {recentBreakdown.positionPoints > 0 && (
+                      <View style={styles.breakdownChipSmall}>
+                        <Flag size={10} color={Colors.info} />
+                        <Text style={styles.breakdownChipSmallText}>
+                          Pos +{recentBreakdown.positionPoints}
+                        </Text>
+                      </View>
+                    )}
+                    {recentBreakdown.fastestLapPoints > 0 && (
+                      <View style={styles.breakdownChipSmall}>
+                        <Zap size={10} color={Colors.warning} />
+                        <Text style={styles.breakdownChipSmallText}>
+                          FL +{recentBreakdown.fastestLapPoints}
+                        </Text>
+                      </View>
+                    )}
+                    {recentBreakdown.dnfPoints > 0 && (
+                      <View style={styles.breakdownChipSmall}>
+                        <AlertTriangle size={10} color={Colors.error} />
+                        <Text style={styles.breakdownChipSmallText}>
+                          DNF +{recentBreakdown.dnfPoints}
+                        </Text>
+                      </View>
+                    )}
+                  </View>
+                )}
+
+                {/* Correct positions count */}
+                {recentBreakdown && recentBreakdown.correctPositions.length > 0 && (
+                  <Text style={styles.recentCorrectText}>
+                    {recentBreakdown.correctPositions.length} exact position{recentBreakdown.correctPositions.length !== 1 ? 's' : ''} matched
+                  </Text>
+                )}
+                {recentBreakdown && recentBreakdown.correctPositions.length === 0 && (
+                  <Text style={styles.recentMissText}>
+                    No exact position matches
+                  </Text>
+                )}
+
+                {/* Your picks mini preview */}
+                <View style={styles.recentPicksRow}>
+                  {recentPrediction.top10.slice(0, 5).map((driverId, idx) => {
+                    const driver = driverById(driverId);
+                    const isCorrect = recentBreakdown?.correctPositions.includes(idx);
+                    return (
+                      <View key={driverId} style={[styles.recentPickChip, isCorrect && styles.recentPickChipCorrect]}>
+                        <Text style={[styles.recentPickChipText, isCorrect && styles.recentPickChipTextCorrect]} numberOfLines={1}>
+                          {driver?.shortName ?? driverId}
+                        </Text>
+                      </View>
+                    );
+                  })}
+                  {recentPrediction.top10.length > 5 && (
+                    <Text style={styles.recentPickMore}>+{recentPrediction.top10.length - 5} more</Text>
+                  )}
+                </View>
+
+                <AnimatedPressable
+                  style={styles.recentViewBtn}
+                  onPress={() => router.push(`/race-results/${recentCompletedRace!.id}` as any)}
+                  scaleDown={0.97}
+                >
+                  <Text style={styles.recentViewBtnText}>View Full Results</Text>
+                  <ChevronRight size={16} color={Colors.f1Red} />
+                </AnimatedPressable>
+              </View>
+            </View>
+          )}
+
           {/* Hero */}
           <LinearGradient
             colors={['rgba(225, 6, 0, 0.18)', 'rgba(225, 6, 0, 0.02)', 'transparent']}
@@ -1368,6 +1489,139 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.f1Red,
     alignItems: 'center', justifyContent: 'center',
     marginRight: 10,
+  },
+
+  // Recent results card
+  recentResultsSection: {
+    marginHorizontal: 20,
+    marginTop: 8,
+  },
+  recentResultsHeader: {
+    marginBottom: 10,
+    gap: 4,
+  },
+  recentResultsDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: Colors.success,
+  },
+  recentResultsBadge: {
+    color: Colors.success,
+    fontSize: 10,
+    fontWeight: '800' as const,
+    letterSpacing: 1.5,
+  },
+  recentResultsTitle: {
+    color: Colors.text,
+    fontSize: 18,
+    fontWeight: '800' as const,
+    letterSpacing: -0.3,
+  },
+  recentResultsCard: {
+    backgroundColor: Colors.surface,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 16,
+    gap: 12,
+  },
+  recentPointsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  recentPointsBlock: {
+    gap: 2,
+  },
+  recentPointsValue: {
+    color: Colors.warning,
+    fontSize: 28,
+    fontWeight: '800' as const,
+    letterSpacing: -0.5,
+  },
+  recentPointsLabel: {
+    color: Colors.textMuted,
+    fontSize: 9,
+    fontWeight: '700' as const,
+    letterSpacing: 1.2,
+  },
+  recentBreakdownRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 6,
+  },
+  breakdownChipSmall: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: Colors.surfaceHighlight,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 6,
+  },
+  breakdownChipSmallText: {
+    color: Colors.textSecondary,
+    fontSize: 10,
+    fontWeight: '600' as const,
+  },
+  recentCorrectText: {
+    color: Colors.success,
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  recentMissText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '500' as const,
+  },
+  recentPicksRow: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    alignItems: 'center',
+    gap: 6,
+  },
+  recentPickChip: {
+    backgroundColor: Colors.surfaceHighlight,
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  recentPickChipCorrect: {
+    backgroundColor: 'rgba(0, 200, 83, 0.1)',
+    borderColor: 'rgba(0, 200, 83, 0.3)',
+  },
+  recentPickChipText: {
+    color: Colors.textSecondary,
+    fontSize: 11,
+    fontWeight: '600' as const,
+  },
+  recentPickChipTextCorrect: {
+    color: Colors.success,
+  },
+  recentPickMore: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: '500' as const,
+  },
+  recentViewBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(225, 6, 0, 0.08)',
+    borderRadius: 10,
+    paddingVertical: 10,
+    borderWidth: 1,
+    borderColor: 'rgba(225, 6, 0, 0.2)',
+    marginTop: 4,
+  },
+  recentViewBtnText: {
+    color: Colors.f1Red,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
 
   // Sprint

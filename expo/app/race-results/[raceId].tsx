@@ -5,7 +5,7 @@ import { MapPin, Clock, Trophy, Target, Check, X, Zap, AlertTriangle, Medal, Fla
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
 import { useGame } from '@/providers/GameProvider';
-import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
+import { calculatePoints, calculateSprintPoints, getTrueDnfDriverIds } from '@/lib/scoring';
 import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, ClassificationEntry } from '@/types';
 import AnimatedPressable from '@/components/AnimatedPressable';
 
@@ -505,14 +505,14 @@ export default function RaceResultsScreen() {
                 </View>
               )}
 
-              {prediction.dnf && result && result.dnfDriverIds.length > 0 && (
+              {prediction.dnf && result && result.classification.length > 0 && (
                 <View style={styles.bonusRow}>
-                  <AlertTriangle size={14} color={result.dnfDriverIds.includes(prediction.dnf) ? Colors.error : Colors.textMuted} />
+                  <AlertTriangle size={14} color={getTrueDnfDriverIds(result).has(prediction.dnf) ? Colors.error : Colors.textMuted} />
                   <Text style={styles.bonusLabel}>DNF Pick</Text>
                   <Text style={styles.bonusDriver}>
                     {getDriverById(prediction.dnf)?.name || prediction.dnf}
                   </Text>
-                  {result.dnfDriverIds.includes(prediction.dnf) ? (
+                  {getTrueDnfDriverIds(result).has(prediction.dnf) ? (
                     <View style={styles.matchBadge}>
                       <Check size={10} color={Colors.success} />
                       <Text style={styles.matchBadgeText}>+{DNF_BONUS}</Text>

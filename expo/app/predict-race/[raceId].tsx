@@ -1,8 +1,8 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Animated, Modal, Pressable, TextInput, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useNavigation } from 'expo-router';
-import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2 } from 'lucide-react-native';
+import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
@@ -11,6 +11,7 @@ import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import CountdownTimer, { isLocked } from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import { calculatePoints } from '@/lib/scoring';
 
 type PickerMode = { type: 'fl' } | { type: 'dnf' } | null;
 
@@ -29,12 +30,23 @@ const SPRINT_PODIUM_COLORS: Record<number, string> = {
 export default function PredictRaceScreen() {
   const { raceId } = useLocalSearchParams<{ raceId: string }>();
   const navigation = useNavigation();
-  const { getRaceById, drivers, getTeamById } = useF1Data();
+  const router = useRouter();
+  const { getRaceById, drivers, getTeamById, getRaceResult } = useF1Data();
   const { savePrediction, getPrediction } = useGame();
   const { isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const race = raceId ? getRaceById(raceId) : undefined;
+  const raceResult = raceId ? getRaceResult(raceId) : undefined;
+  const raceIsCompleted = race?.status === 'completed';
+
+  // Compute scoring breakdown when race is completed and results exist
+  const completedBreakdown = useMemo(() => {
+    if (!raceIsCompleted || !existingPrediction || !raceResult || raceResult.classification.length === 0) return null;
+    return calculatePoints(existingPrediction, raceResult);
+  }, [raceIsCompleted, existingPrediction, raceResult]);
+
+  const completedPoints = (existingPrediction?.pointsEarned ?? 0) + (existingPrediction?.sprintPointsEarned ?? 0);
 
   // Set the navigation title to the race name
   useEffect(() => {
@@ -336,10 +348,70 @@ export default function PredictRaceScreen() {
               <CountdownTimer targetDate={race.raceDate} targetTime={race.raceTime} compact />
             </View>
 
-            {locked && (
+            {locked && !raceIsCompleted && (
               <View style={styles.lockedBanner}>
                 <Lock size={14} color={Colors.f1Red} />
                 <Text style={styles.lockedText}>Predictions locked for this race</Text>
+              </View>
+            )}
+
+            {raceIsCompleted && completedBreakdown && (
+              <View style={styles.completedBanner}>
+                <View style={styles.completedBannerTop}>
+                  <Trophy size={18} color={Colors.warning} />
+                  <View style={styles.completedBannerPoints}>
+                    <Text style={styles.completedBannerValue}>{completedPoints}</Text>
+                    <Text style={styles.completedBannerLabel}>PTS EARNED</Text>
+                  </View>
+                </View>
+                <View style={styles.completedBannerBreakdown}>
+                  {completedBreakdown.positionPoints > 0 && (
+                    <View style={styles.breakdownChipMini}>
+                      <Flag size={9} color={Colors.info} />
+                      <Text style={styles.breakdownChipMiniText}>Pos +{completedBreakdown.positionPoints}</Text>
+                    </View>
+                  )}
+                  {completedBreakdown.fastestLapPoints > 0 && (
+                    <View style={styles.breakdownChipMini}>
+                      <Zap size={9} color={Colors.warning} />
+                      <Text style={styles.breakdownChipMiniText}>FL +{completedBreakdown.fastestLapPoints}</Text>
+                    </View>
+                  )}
+                  {completedBreakdown.dnfPoints > 0 && (
+                    <View style={styles.breakdownChipMini}>
+                      <AlertTriangle size={9} color={Colors.error} />
+                      <Text style={styles.breakdownChipMiniText}>DNF +{completedBreakdown.dnfPoints}</Text>
+                    </View>
+                  )}
+                </View>
+                <AnimatedPressable
+                  style={styles.completedViewBtn}
+                  onPress={() => router.push(`/race-results/${race.id}` as any)}
+                  scaleDown={0.97}
+                >
+                  <Text style={styles.completedViewBtnText}>View Full Results</Text>
+                  <ChevronRight size={14} color={Colors.f1Red} />
+                </AnimatedPressable>
+              </View>
+            )}
+
+            {raceIsCompleted && !completedBreakdown && (
+              <View style={styles.completedBanner}>
+                <View style={styles.completedBannerTop}>
+                  <Trophy size={18} color={Colors.textMuted} />
+                  <View style={styles.completedBannerPoints}>
+                    <Text style={[styles.completedBannerValue, { color: Colors.textMuted }]}>0</Text>
+                    <Text style={styles.completedBannerLabel}>PTS EARNED</Text>
+                  </View>
+                </View>
+                <AnimatedPressable
+                  style={styles.completedViewBtn}
+                  onPress={() => router.push(`/race-results/${race.id}` as any)}
+                  scaleDown={0.97}
+                >
+                  <Text style={styles.completedViewBtnText}>View Race Results</Text>
+                  <ChevronRight size={14} color={Colors.f1Red} />
+                </AnimatedPressable>
               </View>
             )}
           </LinearGradient>
