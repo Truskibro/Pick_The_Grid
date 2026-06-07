@@ -690,7 +690,19 @@ export const [GameProvider, useGame] = createContextHook(() => {
           if (error) {
             // 42P01 = relation does not exist — table missing, not recoverable.
             if (error.code === '42P01') {
-              console.log('[savePrediction] Table does not exist — run supabase-schema.sql');
+              console.log('[savePrediction] Table does not exist — run supabase-fix-predictions.sql in the Supabase SQL Editor');
+              return;
+            }
+
+            // Schema mismatch — column missing (PGRST204) or wrong column type
+            // (22P02, e.g. uuid race_id vs text 'r08'). Not recoverable without
+            // running supabase-fix-predictions.sql against the database.
+            if (error.code === 'PGRST204' || error.code === '22P02') {
+              console.log(
+                '[savePrediction] Database schema is out of date — run supabase-fix-predictions.sql in the Supabase SQL Editor. Details:',
+                error.code,
+                error.message
+              );
               return;
             }
 
@@ -707,7 +719,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
               return doUpsert(attempt + 1);
             }
 
-            console.log('[savePrediction] Supabase upsert failed:', error.message, error.code);
+            console.log(
+              '[savePrediction] Supabase upsert failed:',
+              error.code,
+              error.message,
+              error.details ?? '',
+              error.hint ?? ''
+            );
             return;
           }
 
