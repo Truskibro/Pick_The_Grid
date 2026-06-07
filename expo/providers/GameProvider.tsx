@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
 
-import { supabase, isSupabaseConfigured, seedRacesToSupabase } from '@/lib/supabase';
+import { supabase, isSupabaseConfigured, seedRacesToSupabase, areRacesSeeded } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import {
@@ -542,8 +542,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
       await loadFromLocal();
 
       if (session?.user) {
-        // Seed races in Supabase if needed (enables prediction saves to work)
-        seedRacesToSupabase().catch(() => {});
+        // Seed races in Supabase FIRST — prediction saves fail with FK
+        // violations if the races table is empty.
+        await seedRacesToSupabase();
         await withTimeout(loadFromSupabase(), 30000, undefined);
       }
 
@@ -697,12 +698,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
             }
 
             // Foreign-key violation (23503) — races table exists but is empty.
-            // The app now auto-seeds races; this should resolve on next startup.
+            // Try seeding races now and retry the save immediately.
             if (error.code === '23503') {
               console.log(
-                '[savePrediction] Foreign key violation — races table may be empty. Auto-seed will run on next app launch.',
+                '[savePrediction] Foreign key violation — seeding races and retrying...',
                 error.details ?? ''
               );
+              await seedRacesToSupabase();
+              if (areRacesSeeded() && attempt < 3) {
+                return doUpsert(attempt + 1);
+              }
+              console.log('[savePrediction] Races still not seeded after retry — save locally only.');
               return;
             }
 
