@@ -314,7 +314,7 @@ export default function PredictScreen() {
                 <Text style={styles.raceName} numberOfLines={2}>{nextRace.name}</Text>
                 <View style={styles.heroLocationRow}>
                   <Text style={styles.heroFlag}>{nextRace.countryFlag}</Text>
-                  <Text style={styles.heroLocation}>{nextRace.circuit}</Text>
+                  <Text style={styles.heroLocation}>{nextRace.location}</Text>
                 </View>
               </View>
               <View style={styles.roundBadge}>

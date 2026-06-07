@@ -324,7 +324,7 @@ export default function PredictRaceScreen() {
                 <Text style={styles.raceName} numberOfLines={2}>{race.name}</Text>
                 <View style={styles.heroLocationRow}>
                   <Text style={styles.heroFlag}>{race.countryFlag}</Text>
-                  <Text style={styles.heroLocation}>{race.circuit || race.location}</Text>
+                  <Text style={styles.heroLocation}>{race.location}</Text>
                 </View>
               </View>
               <View style={styles.roundBadge}>

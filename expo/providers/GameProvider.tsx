@@ -4,6 +4,7 @@ import createContextHook from '@nkzw/create-context-hook';
 
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
+import { useF1Data } from '@/providers/F1DataProvider';
 import {
   Prediction,
   League,
@@ -22,7 +23,8 @@ import {
   MOCK_LEAGUE_MEMBERS,
   scoreMockMember,
 } from '@/constants/mock-members';
-import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
+import { MOCK_RACE_RESULTS, RACES } from '@/constants/f1-data';
+import { isLocked } from '@/components/CountdownTimer';
 
 const SEED_USER_IDS = new Set(SEED_USERS.map((u) => u.userId.toLowerCase()));
 
@@ -181,6 +183,8 @@ async function fetchAllProfilesSorted(): Promise<
 
 export const [GameProvider, useGame] = createContextHook(() => {
   const { session, profile: localProfile, updateProfile } = useUser();
+
+  const { getRaceById } = useF1Data();
 
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
@@ -547,6 +551,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
   const savePrediction = useCallback(
     async (prediction: Omit<Prediction, 'id' | 'updatedAt'>) => {
+      // Enforce prediction lock: reject saves within 5 min of race start.
+      const race =
+        getRaceById(prediction.raceId) ??
+        RACES.find((r) => r.id === prediction.raceId);
+
+      if (race && isLocked(race.raceDate, race.raceTime)) {
+        console.log('[savePrediction] Blocked: predictions locked for', prediction.raceId);
+        return;
+      }
+
       const now = new Date().toISOString();
       const userId = session?.user?.id;
 
@@ -649,7 +663,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         console.log('[savePrediction] Supabase save exception:', e);
       }
     },
-    [session]
+    [session, getRaceById]
   );
 
   const getPrediction = useCallback(
