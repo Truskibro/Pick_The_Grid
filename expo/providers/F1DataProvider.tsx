@@ -156,7 +156,7 @@ async function fetchRaces(): Promise<Race[]> {
  * This ensures the scoring engine produces consistent, correct points
  * regardless of what Supabase or the live API return.
  */
-const COMPLETED_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07']);
+const COMPLETED_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07', 'r08']);
 
 async function fetchRaceResults(): Promise<RaceResult[]> {
   // Always build from canonical mock data for completed races.

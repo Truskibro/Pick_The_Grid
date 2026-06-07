@@ -377,7 +377,7 @@ export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
  *
  * Used as fallback when Supabase / live API doesn't return data.
  * Excludes: Bahrain (r04) and Saudi Arabia (r05) — both cancelled.
- * Upcoming: Monaco (r08+) — not included in results.
+ * Upcoming: Spanish GP (r09+) — not included in results.
  *
  * DNS is separate from DNF:
  * - DNS drivers use status: 'dns'
@@ -564,6 +564,36 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 7, driverId: 'VER', time: '29:06.886', gap: '+15.935s', points: 2, status: 'finished' as const },
       { position: 8, driverId: 'LIN', time: '29:20.661', gap: '+29.710s', points: 1, status: 'finished' as const },
     ],
+  },
+  {
+    raceId: 'r08',
+    classification: [
+      { position: 1, driverId: 'LEC', time: '1:41:22.815', gap: 'Leader', points: 25, status: 'finished' as const },
+      { position: 2, driverId: 'ANT', time: '1:41:25.473', gap: '+2.658s', points: 18, status: 'finished' as const },
+      { position: 3, driverId: 'NOR', time: '1:41:31.208', gap: '+8.393s', points: 15, status: 'finished' as const },
+      { position: 4, driverId: 'PIA', time: '1:41:39.115', gap: '+16.300s', points: 12, status: 'finished' as const },
+      { position: 5, driverId: 'RUS', time: '1:41:42.654', gap: '+19.839s', points: 10, status: 'finished' as const },
+      { position: 6, driverId: 'HAM', time: '1:41:49.823', gap: '+27.008s', points: 8, status: 'finished' as const },
+      { position: 7, driverId: 'VER', time: '1:42:06.550', gap: '+43.735s', points: 6, status: 'finished' as const },
+      { position: 8, driverId: 'GAS', time: '1:42:12.192', gap: '+49.377s', points: 4, status: 'finished' as const },
+      { position: 9, driverId: 'SAI', time: '1:42:31.844', gap: '+69.029s', points: 2, status: 'finished' as const },
+      { position: 10, driverId: 'BEA', time: '1:41:44.360', gap: '+1 lap', points: 1, status: 'finished' as const },
+      { position: 11, driverId: 'OCO', time: '1:42:01.427', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 12, driverId: 'HUL', time: '1:42:02.853', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 13, driverId: 'ALB', time: '1:42:05.381', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 14, driverId: 'LAW', time: '1:42:06.927', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 15, driverId: 'COL', time: '1:42:18.534', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 16, driverId: 'BOR', time: '1:42:32.090', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 17, driverId: 'LIN', time: '1:42:35.618', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 18, driverId: 'HAD', time: '1:42:41.203', gap: '+1 lap', points: 0, status: 'finished' as const },
+      { position: 19, driverId: 'BOT', time: '1:42:44.776', gap: '+2 laps', points: 0, status: 'finished' as const },
+      { position: 20, driverId: 'PER', time: '', gap: 'DNF', points: 0, status: 'dnf' as const },
+      { position: 21, driverId: 'ALO', time: '', gap: 'DNF', points: 0, status: 'dnf' as const },
+      { position: 22, driverId: 'STR', time: '', gap: 'DNS', points: 0, status: 'dns' as const },
+    ],
+    fastestLapDriverId: 'NOR',
+    dnfDriverIds: ['PER', 'ALO'],
+    dnsDriverIds: ['STR'],
   },
 ];
 
