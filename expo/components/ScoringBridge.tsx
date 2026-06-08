@@ -7,8 +7,9 @@ export default function ScoringBridge() {
   const { raceResults, races } = useF1Data();
   const { scorePredictions, predictions } = useGame();
 
-  // Track which race IDs have already been scored so we don't double-score.
-  const scoredRaceIds = useRef<Set<string>>(new Set());
+  // Track the last-scored predictions length so we re-score whenever
+  // predictions change (e.g. after a Supabase load overwrites local data).
+  const lastScoredLen = useRef<number>(0);
 
   // Build sets for quick lookup.
   const completedRaceIds = new Set(
@@ -21,43 +22,39 @@ export default function ScoringBridge() {
     if (!raceResults || raceResults.length === 0) return;
     if (predictions.length === 0) return;
 
-    // Find predictions that need scoring:
-    // 1. Race is completed
-    // 2. Race has results available
-    // 3. Prediction hasn't been scored yet (pointsEarned === 0)
-    // 4. We haven't already scored this race+result combination
-    const needsScoring = predictions.filter((p) => {
+    // Find predictions for completed races that have results.
+    // Always re-score — never trust stored pointsEarned from Supabase.
+    // The scorePredictions function itself skips predictions whose points
+    // haven't changed, so this is cheap when nothing has changed.
+    const candidates = predictions.filter((p) => {
       if (p.top10.length === 0) return false;
-
-      // Only score for races that are officially completed.
       if (!completedRaceIds.has(p.raceId)) return false;
-
-      // Only score if results exist for this race.
       if (!resultRaceIds.has(p.raceId)) return false;
-
-      // Skip if already scored with non-zero points.
-      if (p.pointsEarned !== 0 || p.sprintPointsEarned !== 0) return false;
-
-      // Skip if we already attempted to score this exact race+results combo.
-      const scoreKey = `${p.raceId}`;
-      if (scoredRaceIds.current.has(scoreKey)) return false;
-
       return true;
     });
 
-    if (needsScoring.length === 0) return;
+    if (candidates.length === 0) return;
 
-    // Mark these races as scored so we don't re-score on re-render.
-    for (const p of needsScoring) {
-      scoredRaceIds.current.add(p.raceId);
+    // Only run scoring when the prediction list actually changed
+    // (new predictions loaded, stored pointsEarned overwritten, etc.)
+    if (predictions.length === lastScoredLen.current) {
+      // Same length — check if any prediction's pointsEarned differs from
+      // what we'd compute. But rather than duplicating scoring logic here,
+      // only skip if no prediction has zero points (all already scored).
+      const allAlreadyScored = predictions
+        .filter((p) => completedRaceIds.has(p.raceId) && p.top10.length > 0)
+        .every((p) => p.pointsEarned !== 0 || p.sprintPointsEarned !== 0);
+
+      if (allAlreadyScored) return;
     }
 
+    lastScoredLen.current = predictions.length;
+
     console.log(
-      '[ScoringBridge] Found',
-      needsScoring.length,
-      'unscored predictions for completed races:',
-      needsScoring.map((p) => p.raceId).join(', '),
-      '— triggering scoring...'
+      '[ScoringBridge] Scoring',
+      candidates.length,
+      'completed-race predictions:',
+      candidates.map((p) => p.raceId).join(', '),
     );
 
     void scorePredictions(raceResults);

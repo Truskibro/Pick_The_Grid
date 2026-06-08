@@ -405,6 +405,84 @@ export const [GameProvider, useGame] = createContextHook(() => {
         }
       }
 
+      // Re-score all predictions against the current race results so that
+      // stale points_earned from Supabase are always corrected. This runs
+      // synchronously after the merge & before the state is persisted,
+      // guaranteeing every screen sees consistent, freshly-computed points.
+      const currentResults = MOCK_RACE_RESULTS; // Always use canonical mock results
+      let rescoredCount = 0;
+
+      for (const p of preds) {
+        if (p.top10.length === 0) continue;
+        const result = currentResults.find((r) => r.raceId === p.raceId);
+        if (!result || result.classification.length === 0) continue;
+
+        const breakdown = calculatePoints(p, result);
+        const sprintBreakdown =
+          p.sprintTop8.length > 0 &&
+          result.sprintClassification &&
+          result.sprintClassification.length > 0
+            ? calculateSprintPoints(p.sprintTop8, result.sprintClassification)
+            : null;
+
+        const newGpPoints = breakdown.totalPoints;
+        const newSprintPoints = sprintBreakdown?.totalPoints ?? 0;
+
+        if (
+          newGpPoints === (p.pointsEarned ?? 0) &&
+          newSprintPoints === (p.sprintPointsEarned ?? 0)
+        ) {
+          continue;
+        }
+
+        p.pointsEarned = newGpPoints;
+        p.sprintPointsEarned = newSprintPoints;
+        rescoredCount++;
+
+        console.log(
+          '[loadFromSupabase] Rescored', p.raceId,
+          'GP:', newGpPoints, 'Sprint:', newSprintPoints
+        );
+      }
+
+      if (rescoredCount > 0) {
+        console.log('[loadFromSupabase] Rescored', rescoredCount, 'predictions');
+
+        // Push corrected points back to Supabase so the next load is clean.
+        for (const p of preds) {
+          if (p.top10.length === 0) continue;
+          supabase
+            .from('user_predictions')
+            .update({
+              points_earned: p.pointsEarned ?? 0,
+              sprint_points_earned: p.sprintPointsEarned ?? 0,
+            })
+            .eq('user_id', userId)
+            .eq('race_id', p.raceId)
+            .then(({ error }) => {
+              if (error) {
+                console.log('[loadFromSupabase] Supabase rescore update error for', p.raceId, ':', error.message);
+              }
+            })
+            .catch(() => {});
+        }
+
+        const rescoredTotal = preds.reduce(
+          (sum, p) => sum + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+          0
+        );
+
+        await updateProfileRef.current({ totalPoints: rescoredTotal }).catch(() => {});
+        await supabase
+          .from('profiles')
+          .update({ total_points: rescoredTotal })
+          .eq('id', userId)
+          .then(({ error }) => {
+            if (error) console.log('[loadFromSupabase] Profile update error:', error.message);
+          })
+          .catch(() => {});
+      }
+
       setPredictions(preds);
       predictionsRef.current = preds;
 
