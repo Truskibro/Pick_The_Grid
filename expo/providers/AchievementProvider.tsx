@@ -15,6 +15,7 @@ import {
   type AchievementInput,
   type EvaluationResult,
 } from '@/lib/achievement-engine';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
@@ -109,6 +110,8 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     predictions = [],
     leagues = [],
     totalPoints = 0,
+    editCounts = {},
+    lockTimes = {},
     getLeagueMembers,
   } = useGame();
 
@@ -124,41 +127,120 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
   useEffect(() => {
     const load = async () => {
+      let localState: AchievementState = createEmptyAchievementState();
+
       try {
         const raw = await AsyncStorage.getItem(STORAGE_KEY);
 
         if (raw) {
           const parsed: AchievementState = JSON.parse(raw);
-          const filled = fillMissingAchievements(parsed);
-
-          setState(filled);
-          stateRef.current = filled;
-        } else {
-          const empty = createEmptyAchievementState();
-
-          setState(empty);
-          stateRef.current = empty;
+          localState = fillMissingAchievements(parsed);
         }
       } catch (e) {
-        console.log('Failed to load achievements:', e);
-
-        const empty = createEmptyAchievementState();
-
-        setState(empty);
-        stateRef.current = empty;
-      } finally {
-        setIsLoaded(true);
+        console.log('Failed to load achievements from AsyncStorage:', e);
       }
+
+      // Merge Supabase achievements (if authenticated) — take union of unlocked tiers
+      // and max of current values so cross-device progress is never lost.
+      if (isSupabaseConfigured && profile?.id) {
+        try {
+          const { data: remoteRows, error } = await supabase
+            .from('user_achievements')
+            .select('*')
+            .eq('user_id', profile.id);
+
+          if (!error && remoteRows && remoteRows.length > 0) {
+            for (const row of remoteRows as any[]) {
+              const achievementId: string = row.achievement_id;
+              const remoteTiers: AchievementTier[] = Array.isArray(row.unlocked_tiers)
+                ? row.unlocked_tiers.filter((t: string) =>
+                    ['bronze', 'silver', 'gold', 'platinum'].includes(t)
+                  )
+                : [];
+              const remoteValue: number = row.current_value ?? 0;
+              const remoteUnlockedAt: Record<string, string> =
+                typeof row.unlocked_at === 'object' && row.unlocked_at !== null
+                  ? row.unlocked_at
+                  : {};
+
+              const local = localState[achievementId];
+
+              if (local) {
+                // Merge: union of tiers, max of current_value, latest unlocked_at
+                const mergedTiers = [...new Set([...local.unlockedTiers, ...remoteTiers])];
+                const mergedValue = Math.max(local.currentValue, remoteValue);
+                const mergedUnlockedAt = { ...remoteUnlockedAt, ...local.unlockedAt };
+
+                localState[achievementId] = {
+                  ...local,
+                  unlockedTiers: mergedTiers,
+                  currentValue: mergedValue,
+                  unlockedAt: mergedUnlockedAt,
+                };
+              } else {
+                localState[achievementId] = {
+                  achievementId,
+                  unlockedTiers: remoteTiers,
+                  currentValue: remoteValue,
+                  unlockedAt: remoteUnlockedAt,
+                };
+              }
+            }
+
+            console.log(
+              '[Achievements] Merged',
+              remoteRows.length,
+              'achievements from Supabase'
+            );
+          }
+        } catch (e) {
+          console.log('[Achievements] Supabase load failed:', e);
+        }
+      }
+
+      const filled = fillMissingAchievements(localState);
+      setState(filled);
+      stateRef.current = filled;
+      setIsLoaded(true);
     };
 
     void load();
-  }, []);
+  }, [profile?.id]);
 
   useEffect(() => {
     if (!isLoaded) return;
 
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current)).catch(() => {});
-  }, [state, isLoaded]);
+
+    // Upsert to Supabase so achievements sync across devices.
+    if (!isSupabaseConfigured || !profile?.id) return;
+
+    const currentState = stateRef.current;
+
+    const upsertAll = async () => {
+      for (const [achievementId, progress] of Object.entries(currentState)) {
+        if (!progress) continue;
+
+        try {
+          await supabase.from('user_achievements').upsert(
+            {
+              user_id: profile.id,
+              achievement_id: achievementId,
+              unlocked_tiers: progress.unlockedTiers ?? [],
+              current_value: progress.currentValue ?? 0,
+              unlocked_at: progress.unlockedAt ?? {},
+              updated_at: new Date().toISOString(),
+            },
+            { onConflict: 'user_id,achievement_id' }
+          );
+        } catch {
+          // Silently ignore — achievements will sync on next save
+        }
+      }
+    };
+
+    void upsertAll();
+  }, [state, isLoaded, profile?.id]);
 
   const buildInput = useCallback((): AchievementInput => {
     const raceResultsById: AchievementInput['raceResults'] = {};
@@ -202,8 +284,8 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       raceResults: raceResultsById,
       totalPoints: totalPoints ?? 0,
       leagueMemberships,
-      editCounts: {},
-      lockTimes: {},
+      editCounts,
+      lockTimes,
     };
   }, [
     predictions,
@@ -211,6 +293,8 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     races,
     totalPoints,
     leagues,
+    editCounts,
+    lockTimes,
     getLeagueMembers,
     profile.id,
   ]);

@@ -449,3 +449,25 @@ insert into races (id, round, name, location, country, country_flag, race_date, 
   ('r23', 23, 'Qatar Grand Prix',         'Lusail',         'Qatar',     '🇶🇦', '2026-11-29', '17:00', 'upcoming',  false, 57),
   ('r24', 24, 'Abu Dhabi Grand Prix',     'Yas Marina',     'UAE',       '🇦🇪', '2026-12-06', '14:00', 'upcoming',  false, 58)
 on conflict (id) do nothing;
+
+-- ============================================
+-- 10. USER ACHIEVEMENTS
+-- Synced across devices — local AsyncStorage is the cache,
+-- Supabase is the source of truth for cross-device sync.
+-- ============================================
+create table if not exists user_achievements (
+  user_id uuid references auth.users on delete cascade not null,
+  achievement_id text not null,
+  unlocked_tiers text[] default '{}',
+  current_value integer default 0,
+  unlocked_at jsonb default '{}',
+  updated_at timestamptz default now(),
+  primary key (user_id, achievement_id)
+);
+
+alter table user_achievements enable row level security;
+
+create policy "achievements_select_own" on user_achievements for select using (auth.uid() = user_id);
+create policy "achievements_insert_own" on user_achievements for insert with check (auth.uid() = user_id);
+create policy "achievements_update_own" on user_achievements for update using (auth.uid() = user_id);
+create policy "achievements_delete_own" on user_achievements for delete using (auth.uid() = user_id);

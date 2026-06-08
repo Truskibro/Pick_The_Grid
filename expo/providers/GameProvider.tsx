@@ -36,6 +36,7 @@ const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions',
   leagues: 'apex_draft_leagues',
   leagueMembers: 'apex_draft_league_members',
+  editCounts: 'apex_draft_edit_counts',
 } as const;
 
 function generateId(): string {
@@ -195,6 +196,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [leagueMembers, setLeagueMembers] = useState<Record<string, LeagueMember[]>>({});
+  const [editCounts, setEditCounts] = useState<Record<string, { count: number; lastEditAt: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
 
   const localProfileRef = useRef(localProfile);
@@ -208,6 +210,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
   const leagueMembersRef = useRef(leagueMembers);
   leagueMembersRef.current = leagueMembers;
+
+  const editCountsRef = useRef(editCounts);
+  editCountsRef.current = editCounts;
 
   const loadFromSupabase = useCallback(async () => {
     if (!session?.user) return;
@@ -617,6 +622,18 @@ export const [GameProvider, useGame] = createContextHook(() => {
         predictionsRef.current = normalized;
       }
 
+      // Load edit counts from AsyncStorage
+      try {
+        const rawEdits = await AsyncStorage.getItem(STORAGE_KEYS.editCounts);
+        if (rawEdits) {
+          const parsedEdits = JSON.parse(rawEdits) as Record<string, { count: number; lastEditAt: string }>;
+          setEditCounts(parsedEdits);
+          editCountsRef.current = parsedEdits;
+        }
+      } catch {
+        // Ignore corrupt edit count data
+      }
+
       if (leagueData) {
         setLeagues(JSON.parse(leagueData));
       }
@@ -705,10 +722,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
 
       const now = new Date().toISOString();
-
       const existingPrediction = predictionsRef.current.find(
         (p) => p.raceId === prediction.raceId
       );
+
+      // Track edit counts for achievements (Ferrari Strategy Dept., Box Box Box, etc.)
+      const isEdit = !!existingPrediction;
+      const prevMeta = editCountsRef.current[prediction.raceId];
+      const newCount = isEdit ? (prevMeta?.count ?? 1) + 1 : (prevMeta?.count ?? 1);
+      const newEditMeta = { count: newCount, lastEditAt: now };
+
+      const nextEditCounts = { ...editCountsRef.current, [prediction.raceId]: newEditMeta };
+      setEditCounts(nextEditCounts);
+      editCountsRef.current = nextEditCounts;
+
+      // Persist edit counts to AsyncStorage
+      AsyncStorage.setItem(STORAGE_KEYS.editCounts, JSON.stringify(nextEditCounts)).catch(() => {});
 
       const savedPrediction: Prediction = normalizePrediction({
         id: existingPrediction?.id || generateId(),
@@ -1535,12 +1564,29 @@ export const [GameProvider, useGame] = createContextHook(() => {
     );
   }, [predictions, session]);
 
+  /** Lock time for each race = raceDate + raceTime minus LOCK_MINUTES (5 min before race start). */
+  const lockTimes = useMemo(() => {
+    const times: Record<string, string> = {};
+    for (const race of RACES) {
+      try {
+        const start = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
+        const lockTime = new Date(start.getTime() - 5 * 60 * 1000);
+        times[race.id] = lockTime.toISOString();
+      } catch {
+        // Skip races with invalid dates
+      }
+    }
+    return times;
+  }, []);
+
   return useMemo(
     () => ({
       predictions,
       leagues,
       isLoading,
       totalPoints,
+      editCounts,
+      lockTimes,
       scorePredictions,
       savePrediction,
       getPrediction,
@@ -1559,6 +1605,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
       leagues,
       isLoading,
       totalPoints,
+      editCounts,
+      lockTimes,
       scorePredictions,
       savePrediction,
       getPrediction,
