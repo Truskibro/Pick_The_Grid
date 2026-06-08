@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -13,7 +13,6 @@ import {
 import { fetchLiveDriverStandings, fetchLiveRaceResults } from '@/lib/f1-api';
 
 const POLL_INTERVAL = 60_000;
-const RACE_DAY_POLL_INTERVAL = 15_000;
 
 /** Race IDs that were cancelled in the 2026 season and must never auto-complete. */
 const CANCELLED_RACE_IDS = new Set(['r04', 'r05']);
@@ -209,13 +208,35 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
 
 export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const queryClient = useQueryClient();
-  const [isRaceDay, setIsRaceDay] = useState<boolean>(false);
+
+  // ---- polling gate -------------------------------------------------------
+  // Only poll when today IS a race day AND we are at least 1 hour past the
+  // race start (waiting for results to start appearing).  Computed inline —
+  // it's just date arithmetic so useMemo has no real benefit here.
+  // React Query restarts its refetch timer when refetchInterval changes,
+  // so the gate will flip on automatically once the hour passes.
+  // -------------------------------------------------------------------------
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  const todaysRace = FALLBACK_RACES.find(
+    (r) => r.raceDate === today && r.status !== 'cancelled',
+  );
+
+  const isRaceDay = !!todaysRace;
+
+  let shouldPoll = false;
+  if (todaysRace) {
+    const raceStart = new Date(`${todaysRace.raceDate}T${todaysRace.raceTime}:00Z`);
+    const oneHourAfterStart = raceStart.getTime() + 60 * 60 * 1000;
+    shouldPoll = now.getTime() >= oneHourAfterStart;
+  }
 
   const teamsQuery = useQuery({
     queryKey: ['f1-teams'],
     queryFn: fetchTeams,
     staleTime: 5 * 60_000,
-    refetchInterval: POLL_INTERVAL * 5,
+    refetchInterval: shouldPoll ? POLL_INTERVAL * 5 : false,
     retry: 1,
   });
 
@@ -223,7 +244,7 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     queryKey: ['f1-drivers'],
     queryFn: fetchDrivers,
     staleTime: 60_000,
-    refetchInterval: POLL_INTERVAL * 2,
+    refetchInterval: shouldPoll ? POLL_INTERVAL * 2 : false,
     retry: 1,
   });
 
@@ -231,7 +252,7 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     queryKey: ['f1-races'],
     queryFn: fetchRaces,
     staleTime: 30_000,
-    refetchInterval: isRaceDay ? RACE_DAY_POLL_INTERVAL : POLL_INTERVAL,
+    refetchInterval: shouldPoll ? POLL_INTERVAL : false,
     retry: 1,
   });
 
@@ -239,7 +260,7 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     queryKey: ['f1-results'],
     queryFn: fetchRaceResults,
     staleTime: 60_000,
-    refetchInterval: POLL_INTERVAL * 2,
+    refetchInterval: shouldPoll ? POLL_INTERVAL * 2 : false,
     retry: 1,
   });
 
@@ -256,31 +277,23 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     return undefined;
   }, [races]);
 
+  // Status-update interval only runs when polling is active.
   useEffect(() => {
-    if (!nextRace) {
-      setIsRaceDay(false);
-      return;
-    }
-    const now = new Date();
-    const raceDate = new Date(`${nextRace.raceDate}T${nextRace.raceTime}:00Z`);
-    const hoursUntilRace = (raceDate.getTime() - now.getTime()) / (1000 * 60 * 60);
-    setIsRaceDay(hoursUntilRace <= 4 && hoursUntilRace >= -3);
-  }, [nextRace]);
+    if (!shouldPoll) return;
 
-  useEffect(() => {
     const statusInterval = setInterval(() => {
       if (racesQuery.data) {
         const updated = updateRaceStatuses(racesQuery.data);
         const hasChanged = updated.some((r, i) => r.status !== racesQuery.data![i]?.status);
         if (hasChanged) {
-          console.log('Race statuses updated based on current time');
+          console.log('[F1Data] Race statuses updated based on current time');
           queryClient.setQueryData(['f1-races'], updated);
         }
       }
     }, 30_000);
 
     return () => clearInterval(statusInterval);
-  }, [racesQuery.data, queryClient]);
+  }, [shouldPoll, racesQuery.data, queryClient]);
 
   useEffect(() => {
     const handleAppState = (state: AppStateStatus) => {
