@@ -73,6 +73,7 @@ export interface Prediction {
   sprintTop8: string[];
   sprintPointsEarned: number;
   updatedAt: string;
+  username: string | null;
 }
 
 export interface League {

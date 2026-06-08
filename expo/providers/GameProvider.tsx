@@ -90,6 +90,7 @@ function normalizePrediction(prediction: Prediction): Prediction {
     sprintTop8: prediction.sprintTop8 ?? [],
     sprintPointsEarned: prediction.sprintPointsEarned ?? 0,
     updatedAt: prediction.updatedAt ?? new Date().toISOString(),
+    username: prediction.username ?? null,
   };
 }
 
@@ -261,6 +262,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintTop8: p.predicted_sprint_top8 || [],
             sprintPointsEarned: p.sprint_points_earned || 0,
             updatedAt: p.updated_at,
+            username: p.username ?? null,
           });
           remoteMap.set(pred.raceId, pred);
         }
@@ -322,6 +324,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
           let gpPoints = 0;
           let sprintPts = 0;
 
+          const seedUsername = seedUser?.username ?? null;
+
           if (raceResult && raceResult.classification.length > 0 && rawPred.top10.length > 0) {
             const scoringPred: Prediction = normalizePrediction({
               id: generateUuid(),
@@ -333,6 +337,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               sprintTop8: rawPred.sprintTop8,
               sprintPointsEarned: 0,
               updatedAt: '2026-01-01T00:00:00Z',
+              username: seedUsername,
             });
 
             const breakdown = calculatePoints(scoringPred, raceResult);
@@ -363,6 +368,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintTop8: rawPred.sprintTop8,
             sprintPointsEarned: sprintPts,
             updatedAt: '2026-01-01T00:00:00Z',
+            username: seedUsername,
           });
 
           preds.push(fullPred);
@@ -753,6 +759,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         sprintPointsEarned:
           existingPrediction?.sprintPointsEarned ?? prediction.sprintPointsEarned ?? 0,
         updatedAt: now,
+        username: existingPrediction?.username ?? localProfileRef.current.username ?? null,
       });
 
       const nextPredictions = [
