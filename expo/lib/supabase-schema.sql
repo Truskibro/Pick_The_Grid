@@ -241,10 +241,10 @@ begin
     execute format('drop policy if exists %I on user_predictions', pol.policyname);
   end loop;
 end $$;
-create policy "predictions_select_own" on user_predictions for select using (auth.uid() = user_id);
-create policy "predictions_insert_own" on user_predictions for insert with check (auth.uid() = user_id);
-create policy "predictions_update_own" on user_predictions for update using (auth.uid() = user_id);
-create policy "predictions_delete_own" on user_predictions for delete using (auth.uid() = user_id);
+create policy "predictions_select_all" on user_predictions for select using (true);
+create policy "predictions_insert_auth" on user_predictions for insert with check (auth.role() = 'authenticated');
+create policy "predictions_update_auth" on user_predictions for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
+create policy "predictions_delete_auth" on user_predictions for delete using (auth.role() = 'authenticated');
 
 -- ============================================
 -- 7. LEAGUES

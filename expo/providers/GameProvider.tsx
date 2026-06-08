@@ -866,26 +866,28 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return;
       }
 
+      console.log('[savePrediction] Attempting Supabase upsert — userId:', userId, 'raceId:', savedPrediction.raceId, 'username:', localProfileRef.current.username, 'top10:', savedPrediction.top10.slice(0, 3));
+
       // Retry upsert up to 3 attempts with exponential back-off.
       const doUpsert = async (attempt: number): Promise<boolean> => {
         try {
+          const payload = {
+            user_id: userId,
+            race_id: savedPrediction.raceId,
+            predicted_top10: savedPrediction.top10,
+            predicted_fastest_lap: savedPrediction.fastestLap,
+            predicted_dnf: savedPrediction.dnf,
+            predicted_sprint_top8: savedPrediction.sprintTop8,
+            points_earned: savedPrediction.pointsEarned,
+            sprint_points_earned: savedPrediction.sprintPointsEarned,
+            username: localProfileRef.current.username,
+            updated_at: savedPrediction.updatedAt,
+          };
+          console.log('[savePrediction] Upsert payload:', JSON.stringify(payload, null, 2));
+
           const { error } = await supabase
             .from('user_predictions')
-            .upsert(
-              {
-                user_id: userId,
-                race_id: savedPrediction.raceId,
-                predicted_top10: savedPrediction.top10,
-                predicted_fastest_lap: savedPrediction.fastestLap,
-                predicted_dnf: savedPrediction.dnf,
-                predicted_sprint_top8: savedPrediction.sprintTop8,
-                points_earned: savedPrediction.pointsEarned,
-                sprint_points_earned: savedPrediction.sprintPointsEarned,
-                username: localProfileRef.current.username,
-                updated_at: savedPrediction.updatedAt,
-              },
-              { onConflict: 'user_id,race_id' }
-            );
+            .upsert(payload, { onConflict: 'user_id,race_id' });
 
           if (error) {
             // 42P01 = relation does not exist — table missing, not recoverable.
