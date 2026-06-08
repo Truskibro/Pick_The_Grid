@@ -216,11 +216,24 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const editCountsRef = useRef(editCounts);
   editCountsRef.current = editCounts;
 
+  // Guard against reloading from Supabase right after a local save.
+  // When a save just completed (within 5s), stale remote data could
+  // overwrite the fresh local prediction during the merge.
+  const lastSaveTimeRef = useRef<number>(0);
+
   const loadFromSupabase = useCallback(async () => {
     if (!session?.user) return;
 
     if (!isSupabaseConfigured) {
       console.log('Supabase not configured, skipping remote load');
+      return;
+    }
+
+    // Skip if a save just completed — prevents stale remote data from
+    // overwriting fresh local predictions during merge.
+    const msSinceLastSave = Date.now() - lastSaveTimeRef.current;
+    if (msSinceLastSave < 5000) {
+      console.log('[loadFromSupabase] Skipping — save completed', msSinceLastSave, 'ms ago');
       return;
     }
 
@@ -853,8 +866,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return;
       }
 
-      // Fire-and-forget upsert with retry on network errors.
-      const doUpsert = async (attempt: number): Promise<void> => {
+      // Retry upsert up to 3 attempts with exponential back-off.
+      const doUpsert = async (attempt: number): Promise<boolean> => {
         try {
           const { error } = await supabase
             .from('user_predictions')
@@ -878,7 +891,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             // 42P01 = relation does not exist — table missing, not recoverable.
             if (error.code === '42P01') {
               console.log('[savePrediction] Table does not exist — run supabase-fix-predictions.sql in the Supabase SQL Editor');
-              return;
+              return false;
             }
 
             // Schema mismatch — column missing (PGRST204) or wrong column type
@@ -890,19 +903,32 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 error.code,
                 error.message
               );
-              return;
+              return false;
             }
 
-            // Network / timeout — retry once.
+            // 42501 = permission denied (RLS) — not recoverable.
+            if (error.code === '42501') {
+              console.log('[savePrediction] RLS policy rejected the upsert for', savedPrediction.raceId, ':', error.message);
+              return false;
+            }
+
+            // 23503 = foreign key violation — not recoverable.
+            if (error.code === '23503') {
+              console.log('[savePrediction] Foreign key violation for', savedPrediction.raceId, ':', error.message);
+              return false;
+            }
+
+            // Network / timeout — retry with back-off.
             const isNetworkError =
               error.message?.includes('fetch') ||
               error.message?.includes('network') ||
               error.message?.includes('timeout') ||
               error.message?.includes('abort');
 
-            if (isNetworkError && attempt < 2) {
-              console.log('[savePrediction] Network error on attempt', attempt, '— retrying...');
-              await new Promise((r) => setTimeout(r, 1500));
+            if (isNetworkError && attempt < 3) {
+              const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+              console.log('[savePrediction] Network error on attempt', attempt, '— retrying in', delay, 'ms...');
+              await new Promise((r) => setTimeout(r, delay));
               return doUpsert(attempt + 1);
             }
 
@@ -913,21 +939,31 @@ export const [GameProvider, useGame] = createContextHook(() => {
               error.details ?? '',
               error.hint ?? ''
             );
-            return;
+            return false;
           }
 
           console.log('[savePrediction] Synced to Supabase:', savedPrediction.raceId);
+          return true;
         } catch (e: any) {
-          if (attempt < 2) {
-            console.log('[savePrediction] Exception on attempt', attempt, '— retrying...');
-            await new Promise((r) => setTimeout(r, 1500));
+          if (attempt < 3) {
+            const delay = Math.min(1000 * Math.pow(2, attempt - 1), 4000);
+            console.log('[savePrediction] Exception on attempt', attempt, '— retrying in', delay, 'ms...');
+            await new Promise((r) => setTimeout(r, delay));
             return doUpsert(attempt + 1);
           }
           console.log('[savePrediction] Supabase save exception after retries:', e?.message || e);
+          return false;
         }
       };
 
-      void doUpsert(1);
+      const synced = await doUpsert(1);
+      if (!synced) {
+        console.log('[savePrediction] Could not sync to Supabase after retries — data saved locally:', savedPrediction.raceId);
+      }
+
+      // Record save time so loadFromSupabase skips immediate reloads
+      // that could overwrite fresh local data with stale remote data.
+      lastSaveTimeRef.current = Date.now();
     },
     [session, getRaceById]
   );
