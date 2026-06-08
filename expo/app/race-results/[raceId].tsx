@@ -434,7 +434,9 @@ export default function RaceResultsScreen() {
 
         {prediction && (
           <View style={styles.predictionSection}>
-            <Text style={styles.sectionTitle}>Your Prediction</Text>
+            <Text style={styles.sectionTitle}>
+              {prediction.username ? `Prediction by @${prediction.username}` : 'Your Prediction'}
+            </Text>
             <View style={styles.predictionCard}>
               {prediction.top10.map((driverId, index) => {
                 const driver = getDriverById(driverId);
