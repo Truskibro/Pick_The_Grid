@@ -270,14 +270,24 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       let preds: Prediction[] = [...remoteMap.values()];
 
-      // Merge local predictions that don't exist remotely — and sync them all up.
-      // Always push local picks to Supabase so the user never loses their data
-      // across devices, even for completed races where picks may not yet be scored.
+      // Backfill missing usernames from the local profile.
+      const myUsername = localProfileRef.current.username;
+      if (myUsername && myUsername !== 'guest') {
+        for (const p of preds) {
+          if (!p.username) p.username = myUsername;
+        }
+      }
+
+      // Merge local predictions, preferring whichever is newer.
+      // This prevents stale Supabase data from overwriting freshly saved
+      // local predictions when the Supabase upsert in savePrediction fails.
       for (const lp of localPreds) {
-        if (!remoteMap.has(lp.raceId)) {
+        const remote = remoteMap.get(lp.raceId);
+
+        if (!remote) {
+          // Local-only prediction — add it and sync to Supabase.
           preds.push(lp);
 
-          // Sync to Supabase so the user doesn't lose their picks on next load.
           supabase
             .from('user_predictions')
             .upsert(
@@ -290,7 +300,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 predicted_sprint_top8: lp.sprintTop8,
                 points_earned: lp.pointsEarned ?? 0,
                 sprint_points_earned: lp.sprintPointsEarned ?? 0,
-                username: localProfileRef.current.username,
+                username: myUsername || localProfileRef.current.username,
                 updated_at: lp.updatedAt,
               },
               { onConflict: 'user_id,race_id' }
@@ -300,6 +310,40 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 console.log('[loadFromSupabase] Sync upsert error for', lp.raceId, ':', error.message);
               } else {
                 console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
+              }
+            })
+            .catch(() => {});
+        } else if (lp.updatedAt && (!remote.updatedAt || new Date(lp.updatedAt) > new Date(remote.updatedAt))) {
+          // Local is newer — replace the stale remote entry and sync to Supabase.
+          const idx = preds.findIndex((p) => p.raceId === lp.raceId);
+          if (idx >= 0) {
+            preds[idx] = lp;
+          }
+
+          console.log('[loadFromSupabase] Local prediction newer than remote for', lp.raceId, '— using local');
+
+          supabase
+            .from('user_predictions')
+            .upsert(
+              {
+                user_id: userId,
+                race_id: lp.raceId,
+                predicted_top10: lp.top10,
+                predicted_fastest_lap: lp.fastestLap,
+                predicted_dnf: lp.dnf,
+                predicted_sprint_top8: lp.sprintTop8,
+                points_earned: lp.pointsEarned ?? 0,
+                sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                username: myUsername || localProfileRef.current.username,
+                updated_at: lp.updatedAt,
+              },
+              { onConflict: 'user_id,race_id' }
+            )
+            .then(({ error }) => {
+              if (error) {
+                console.log('[loadFromSupabase] Local-newer upsert error for', lp.raceId, ':', error.message);
+              } else {
+                console.log('[loadFromSupabase] Synced newer local prediction to Supabase:', lp.raceId);
               }
             })
             .catch(() => {});
@@ -626,6 +670,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
       if (predData) {
         const parsed: Prediction[] = JSON.parse(predData);
         const normalized = parsed.map(normalizePrediction);
+
+        // Backfill missing usernames from the local profile so predictions
+        // never display "Your Prediction" when a real username is available.
+        const myUsername = localProfileRef.current.username;
+        if (myUsername && myUsername !== 'guest') {
+          for (const p of normalized) {
+            if (!p.username) p.username = myUsername;
+          }
+        }
 
         setPredictions(normalized);
         predictionsRef.current = normalized;
