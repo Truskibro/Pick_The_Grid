@@ -146,7 +146,10 @@ export default function LeagueDetailScreen() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  }, [leagueId, profile.displayName, profile.username]);
+  // Re-fetch from Supabase whenever the league identity changes OR scoring
+  // just happened (totalPoints change).  This keeps the member list current
+  // when a race completes and the current user's points are recalculated.
+  }, [leagueId, profile.displayName, profile.username, totalPoints]);
 
   if (!league) {
     return (

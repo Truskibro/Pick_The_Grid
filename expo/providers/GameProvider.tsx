@@ -198,6 +198,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const [leagueMembers, setLeagueMembers] = useState<Record<string, LeagueMember[]>>({});
   const [editCounts, setEditCounts] = useState<Record<string, { count: number; lastEditAt: string }>>({});
   const [isLoading, setIsLoading] = useState(true);
+  const [lastScoredAt, setLastScoredAt] = useState<string | null>(null);
 
   const localProfileRef = useRef(localProfile);
   localProfileRef.current = localProfile;
@@ -1482,6 +1483,10 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       await AsyncStorage.setItem(STORAGE_KEYS.predictions, JSON.stringify(updatedPreds)).catch(() => {});
 
+      // Let all consumers know scoring just ran — screens can react to this
+      // timestamp to refresh their data (leaderboard, league members, etc.).
+      setLastScoredAt(new Date().toISOString());
+
       setLeagueMembers((prev) => {
         const userId = session?.user?.id;
 
@@ -1507,9 +1512,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
           next[leagueId] = updatedMembers;
         }
 
-        if (changed) {
-          AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(next)).catch(() => {});
-        }
+        // Always persist league members to AsyncStorage when scoring updates
+        // points, so the data survives app restarts.
+        AsyncStorage.setItem(
+          STORAGE_KEYS.leagueMembers,
+          JSON.stringify(changed ? next : prev)
+        ).catch(() => {});
 
         return changed ? next : prev;
       });
@@ -1587,6 +1595,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       totalPoints,
       editCounts,
       lockTimes,
+      lastScoredAt,
       scorePredictions,
       savePrediction,
       getPrediction,
@@ -1607,6 +1616,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       totalPoints,
       editCounts,
       lockTimes,
+      lastScoredAt,
       scorePredictions,
       savePrediction,
       getPrediction,
