@@ -300,7 +300,7 @@ export type Database = {
           predicted_fastest_lap: string | null
           predicted_sprint_top8: string[] | null
           predicted_top10: string[]
-          race_id: string
+          race_id: string | null
           sprint_points_earned: number | null
           updated_at: string | null
           user_id: string
@@ -313,7 +313,7 @@ export type Database = {
           predicted_fastest_lap?: string | null
           predicted_sprint_top8?: string[] | null
           predicted_top10: string[]
-          race_id: string
+          race_id?: string | null
           sprint_points_earned?: number | null
           updated_at?: string | null
           user_id: string
@@ -326,7 +326,7 @@ export type Database = {
           predicted_fastest_lap?: string | null
           predicted_sprint_top8?: string[] | null
           predicted_top10?: string[]
-          race_id?: string
+          race_id?: string | null
           sprint_points_earned?: number | null
           updated_at?: string | null
           user_id?: string

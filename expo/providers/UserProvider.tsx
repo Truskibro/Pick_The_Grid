@@ -210,19 +210,23 @@ export const [UserProvider, useUser] = createContextHook(() => {
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
       console.log('Auth state changed:', event);
 
-      if (event === 'TOKEN_REFRESHED' && !newSession) {
-        console.log('Token refresh failed, signing out');
-        setProfile(DEFAULT_PROFILE);
-        setIsGuest(true);
-        setSession(null);
-        await AsyncStorage.removeItem(STORAGE_KEYS.profile);
-        queryClient.clear();
+      if (event === 'TOKEN_REFRESHED') {
+        if (!newSession) {
+          console.log('Token refresh failed, signing out');
+          setProfile(DEFAULT_PROFILE);
+          setIsGuest(true);
+          setSession(null);
+          await AsyncStorage.removeItem(STORAGE_KEYS.profile);
+          queryClient.clear();
+        }
+        // Do NOT call setSession here — token refreshes happen
+        // periodically and would trigger GameProvider to reload from
+        // Supabase, overwriting freshly saved local predictions.
         return;
       }
 
-      setSession(newSession);
-
       if (event === 'SIGNED_IN' && newSession?.user) {
+        setSession(newSession);
         setIsGuest(false);
         await loadSupabaseProfile(newSession.user);
         void queryClient.invalidateQueries();
@@ -232,6 +236,8 @@ export const [UserProvider, useUser] = createContextHook(() => {
         setSession(null);
         await AsyncStorage.removeItem(STORAGE_KEYS.profile);
         queryClient.clear();
+      } else {
+        setSession(newSession);
       }
     });
 
