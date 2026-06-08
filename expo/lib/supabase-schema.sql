@@ -225,6 +225,7 @@ create table if not exists user_predictions (
   points_earned integer default 0,
   predicted_sprint_top8 text[] default '{}',
   sprint_points_earned integer default 0,
+  username text,
   updated_at timestamptz default now(),
   unique(user_id, race_id)
 );

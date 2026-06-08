@@ -304,6 +304,7 @@ export type Database = {
           sprint_points_earned: number | null
           updated_at: string | null
           user_id: string
+          username: string | null
         }
         Insert: {
           id?: string
@@ -316,6 +317,7 @@ export type Database = {
           sprint_points_earned?: number | null
           updated_at?: string | null
           user_id: string
+          username?: string | null
         }
         Update: {
           id?: string
@@ -328,6 +330,7 @@ export type Database = {
           sprint_points_earned?: number | null
           updated_at?: string | null
           user_id?: string
+          username?: string | null
         }
         Relationships: [
           {

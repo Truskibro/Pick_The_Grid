@@ -288,6 +288,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 predicted_sprint_top8: lp.sprintTop8,
                 points_earned: lp.pointsEarned ?? 0,
                 sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                username: localProfileRef.current.username,
                 updated_at: lp.updatedAt,
               },
               { onConflict: 'user_id,race_id' }
@@ -389,6 +390,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 predicted_sprint_top8: fullPred.sprintTop8,
                 points_earned: fullPred.pointsEarned,
                 sprint_points_earned: fullPred.sprintPointsEarned,
+                username: localProfileRef.current.username,
                 updated_at: fullPred.updatedAt,
               },
               { onConflict: 'user_id,race_id' }
@@ -806,6 +808,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
                 predicted_sprint_top8: savedPrediction.sprintTop8,
                 points_earned: savedPrediction.pointsEarned,
                 sprint_points_earned: savedPrediction.sprintPointsEarned,
+                username: localProfileRef.current.username,
                 updated_at: savedPrediction.updatedAt,
               },
               { onConflict: 'user_id,race_id' }
