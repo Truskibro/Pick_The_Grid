@@ -95,7 +95,8 @@ function normalizePrediction(prediction: Prediction): Prediction {
 function mapMemberRows(
   rows: any[],
   currentUserId: string,
-  localProfile: { username: string; displayName: string; totalPoints: number }
+  localProfile: { username: string; displayName: string; totalPoints: number },
+  currentUserPointsOverride?: number
 ): LeagueMember[] {
   return rows.map((m: any) => {
     const memberId = String(m.user_id);
@@ -116,7 +117,12 @@ function mapMemberRows(
     if (SEED_USER_IDS.has(normId(memberId))) {
       points = scoreSeededPredictions(normId(memberId), MOCK_RACE_RESULTS);
     } else if (isCurrentUser) {
-      points = localProfile.totalPoints;
+      // Prefer the computed prediction-based total (always up-to-date)
+      // over localProfile.totalPoints which may be stale during startup.
+      points =
+        currentUserPointsOverride != null
+          ? currentUserPointsOverride
+          : localProfile.totalPoints;
     } else {
       points = profile?.total_points ?? 0;
     }
@@ -483,7 +489,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
             return;
           }
 
-          membersMap[league.id] = mapMemberRows(rows, userId, localProfileRef.current);
+          const predictorTotal = predictionsRef.current.reduce(
+            (s, p) => s + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+            0
+          );
+
+          membersMap[league.id] = mapMemberRows(
+            rows,
+            userId,
+            localProfileRef.current,
+            predictorTotal
+          );
         } catch (e) {
           console.log('Error loading members for league', league.id, e);
           membersMap[league.id] = [];
@@ -1078,7 +1094,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
           return fallback;
         }
 
-        const resolved = mapMemberRows(memberRows, userId, localProfileRef.current);
+        const predictorTotal = predictionsRef.current.reduce(
+          (s, p) => s + (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0),
+          0
+        );
+
+        const resolved = mapMemberRows(
+          memberRows,
+          userId,
+          localProfileRef.current,
+          predictorTotal
+        );
 
         const hasCurrentUser = resolved.some((m: LeagueMember) => m.userId === userId);
 
