@@ -213,16 +213,29 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current)).catch(() => {});
 
     // Upsert to Supabase so achievements sync across devices.
-    if (!isSupabaseConfigured || !profile?.id) return;
+    // Guard: only upsert if we have a valid session (skip guest/token-expired).
+    if (!isSupabaseConfigured || !profile?.id || profile.id === 'guest') return;
 
     const currentState = stateRef.current;
 
     const upsertAll = async () => {
+      // Check session validity before firing any requests.
+      try {
+        const { data: sessionData } = await supabase.auth.getSession();
+        if (!sessionData?.session?.user) {
+          console.log('[Achievements] No valid session, skipping Supabase sync');
+          return;
+        }
+      } catch {
+        console.log('[Achievements] Session check failed, skipping Supabase sync');
+        return;
+      }
+
       for (const [achievementId, progress] of Object.entries(currentState)) {
         if (!progress) continue;
 
         try {
-          await supabase.from('user_achievements').upsert(
+          const { error } = await supabase.from('user_achievements').upsert(
             {
               user_id: profile.id,
               achievement_id: achievementId,
@@ -233,8 +246,18 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
             },
             { onConflict: 'user_id,achievement_id' }
           );
-        } catch {
-          // Silently ignore — achievements will sync on next save
+
+          // Stop on auth errors — don't hammer the API.
+          if (error && (error.code === '401' || error.message?.includes('JWT') || error.message?.includes('expired'))) {
+            console.log('[Achievements] Auth error, stopping sync:', error.message);
+            return;
+          }
+        } catch (e: any) {
+          if (e?.message?.includes('JWT') || e?.message?.includes('expired') || e?.status === 401) {
+            console.log('[Achievements] Auth error, stopping sync');
+            return;
+          }
+          // Other errors: continue with next achievement
         }
       }
     };

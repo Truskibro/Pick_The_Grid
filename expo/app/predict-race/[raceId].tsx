@@ -250,7 +250,7 @@ export default function PredictRaceScreen() {
     }
     const existing = getPrediction(race.id);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await savePrediction({
+    const result = await savePrediction({
       raceId: race.id,
       top10: selectedDrivers,
       fastestLap,
@@ -260,10 +260,13 @@ export default function PredictRaceScreen() {
       sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
     });
     setSaved(true);
-    Alert.alert(
-      'Prediction Saved!',
-      isGuest ? 'Saved on this device. Set up your profile to sync to cloud.' : 'Your prediction has been saved successfully.',
-    );
+    if (result.synced) {
+      Alert.alert('Prediction Saved!', 'Your prediction has been saved and synced to the cloud.');
+    } else if (isGuest) {
+      Alert.alert('Prediction Saved!', 'Saved on this device. Set up your profile to sync to cloud.');
+    } else {
+      Alert.alert('Prediction Saved Locally', 'Could not sync to cloud. Your session may have expired — try signing out and back in.', [{ text: 'OK' }]);
+    }
   }, [race, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest]);
 
   const openPicker = useCallback((mode: PickerMode) => {

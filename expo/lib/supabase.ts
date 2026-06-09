@@ -83,34 +83,12 @@ const safeStorage = {
 function createSupabaseClient(): SupabaseClient {
   if (isSupabaseConfigured) {
     console.log('[Supabase] Initializing client with URL:', supabaseUrl.substring(0, 40) + '...');
-    const safeFetch = async (url: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 10000);
-        const mergedInit = {
-          ...init,
-          signal: init?.signal || controller.signal,
-        };
-        const res = await fetch(url, mergedInit);
-        clearTimeout(timeoutId);
-        return res;
-      } catch (e: any) {
-        console.log('[Supabase] Fetch failed for', typeof url === 'string' ? url.substring(0, 60) : 'request', ':', e?.message || e);
-        return new Response(JSON.stringify({ error: 'Network request failed', message: e?.message || 'Failed to fetch' }), {
-          status: 503,
-          headers: { 'Content-Type': 'application/json' },
-        });
-      }
-    };
     return createClient(supabaseUrl, supabaseAnonKey, {
       auth: {
         storage: safeStorage,
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: Platform.OS === 'web',
-      },
-      global: {
-        fetch: safeFetch,
       },
     });
   }

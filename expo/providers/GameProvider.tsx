@@ -785,7 +785,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   ]);
 
   const savePrediction = useCallback(
-    async (prediction: Omit<Prediction, 'id' | 'updatedAt'>) => {
+    async (prediction: Omit<Prediction, 'id' | 'updatedAt'>): Promise<{ synced: boolean }> => {
       // Enforce prediction lock: reject saves within 5 min of race start.
       const race =
         getRaceById(prediction.raceId) ??
@@ -793,7 +793,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (race && isLocked(race.raceDate, race.raceTime)) {
         console.log('[savePrediction] Blocked: predictions locked for', prediction.raceId);
-        return;
+        return { synced: false };
       }
 
       const now = new Date().toISOString();
@@ -863,7 +863,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (!userId || !isSupabaseConfigured) {
         console.log('[savePrediction] Saved locally only:', savedPrediction.raceId, userId ? '(Supabase not configured)' : '(no user session)');
-        return;
+        return { synced: false };
       }
 
       console.log('[savePrediction] Attempting Supabase upsert — userId:', userId, 'raceId:', savedPrediction.raceId, 'username:', localProfileRef.current.username, 'top10:', savedPrediction.top10.slice(0, 3));
@@ -911,6 +911,20 @@ export const [GameProvider, useGame] = createContextHook(() => {
             // 42501 = permission denied (RLS) — not recoverable.
             if (error.code === '42501') {
               console.log('[savePrediction] RLS policy rejected the upsert for', savedPrediction.raceId, ':', error.message);
+              return false;
+            }
+
+            // Auth errors (JWT expired, invalid token, 401) — not recoverable.
+            // The Supabase client returns PGRST301 for expired JWTs.
+            if (
+              error.code === 'PGRST301' ||
+              error.message?.includes('JWT') ||
+              error.message?.includes('expired') ||
+              error.message?.includes('token') ||
+              error.message?.includes('401') ||
+              error.message?.includes('Unauthorized')
+            ) {
+              console.log('[savePrediction] Auth error — session may be expired. Please sign out and back in.');
               return false;
             }
 
@@ -966,6 +980,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       // Record save time so loadFromSupabase skips immediate reloads
       // that could overwrite fresh local data with stale remote data.
       lastSaveTimeRef.current = Date.now();
+      return { synced };
     },
     [session, getRaceById]
   );
