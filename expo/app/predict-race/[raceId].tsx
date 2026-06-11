@@ -244,28 +244,44 @@ export default function PredictRaceScreen() {
   }, [locked]);
 
   const handleSave = useCallback(async () => {
-    if (!race || selectedDrivers.length === 0) {
+    if (!race) {
+      Alert.alert('Error', 'Race data is not available.');
+      return;
+    }
+    if (selectedDrivers.length === 0) {
       Alert.alert('Cannot Save', 'Please select at least one driver for the race grid.');
       return;
     }
     const existing = getPrediction(race.id);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    const result = await savePrediction({
-      raceId: race.id,
-      top10: selectedDrivers,
-      fastestLap,
-      dnf,
-      pointsEarned: existing?.pointsEarned ?? 0,
-      sprintTop8: sprintTop8,
-      sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-    });
-    setSaved(true);
-    if (result.synced) {
-      Alert.alert('Prediction Saved!', 'Your prediction has been saved and synced to the cloud.');
-    } else if (isGuest) {
-      Alert.alert('Prediction Saved!', 'Saved on this device. Set up your profile to sync to cloud.');
-    } else {
-      Alert.alert('Prediction Saved Locally', 'Could not sync to cloud. Your session may have expired — try signing out and back in.', [{ text: 'OK' }]);
+
+    try {
+      const result = await savePrediction({
+        raceId: race.id,
+        top10: selectedDrivers,
+        fastestLap,
+        dnf,
+        pointsEarned: existing?.pointsEarned ?? 0,
+        sprintTop8: sprintTop8,
+        sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
+        username: existing?.username ?? null,
+      });
+      setSaved(true);
+
+      if (result.synced) {
+        Alert.alert('Prediction Saved!', 'Your prediction has been saved and synced to the cloud.');
+      } else if (isGuest) {
+        Alert.alert('Prediction Saved!', 'Saved on this device. Set up your profile to sync to cloud.');
+      } else {
+        Alert.alert(
+          'Prediction Saved Locally',
+          'Could not sync to cloud. Your session may have expired.\n\nTo fix: go to Settings > Sign Out, then sign back in.',
+          [{ text: 'OK' }]
+        );
+      }
+    } catch (e: any) {
+      console.log('[handleSave] Error:', e?.message || e);
+      Alert.alert('Save Failed', 'An unexpected error occurred. Please try again.');
     }
   }, [race, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest]);
 
@@ -1445,5 +1461,47 @@ const styles = StyleSheet.create({
   },
   sprintPointText: {
     color: Colors.info, fontSize: 10, fontWeight: '800' as const,
+  },
+
+  // ---- Completed race banner ----
+  completedBanner: {
+    backgroundColor: 'rgba(48, 209, 88, 0.08)',
+    borderRadius: 14,
+    borderWidth: 1,
+    borderColor: 'rgba(48, 209, 88, 0.3)',
+    padding: 16,
+    marginTop: 14,
+    gap: 12,
+  },
+  completedBannerTop: {
+    flexDirection: 'row', alignItems: 'center', gap: 10,
+  },
+  completedBannerPoints: {
+    flex: 1, alignItems: 'center',
+  },
+  completedBannerValue: {
+    color: Colors.warning, fontSize: 28, fontWeight: '800' as const, letterSpacing: -0.5,
+  },
+  completedBannerLabel: {
+    color: Colors.textMuted, fontSize: 10, fontWeight: '700' as const, letterSpacing: 1, marginTop: 2,
+  },
+  completedBannerBreakdown: {
+    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
+  },
+  breakdownChipMini: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    backgroundColor: Colors.surfaceHighlight,
+    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
+  },
+  breakdownChipMiniText: {
+    color: Colors.textSecondary, fontSize: 11, fontWeight: '600' as const,
+  },
+  completedViewBtn: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
+    backgroundColor: 'rgba(225, 6, 0, 0.12)',
+    borderRadius: 10, paddingVertical: 10,
+  },
+  completedViewBtnText: {
+    color: Colors.f1Red, fontSize: 13, fontWeight: '700' as const,
   },
 });

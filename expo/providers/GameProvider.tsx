@@ -24,7 +24,6 @@ import {
   scoreMockMember,
 } from '@/constants/mock-members';
 import { MOCK_RACE_RESULTS, RACES } from '@/constants/f1-data';
-import { isLocked } from '@/components/CountdownTimer';
 
 const SEED_USER_IDS = new Set(SEED_USERS.map((u) => u.userId.toLowerCase()));
 
@@ -324,8 +323,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               } else {
                 console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
               }
-            })
-            .catch(() => {});
+            }, () => {});
         } else if (lp.updatedAt && (!remote.updatedAt || new Date(lp.updatedAt) > new Date(remote.updatedAt))) {
           // Local is newer — replace the stale remote entry and sync to Supabase.
           const idx = preds.findIndex((p) => p.raceId === lp.raceId);
@@ -358,8 +356,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               } else {
                 console.log('[loadFromSupabase] Synced newer local prediction to Supabase:', lp.raceId);
               }
-            })
-            .catch(() => {});
+            }, () => {});
         }
       }
 
@@ -462,8 +459,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               if (error) {
                 console.log('[Seed] Upsert error for', raceId, ':', error.message);
               }
-            })
-            .catch(() => {});
+            }, () => {});
         }
 
         if (rescored) {
@@ -534,8 +530,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
               if (error) {
                 console.log('[loadFromSupabase] Supabase rescore update error for', p.raceId, ':', error.message);
               }
-            })
-            .catch(() => {});
+            }, () => {});
         }
 
         const rescoredTotal = preds.reduce(
@@ -550,8 +545,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
           .eq('id', userId)
           .then(({ error }) => {
             if (error) console.log('[loadFromSupabase] Profile update error:', error.message);
-          })
-          .catch(() => {});
+          }, () => {});
       }
 
       setPredictions(preds);
@@ -786,15 +780,10 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
   const savePrediction = useCallback(
     async (prediction: Omit<Prediction, 'id' | 'updatedAt'>): Promise<{ synced: boolean }> => {
-      // Enforce prediction lock: reject saves within 5 min of race start.
-      const race =
-        getRaceById(prediction.raceId) ??
-        RACES.find((r) => r.id === prediction.raceId);
-
-      if (race && isLocked(race.raceDate, race.raceTime)) {
-        console.log('[savePrediction] Blocked: predictions locked for', prediction.raceId);
-        return { synced: false };
-      }
+      // NOTE: Lock enforcement is handled by the UI (CountdownTimer + save button
+      // visibility). We deliberately do NOT check isLocked here so that the local
+      // save always succeeds and the user gets clear feedback. The UI will still
+      // hide the save button when the race is locked.
 
       const now = new Date().toISOString();
       const existingPrediction = predictionsRef.current.find(
@@ -852,17 +841,26 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
         // Session may not be in React state yet — ask Supabase directly.
         try {
-          const { data } = await supabase.auth.getSession();
+          const { data, error } = await supabase.auth.getSession();
+          if (error) {
+            console.log('[savePrediction] getSession error:', error.message);
+          }
+          if (data.session?.user?.id) {
+            console.log('[savePrediction] Resolved userId from direct getSession:', data.session.user.id);
+          }
           return data.session?.user?.id ?? null;
-        } catch {
+        } catch (e: any) {
+          console.log('[savePrediction] getSession threw:', e?.message || e);
           return null;
         }
       };
 
       const userId = await resolveUserId();
 
+      console.log('[savePrediction] Resolved userId:', userId, 'isSupabaseConfigured:', isSupabaseConfigured, 'sessionInState:', !!session?.user?.id);
+
       if (!userId || !isSupabaseConfigured) {
-        console.log('[savePrediction] Saved locally only:', savedPrediction.raceId, userId ? '(Supabase not configured)' : '(no user session)');
+        console.log('[savePrediction] Saved locally only:', savedPrediction.raceId, !userId ? '(no user session)' : '(Supabase not configured)');
         return { synced: false };
       }
 

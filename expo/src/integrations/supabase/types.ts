@@ -125,6 +125,27 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_log: {
+        Row: {
+          id: string
+          race_id: string
+          recipient_count: number | null
+          sent_at: string | null
+        }
+        Insert: {
+          id?: string
+          race_id: string
+          recipient_count?: number | null
+          sent_at?: string | null
+        }
+        Update: {
+          id?: string
+          race_id?: string
+          recipient_count?: number | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           country: string
@@ -133,6 +154,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          push_token: string | null
           total_points: number
           updated_at: string | null
           username: string
@@ -144,6 +166,7 @@ export type Database = {
           first_name?: string
           id: string
           last_name?: string
+          push_token?: string | null
           total_points?: number
           updated_at?: string | null
           username: string
@@ -155,6 +178,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          push_token?: string | null
           total_points?: number
           updated_at?: string | null
           username?: string
