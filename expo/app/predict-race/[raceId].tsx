@@ -265,6 +265,7 @@ export default function PredictRaceScreen() {
         sprintTop8: sprintTop8,
         sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
         username: existing?.username ?? null,
+        displayName: existing?.displayName ?? null,
       });
       setSaved(true);
 
