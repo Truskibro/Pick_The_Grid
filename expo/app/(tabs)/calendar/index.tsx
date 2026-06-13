@@ -60,6 +60,12 @@ export default function CalendarScreen() {
           const raceId = item.race.id;
           const prediction = getPrediction(raceId);
           const result = getRaceResult(raceId);
+          const hasPrediction = !!prediction && (
+            prediction.top10.length > 0 ||
+            prediction.sprintTop8.length > 0 ||
+            !!prediction.fastestLap ||
+            !!prediction.dnf
+          );
 
           // Compute points live from prediction + race result, matching
           // the race-results screen — never trust stored pointsEarned.
@@ -97,6 +103,7 @@ export default function CalendarScreen() {
               }}
               pointsEarned={livePoints}
               sprintPointsEarned={liveSprintPoints}
+              hasPrediction={hasPrediction}
             />
           );
         }}

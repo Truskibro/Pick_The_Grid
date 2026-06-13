@@ -337,49 +337,62 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }
   }, [activeUserId]);
 
+  const loadCloudPredictionsForUser = useCallback(async (userId: string): Promise<Prediction[]> => {
+    try {
+      const { data, error } = await supabase
+        .from('user_predictions')
+        .select('*')
+        .eq('user_id', userId)
+        .order('updated_at', { ascending: false });
+
+      if (error) {
+        console.log('[GameProvider] Cloud prediction load failed:', error.message);
+        return predictionsRef.current;
+      }
+
+      const cloudPredictions = ((data ?? []) as PredictionRow[]).map(mapPredictionRow);
+      const merged = mergePredictions(predictionsRef.current, cloudPredictions);
+
+      setPredictions(merged);
+      predictionsRef.current = merged;
+      await persistPredictions(merged);
+
+      console.log('[GameProvider] Loaded cloud predictions:', cloudPredictions.length);
+      return merged;
+    } catch (e: any) {
+      console.log('[GameProvider] Cloud prediction load threw:', e?.message || e);
+      return predictionsRef.current;
+    }
+  }, []);
+
+  const refreshPredictions = useCallback(async (): Promise<void> => {
+    if (!isSupabaseConfigured) return;
+
+    const userId = await resolveUserId();
+    if (!userId) {
+      console.log('[GameProvider] Prediction refresh skipped: no logged-in user.');
+      return;
+    }
+
+    cloudLoadedForUserRef.current = userId;
+    await loadCloudPredictionsForUser(userId);
+  }, [loadCloudPredictionsForUser, resolveUserId]);
+
   useEffect(() => {
     if (!isSupabaseConfigured || !activeUserId) {
       cloudLoadedForUserRef.current = null;
       return;
     }
 
+    // Wait until local AsyncStorage has loaded first. Otherwise a slower local
+    // read can overwrite freshly fetched Supabase predictions during startup.
+    if (isLoading) return;
+
     if (cloudLoadedForUserRef.current === activeUserId) return;
     cloudLoadedForUserRef.current = activeUserId;
 
-    let cancelled = false;
-
-    const loadCloudPredictions = async (): Promise<void> => {
-      try {
-        const { data, error } = await supabase
-          .from('user_predictions')
-          .select('*')
-          .eq('user_id', activeUserId)
-          .order('updated_at', { ascending: false });
-
-        if (error) {
-          console.log('[GameProvider] Cloud prediction load failed:', error.message);
-          return;
-        }
-
-        if (cancelled || !data) return;
-
-        const cloudPredictions = (data as PredictionRow[]).map(mapPredictionRow);
-        const merged = mergePredictions(predictionsRef.current, cloudPredictions);
-
-        setPredictions(merged);
-        predictionsRef.current = merged;
-        await persistPredictions(merged);
-      } catch (e: any) {
-        console.log('[GameProvider] Cloud prediction load threw:', e?.message || e);
-      }
-    };
-
-    void loadCloudPredictions();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [activeUserId]);
+    void loadCloudPredictionsForUser(activeUserId);
+  }, [activeUserId, isLoading, loadCloudPredictionsForUser]);
 
   const updateLocalProfile = useCallback(async (): Promise<void> => {
     await AsyncStorage.setItem('apex_draft_profile', JSON.stringify(profile));
@@ -460,6 +473,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return { synced: false, errorMessage: writeResult.errorMessage };
       }
 
+      cloudLoadedForUserRef.current = userId;
+
       if (writeResult.row) {
         const confirmedPrediction = mapPredictionRow(writeResult.row);
         const confirmedPredictions = [
@@ -476,9 +491,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
       lastSaveTimeGlobal = Date.now();
       AsyncStorage.setItem(STORAGE_KEYS.lastSaveTime, String(lastSaveTimeRef.current)).catch(() => {});
 
+      await loadCloudPredictionsForUser(userId);
+
       return { synced: true };
     },
-    [profile, resolveUserId],
+    [profile, resolveUserId, loadCloudPredictionsForUser],
   );
 
   const getPrediction = useCallback((raceId: string): Prediction | undefined => {
@@ -808,6 +825,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
     fetchGlobalLeaderboard,
     scorePredictions,
     updateLocalProfile,
+    refreshPredictions,
     lockTimes,
     fetchLeagueMembers,
   };

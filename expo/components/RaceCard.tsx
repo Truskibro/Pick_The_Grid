@@ -1,6 +1,6 @@
 import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
-import { MapPin, Clock, Trophy, Zap, PlayCircle, Flame } from 'lucide-react-native';
+import { MapPin, Clock, Trophy, Zap, PlayCircle, Flame, CheckCircle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Race } from '@/types';
 import AnimatedPressable from './AnimatedPressable';
@@ -11,9 +11,10 @@ interface RaceCardProps {
   showStatus?: boolean;
   pointsEarned?: number;
   sprintPointsEarned?: number;
+  hasPrediction?: boolean;
 }
 
-export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned, sprintPointsEarned }: RaceCardProps) {
+export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned, sprintPointsEarned, hasPrediction = false }: RaceCardProps) {
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -37,6 +38,10 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
     race.status === 'live' ? 'LIVE' :
     race.status === 'cancelled' ? 'CANCELLED' :
     'UPCOMING';
+
+  const totalPoints = (pointsEarned ?? 0) + (sprintPointsEarned ?? 0);
+  const shouldShowPoints = race.status === 'completed' && pointsEarned !== undefined && totalPoints > 0;
+  const shouldShowPredictionSaved = hasPrediction && !shouldShowPoints;
 
   const handleWatchLive = useCallback(async () => {
     const url = 'https://f1tv.formula1.com/';
@@ -101,10 +106,19 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
           </View>
         )}
 
-        {race.status === 'completed' && pointsEarned !== undefined && (pointsEarned + (sprintPointsEarned ?? 0)) > 0 && (
+        {shouldShowPoints && (
           <View style={styles.pointsRow}>
             <Zap size={11} color={Colors.warning} />
-            <Text style={styles.pointsText}>+{pointsEarned + (sprintPointsEarned ?? 0)} pts earned</Text>
+            <Text style={styles.pointsText}>+{totalPoints} pts earned</Text>
+          </View>
+        )}
+
+        {shouldShowPredictionSaved && (
+          <View style={styles.predictionSavedRow}>
+            <CheckCircle size={11} color={Colors.success} />
+            <Text style={styles.predictionSavedText}>
+              {race.status === 'completed' ? 'Prediction submitted' : 'Prediction saved'}
+            </Text>
           </View>
         )}
 
@@ -253,6 +267,16 @@ const styles = StyleSheet.create({
   },
   pointsText: {
     color: Colors.warning,
+    fontSize: 12,
+    fontWeight: '600' as const,
+  },
+  predictionSavedRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  predictionSavedText: {
+    color: Colors.success,
     fontSize: 12,
     fontWeight: '600' as const,
   },

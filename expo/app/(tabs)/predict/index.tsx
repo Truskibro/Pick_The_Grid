@@ -31,7 +31,7 @@ export default function PredictScreen() {
   const router = useRouter();
   const { nextRace, drivers, getTeamById, races, raceResults, getRaceResult } = useF1Data();
   const { savePrediction, getPrediction } = useGame();
-  const { isGuest } = useUser();
+  const { profile, isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   // Find the most recently completed race (for showing results after race ends)
@@ -251,23 +251,32 @@ export default function PredictScreen() {
     }
     const existing = getPrediction(nextRace.id);
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    await savePrediction({
-      raceId: nextRace.id,
-      top10: selectedDrivers,
-      fastestLap,
-      dnf,
-      pointsEarned: existing?.pointsEarned ?? 0,
-      sprintTop8: sprintTop8,
-      sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-      username: existing?.username ?? null,
-      displayName: existing?.displayName ?? null,
-    });
-    setSaved(true);
-    Alert.alert(
-      'Prediction Saved!',
-      isGuest ? 'Saved on this device. Set up your profile to sync to cloud.' : 'Your prediction has been saved successfully.',
-    );
-  }, [nextRace, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest]);
+    try {
+      const result = await savePrediction({
+        raceId: nextRace.id,
+        top10: selectedDrivers,
+        fastestLap,
+        dnf,
+        pointsEarned: existing?.pointsEarned ?? 0,
+        sprintTop8: sprintTop8,
+        sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
+        username: existing?.username ?? profile.username,
+        displayName: existing?.displayName ?? profile.displayName,
+      });
+      setSaved(true);
+
+      if (result.synced) {
+        Alert.alert('Prediction Saved!', 'Your prediction has been saved and synced to the cloud.');
+      } else if (isGuest) {
+        Alert.alert('Prediction Saved!', 'Saved on this device. Set up your profile to sync to cloud.');
+      } else {
+        Alert.alert('Prediction Saved Locally', result.errorMessage ?? 'Could not sync to cloud. Please sign out and sign back in, then try again.');
+      }
+    } catch (e: any) {
+      console.log('[PredictScreen] Save failed:', e?.message || e);
+      Alert.alert('Save Failed', 'An unexpected error occurred. Please try again.');
+    }
+  }, [nextRace, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest, profile.username, profile.displayName]);
 
   const openPicker = useCallback((mode: PickerMode) => {
     if (locked) return;
