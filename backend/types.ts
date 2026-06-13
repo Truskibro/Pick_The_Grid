@@ -318,46 +318,49 @@ export type Database = {
       }
       user_predictions: {
         Row: {
-          display_name: string | null
+          created_at: string
+          display_name: string
           id: string
-          points_earned: number | null
+          points_earned: number
           predicted_dnf: string | null
           predicted_fastest_lap: string | null
-          predicted_sprint_top8: string[] | null
+          predicted_sprint_top8: string[]
           predicted_top10: string[]
           race_id: string
-          sprint_points_earned: number | null
-          updated_at: string | null
+          sprint_points_earned: number
+          updated_at: string
           user_id: string
-          username: string | null
+          username: string
         }
         Insert: {
-          display_name?: string | null
+          created_at?: string
+          display_name: string
           id?: string
-          points_earned?: number | null
+          points_earned?: number
           predicted_dnf?: string | null
           predicted_fastest_lap?: string | null
-          predicted_sprint_top8?: string[] | null
-          predicted_top10: string[]
+          predicted_sprint_top8?: string[]
+          predicted_top10?: string[]
           race_id: string
-          sprint_points_earned?: number | null
-          updated_at?: string | null
+          sprint_points_earned?: number
+          updated_at?: string
           user_id: string
-          username?: string | null
+          username: string
         }
         Update: {
-          display_name?: string | null
+          created_at?: string
+          display_name?: string
           id?: string
-          points_earned?: number | null
+          points_earned?: number
           predicted_dnf?: string | null
           predicted_fastest_lap?: string | null
-          predicted_sprint_top8?: string[] | null
+          predicted_sprint_top8?: string[]
           predicted_top10?: string[]
           race_id?: string
-          sprint_points_earned?: number | null
-          updated_at?: string | null
+          sprint_points_earned?: number
+          updated_at?: string
           user_id?: string
-          username?: string | null
+          username?: string
         }
         Relationships: [
           {
@@ -365,13 +368,6 @@ export type Database = {
             columns: ["race_id"]
             isOneToOne: false
             referencedRelation: "races"
-            referencedColumns: ["id"]
-          },
-          {
-            foreignKeyName: "user_predictions_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]
@@ -383,6 +379,7 @@ export type Database = {
     Functions: {
       save_user_prediction: {
         Args: {
+          p_display_name?: string
           p_points_earned?: number
           p_predicted_dnf?: string
           p_predicted_fastest_lap?: string
@@ -390,20 +387,22 @@ export type Database = {
           p_predicted_top10: string[]
           p_race_id: string
           p_sprint_points_earned?: number
+          p_username?: string
         }
         Returns: {
-          display_name: string | null
+          created_at: string
+          display_name: string
           id: string
-          points_earned: number | null
+          points_earned: number
           predicted_dnf: string | null
           predicted_fastest_lap: string | null
-          predicted_sprint_top8: string[] | null
+          predicted_sprint_top8: string[]
           predicted_top10: string[]
           race_id: string
-          sprint_points_earned: number | null
-          updated_at: string | null
+          sprint_points_earned: number
+          updated_at: string
           user_id: string
-          username: string | null
+          username: string
         }
         SetofOptions: {
           from: "*"

@@ -8,7 +8,7 @@ import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
-  predictions: 'apex_draft_predictions',
+  predictions: 'apex_draft_predictions_rebuilt_v1',
   editCounts: 'apex_draft_edit_counts',
   leagues: 'apex_draft_leagues',
   leagueMembers: 'apex_draft_league_members',
@@ -24,15 +24,16 @@ type PredictionRow = {
   id: string;
   user_id: string;
   race_id: string;
-  predicted_top10: string[] | null;
+  username: string;
+  display_name: string;
+  predicted_top10: string[];
   predicted_fastest_lap: string | null;
   predicted_dnf: string | null;
-  points_earned: number | null;
-  predicted_sprint_top8: string[] | null;
-  sprint_points_earned: number | null;
-  username: string | null;
-  display_name: string | null;
-  updated_at: string | null;
+  points_earned: number;
+  predicted_sprint_top8: string[];
+  sprint_points_earned: number;
+  created_at: string;
+  updated_at: string;
 };
 
 function generateId(): string {
@@ -218,6 +219,8 @@ async function writePredictionRow(payload: PredictionPayload): Promise<Predictio
     p_points_earned: payload.points_earned,
     p_predicted_sprint_top8: payload.predicted_sprint_top8,
     p_sprint_points_earned: payload.sprint_points_earned,
+    p_username: payload.username,
+    p_display_name: payload.display_name,
   });
 
   if (error) {
@@ -330,17 +333,18 @@ export const [GameProvider, useGame] = createContextHook(() => {
       const cloudRows = (data ?? []) as PredictionRow[];
       const cloudPredictions = cloudRows.map(mapPredictionRow);
       const newestCloudPredictions = mergePredictions([], cloudPredictions);
-      const merged = mergePredictions(predictionsRef.current, newestCloudPredictions);
 
-      setPredictions(merged);
-      predictionsRef.current = merged;
-      await persistPredictions(merged);
+      // For signed-in users, Supabase is the rebuilt source of truth. Do not
+      // merge old AsyncStorage picks back in, or deleted/stale rows reappear.
+      setPredictions(newestCloudPredictions);
+      predictionsRef.current = newestCloudPredictions;
+      await persistPredictions(newestCloudPredictions);
 
       console.log('[GameProvider] Loaded cloud predictions:', {
         rows: cloudRows.length,
         races: newestCloudPredictions.length,
       });
-      return merged;
+      return newestCloudPredictions;
     } catch (e: any) {
       console.log('[GameProvider] Cloud prediction load threw:', e?.message || e);
       return predictionsRef.current;

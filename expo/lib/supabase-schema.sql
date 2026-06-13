@@ -215,65 +215,72 @@ create policy "race_results_select" on race_results for select using (true);
 -- ============================================
 -- 6. USER PREDICTIONS
 -- ============================================
-create table if not exists user_predictions (
+drop function if exists public.save_user_prediction(text, text[], text, text, integer, text[], integer);
+drop function if exists public.save_user_prediction(text, text[], text, text, integer, text[], integer, text, text);
+drop trigger if exists user_predictions_prepare_names on public.user_predictions;
+drop function if exists public.prepare_user_prediction_names();
+drop table if exists public.user_predictions cascade;
+
+create table public.user_predictions (
   id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users on delete cascade not null,
-  race_id text references races(id) on delete cascade not null,
-  predicted_top10 text[] not null,
+  user_id uuid references auth.users(id) on delete cascade not null,
+  race_id text references public.races(id) on delete cascade not null,
+  username text not null,
+  display_name text not null,
+  predicted_top10 text[] not null default '{}',
   predicted_fastest_lap text,
   predicted_dnf text,
-  points_earned integer default 0,
-  predicted_sprint_top8 text[] default '{}',
-  sprint_points_earned integer default 0,
-  username text,
-  display_name text,
-  updated_at timestamptz default now(),
-  unique(user_id, race_id)
+  points_earned integer not null default 0,
+  predicted_sprint_top8 text[] not null default '{}',
+  sprint_points_earned integer not null default 0,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now(),
+  constraint user_predictions_user_race_key unique (user_id, race_id),
+  constraint user_predictions_top10_length check (array_length(predicted_top10, 1) is null or array_length(predicted_top10, 1) <= 10),
+  constraint user_predictions_sprint_top8_length check (array_length(predicted_sprint_top8, 1) is null or array_length(predicted_sprint_top8, 1) <= 8)
 );
 
-alter table user_predictions add column if not exists predicted_sprint_top8 text[] default '{}';
-alter table user_predictions add column if not exists sprint_points_earned integer default 0;
-alter table user_predictions add column if not exists display_name text;
-create unique index if not exists user_predictions_user_race_unique_idx on user_predictions (user_id, race_id);
+create index user_predictions_user_id_idx on public.user_predictions(user_id);
+create index user_predictions_race_id_idx on public.user_predictions(race_id);
+create index user_predictions_updated_at_idx on public.user_predictions(updated_at desc);
 
-alter table user_predictions enable row level security;
-do $$
-declare pol record;
-begin
-  for pol in select policyname from pg_policies where tablename = 'user_predictions' loop
-    execute format('drop policy if exists %I on user_predictions', pol.policyname);
-  end loop;
-end $$;
-create policy "predictions_select_all" on user_predictions for select using (true);
-create policy "predictions_insert_own" on user_predictions for insert with check (auth.uid() = user_id);
-create policy "predictions_update_own" on user_predictions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "predictions_delete_own" on user_predictions for delete using (auth.uid() = user_id);
+alter table public.user_predictions enable row level security;
+create policy "predictions_select_all" on public.user_predictions for select using (true);
+create policy "predictions_insert_own" on public.user_predictions for insert with check (auth.uid() = user_id);
+create policy "predictions_update_own" on public.user_predictions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "predictions_delete_own" on public.user_predictions for delete using (auth.uid() = user_id);
 
-create or replace function public.sync_prediction_profile_names()
+create or replace function public.prepare_user_prediction_names()
 returns trigger
 language plpgsql
 security definer
 set search_path = public
 as $$
+declare
+  profile_username text;
+  profile_display_name text;
 begin
   select p.username, p.display_name
-    into new.username, new.display_name
+    into profile_username, profile_display_name
   from public.profiles p
   where p.id = new.user_id;
 
-  new.username := coalesce(nullif(new.username, ''), 'user_' || substr(new.user_id::text, 1, 8));
-  new.display_name := coalesce(nullif(new.display_name, ''), new.username);
-  new.updated_at := coalesce(new.updated_at, now());
+  new.username := coalesce(nullif(new.username, ''), nullif(profile_username, ''), 'user_' || substr(new.user_id::text, 1, 8));
+  new.display_name := coalesce(nullif(new.display_name, ''), nullif(profile_display_name, ''), new.username);
+  new.predicted_top10 := coalesce(new.predicted_top10, '{}');
+  new.predicted_sprint_top8 := coalesce(new.predicted_sprint_top8, '{}');
+  new.points_earned := coalesce(new.points_earned, 0);
+  new.sprint_points_earned := coalesce(new.sprint_points_earned, 0);
+  new.updated_at := now();
 
   return new;
 end;
 $$;
 
-drop trigger if exists user_predictions_sync_profile_names on public.user_predictions;
-create trigger user_predictions_sync_profile_names
+create trigger user_predictions_prepare_names
   before insert or update on public.user_predictions
   for each row
-  execute function public.sync_prediction_profile_names();
+  execute function public.prepare_user_prediction_names();
 
 create or replace function public.save_user_prediction(
   p_race_id text,
@@ -282,7 +289,9 @@ create or replace function public.save_user_prediction(
   p_predicted_dnf text default null,
   p_points_earned integer default 0,
   p_predicted_sprint_top8 text[] default '{}',
-  p_sprint_points_earned integer default 0
+  p_sprint_points_earned integer default 0,
+  p_username text default null,
+  p_display_name text default null
 )
 returns public.user_predictions
 language plpgsql
@@ -291,15 +300,27 @@ set search_path = public
 as $$
 declare
   current_user_id uuid := auth.uid();
+  next_username text;
+  next_display_name text;
   saved_row public.user_predictions;
 begin
   if current_user_id is null then
     raise exception 'Not authenticated' using errcode = '28000';
   end if;
 
+  select p.username, p.display_name
+    into next_username, next_display_name
+  from public.profiles p
+  where p.id = current_user_id;
+
+  next_username := coalesce(nullif(p_username, ''), nullif(next_username, ''), 'user_' || substr(current_user_id::text, 1, 8));
+  next_display_name := coalesce(nullif(p_display_name, ''), nullif(next_display_name, ''), next_username);
+
   insert into public.user_predictions (
     user_id,
     race_id,
+    username,
+    display_name,
     predicted_top10,
     predicted_fastest_lap,
     predicted_dnf,
@@ -311,6 +332,8 @@ begin
   values (
     current_user_id,
     p_race_id,
+    next_username,
+    next_display_name,
     coalesce(p_predicted_top10, '{}'),
     p_predicted_fastest_lap,
     p_predicted_dnf,
@@ -320,6 +343,8 @@ begin
     now()
   )
   on conflict (user_id, race_id) do update set
+    username = excluded.username,
+    display_name = excluded.display_name,
     predicted_top10 = excluded.predicted_top10,
     predicted_fastest_lap = excluded.predicted_fastest_lap,
     predicted_dnf = excluded.predicted_dnf,
@@ -333,7 +358,7 @@ begin
 end;
 $$;
 
-grant execute on function public.save_user_prediction(text, text[], text, text, integer, text[], integer) to authenticated;
+grant execute on function public.save_user_prediction(text, text[], text, text, integer, text[], integer, text, text) to authenticated;
 
 -- ============================================
 -- 7. LEAGUES
