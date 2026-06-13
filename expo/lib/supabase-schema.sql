@@ -14,6 +14,7 @@ create table if not exists profiles (
   first_name text not null default '',
   last_name text not null default '',
   country text not null default '',
+  push_token text,
   total_points integer not null default 0,
   created_at timestamptz default now(),
   updated_at timestamptz default now()
@@ -26,6 +27,7 @@ alter table profiles add column if not exists display_name text;
 alter table profiles add column if not exists first_name text default '';
 alter table profiles add column if not exists last_name text default '';
 alter table profiles add column if not exists country text default '';
+alter table profiles add column if not exists push_token text;
 alter table profiles alter column total_points set default 0;
 update profiles set total_points = 0 where total_points is null;
 alter table profiles alter column total_points set not null;
@@ -67,7 +69,7 @@ create trigger profiles_set_updated_at
 -- Auto-create profile ONLY after the user's email is confirmed.
 -- This prevents "phantom" profiles for accounts that never finished verification.
 create or replace function public.handle_new_user()
-returns trigger as $
+returns trigger as $$
 declare
   base_username text;
   candidate text;
@@ -109,7 +111,7 @@ begin
   on conflict (id) do nothing;
   return new;
 end;
-$ language plpgsql security definer;
+$$ language plpgsql security definer;
 
 -- Fire on insert (covers providers that confirm immediately) and on update
 -- to email_confirmed_at (covers the standard email-verification flow).
@@ -151,8 +153,16 @@ create table if not exists teams (
   short_name text not null
 );
 
+alter table teams add column if not exists color text default '#666666';
+alter table teams add column if not exists short_name text;
+update teams set color = '#666666' where color is null or btrim(color) = '';
+update teams set short_name = upper(substr(name, 1, 3)) where short_name is null or btrim(short_name) = '';
+alter table teams alter column color set not null;
+alter table teams alter column short_name set not null;
+
 alter table teams enable row level security;
 drop policy if exists "Teams are viewable by everyone" on teams;
+drop policy if exists "teams_select" on teams;
 create policy "teams_select" on teams for select using (true);
 
 -- ============================================
@@ -167,8 +177,18 @@ create table if not exists drivers (
   championship_points integer default 0
 );
 
+alter table drivers add column if not exists short_name text;
+alter table drivers add column if not exists number integer;
+alter table drivers add column if not exists team_id text references teams(id);
+alter table drivers add column if not exists championship_points integer default 0;
+update drivers set short_name = id where short_name is null or btrim(short_name) = '';
+update drivers set championship_points = 0 where championship_points is null;
+alter table drivers alter column short_name set not null;
+alter table drivers alter column championship_points set default 0;
+
 alter table drivers enable row level security;
 drop policy if exists "Drivers are viewable by everyone" on drivers;
+drop policy if exists "drivers_select" on drivers;
 create policy "drivers_select" on drivers for select using (true);
 
 -- ============================================
@@ -194,6 +214,7 @@ alter table races add column if not exists has_sprint boolean default false;
 
 alter table races enable row level security;
 drop policy if exists "Races are viewable by everyone" on races;
+drop policy if exists "races_select" on races;
 create policy "races_select" on races for select using (true);
 
 -- ============================================
@@ -210,6 +231,7 @@ create table if not exists race_results (
 
 alter table race_results enable row level security;
 drop policy if exists "Race results are viewable by everyone" on race_results;
+drop policy if exists "race_results_select" on race_results;
 create policy "race_results_select" on race_results for select using (true);
 
 -- ============================================
@@ -393,6 +415,10 @@ create table if not exists leagues (
   created_at timestamptz default now()
 );
 
+alter table leagues add column if not exists member_count integer default 1;
+update leagues set member_count = 1 where member_count is null;
+alter table leagues alter column member_count set default 1;
+
 alter table leagues enable row level security;
 do $$
 declare pol record;
@@ -503,7 +529,7 @@ on conflict (id) do nothing;
 -- Run this function manually or schedule it with pg_cron (below).
 -- ============================================
 create or replace function public.cleanup_stale_accounts()
-returns table(deleted_user_id uuid, reason text) as $
+returns table(deleted_user_id uuid, reason text) as $$
 declare
   rec record;
 begin
@@ -535,14 +561,14 @@ begin
     return next;
   end loop;
 end;
-$ language plpgsql security definer;
+$$ language plpgsql security definer;
 
 -- Schedule via pg_cron (runs daily at 03:00 UTC).
 -- If the pg_cron extension is not installed, this is a no-op and you can
 -- run `select cleanup_stale_accounts();` manually when you need to purge.
 create extension if not exists pg_cron;
 
-do $
+do $$
 begin
   if exists (select 1 from pg_extension where extname = 'pg_cron') then
     perform cron.schedule(
@@ -551,7 +577,7 @@ begin
       'select cleanup_stale_accounts();'
     );
   end if;
-end $;
+end $$;
 
 -- ============================================
 -- SEED: 2026 Races — matches official F1 2026 calendar
@@ -601,7 +627,31 @@ create table if not exists user_achievements (
 
 alter table user_achievements enable row level security;
 
+drop policy if exists "achievements_select_own" on user_achievements;
+drop policy if exists "achievements_insert_own" on user_achievements;
+drop policy if exists "achievements_update_own" on user_achievements;
+drop policy if exists "achievements_delete_own" on user_achievements;
+
 create policy "achievements_select_own" on user_achievements for select using (auth.uid() = user_id);
 create policy "achievements_insert_own" on user_achievements for insert with check (auth.uid() = user_id);
 create policy "achievements_update_own" on user_achievements for update using (auth.uid() = user_id);
 create policy "achievements_delete_own" on user_achievements for delete using (auth.uid() = user_id);
+
+-- ============================================
+-- 11. NOTIFICATION LOG
+-- ============================================
+create table if not exists notification_log (
+  id uuid default gen_random_uuid() primary key,
+  race_id text not null,
+  sent_at timestamptz default now(),
+  recipient_count integer default 0
+);
+
+alter table notification_log enable row level security;
+
+drop policy if exists "Anyone can read notification_log" on notification_log;
+drop policy if exists "Service can insert notification_log" on notification_log;
+create policy "Anyone can read notification_log" on notification_log for select using (true);
+create policy "Service can insert notification_log" on notification_log for insert with check (true);
+
+notify pgrst, 'reload schema';
