@@ -222,9 +222,9 @@ drop function if exists public.prepare_user_prediction_names();
 drop table if exists public.user_predictions cascade;
 
 create table public.user_predictions (
-  id uuid default gen_random_uuid() primary key,
-  user_id uuid references auth.users(id) on delete cascade not null,
-  race_id text references public.races(id) on delete cascade not null,
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null references auth.users(id) on delete cascade,
+  race_id text not null references public.races(id) on delete cascade,
   username text not null,
   display_name text not null,
   predicted_top10 text[] not null default '{}',
@@ -245,10 +245,27 @@ create index user_predictions_race_id_idx on public.user_predictions(race_id);
 create index user_predictions_updated_at_idx on public.user_predictions(updated_at desc);
 
 alter table public.user_predictions enable row level security;
-create policy "predictions_select_all" on public.user_predictions for select using (true);
-create policy "predictions_insert_own" on public.user_predictions for insert with check (auth.uid() = user_id);
-create policy "predictions_update_own" on public.user_predictions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
-create policy "predictions_delete_own" on public.user_predictions for delete using (auth.uid() = user_id);
+
+create policy predictions_select_all
+  on public.user_predictions
+  for select
+  using (true);
+
+create policy predictions_insert_own
+  on public.user_predictions
+  for insert
+  with check (auth.uid() = user_id);
+
+create policy predictions_update_own
+  on public.user_predictions
+  for update
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
+
+create policy predictions_delete_own
+  on public.user_predictions
+  for delete
+  using (auth.uid() = user_id);
 
 create or replace function public.prepare_user_prediction_names()
 returns trigger
@@ -265,8 +282,8 @@ begin
   from public.profiles p
   where p.id = new.user_id;
 
-  new.username := coalesce(nullif(new.username, ''), nullif(profile_username, ''), 'user_' || substr(new.user_id::text, 1, 8));
-  new.display_name := coalesce(nullif(new.display_name, ''), nullif(profile_display_name, ''), new.username);
+  new.username := coalesce(nullif(btrim(new.username), ''), nullif(btrim(profile_username), ''), 'user_' || substr(new.user_id::text, 1, 8));
+  new.display_name := coalesce(nullif(btrim(new.display_name), ''), nullif(btrim(profile_display_name), ''), new.username);
   new.predicted_top10 := coalesce(new.predicted_top10, '{}');
   new.predicted_sprint_top8 := coalesce(new.predicted_sprint_top8, '{}');
   new.points_earned := coalesce(new.points_earned, 0);
@@ -300,6 +317,8 @@ set search_path = public
 as $$
 declare
   current_user_id uuid := auth.uid();
+  profile_username text;
+  profile_display_name text;
   next_username text;
   next_display_name text;
   saved_row public.user_predictions;
@@ -309,12 +328,12 @@ begin
   end if;
 
   select p.username, p.display_name
-    into next_username, next_display_name
+    into profile_username, profile_display_name
   from public.profiles p
   where p.id = current_user_id;
 
-  next_username := coalesce(nullif(p_username, ''), nullif(next_username, ''), 'user_' || substr(current_user_id::text, 1, 8));
-  next_display_name := coalesce(nullif(p_display_name, ''), nullif(next_display_name, ''), next_username);
+  next_username := coalesce(nullif(btrim(p_username), ''), nullif(btrim(profile_username), ''), 'user_' || substr(current_user_id::text, 1, 8));
+  next_display_name := coalesce(nullif(btrim(p_display_name), ''), nullif(btrim(profile_display_name), ''), next_username);
 
   insert into public.user_predictions (
     user_id,
@@ -326,8 +345,7 @@ begin
     predicted_dnf,
     points_earned,
     predicted_sprint_top8,
-    sprint_points_earned,
-    updated_at
+    sprint_points_earned
   )
   values (
     current_user_id,
@@ -339,8 +357,7 @@ begin
     p_predicted_dnf,
     coalesce(p_points_earned, 0),
     coalesce(p_predicted_sprint_top8, '{}'),
-    coalesce(p_sprint_points_earned, 0),
-    now()
+    coalesce(p_sprint_points_earned, 0)
   )
   on conflict (user_id, race_id) do update set
     username = excluded.username,
@@ -350,14 +367,16 @@ begin
     predicted_dnf = excluded.predicted_dnf,
     points_earned = excluded.points_earned,
     predicted_sprint_top8 = excluded.predicted_sprint_top8,
-    sprint_points_earned = excluded.sprint_points_earned,
-    updated_at = now()
+    sprint_points_earned = excluded.sprint_points_earned
   returning * into saved_row;
 
   return saved_row;
 end;
 $$;
 
+grant usage on schema public to anon, authenticated;
+grant select on public.user_predictions to anon, authenticated;
+grant insert, update, delete on public.user_predictions to authenticated;
 grant execute on function public.save_user_prediction(text, text[], text, text, integer, text[], integer, text, text) to authenticated;
 
 -- ============================================

@@ -8,12 +8,17 @@ import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
 
 const STORAGE_KEYS = {
-  predictions: 'apex_draft_predictions_rebuilt_v1',
+  predictions: 'apex_draft_predictions_rebuilt_v2',
   editCounts: 'apex_draft_edit_counts',
   leagues: 'apex_draft_leagues',
   leagueMembers: 'apex_draft_league_members',
   lastSaveTime: 'apex_draft_last_save_time',
 } as const;
+
+const LEGACY_PREDICTION_STORAGE_KEYS = [
+  'apex_draft_predictions',
+  'apex_draft_predictions_rebuilt_v1',
+] as const;
 
 type PredictionInput = Omit<Prediction, 'id' | 'updatedAt' | 'username' | 'displayName'> &
   Partial<Pick<Prediction, 'username' | 'displayName'>>;
@@ -271,6 +276,10 @@ export const [GameProvider, useGame] = createContextHook(() => {
           AsyncStorage.getItem(STORAGE_KEYS.leagueMembers),
           AsyncStorage.getItem(STORAGE_KEYS.lastSaveTime),
         ]);
+
+        await Promise.all(
+          LEGACY_PREDICTION_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key)),
+        );
 
         if (predData) {
           const parsed = JSON.parse(predData) as Prediction[];
