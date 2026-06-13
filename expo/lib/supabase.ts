@@ -2,8 +2,14 @@ import { createClient, SupabaseClient } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
-const supabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const REQUIRED_SUPABASE_URL = 'https://fxwgbpassouaddakgyus.supabase.co';
+const envSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const supabaseUrl = REQUIRED_SUPABASE_URL;
 const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+
+if (envSupabaseUrl && envSupabaseUrl !== REQUIRED_SUPABASE_URL) {
+  console.log('[Supabase] Ignoring mismatched configured URL. Using project:', REQUIRED_SUPABASE_URL);
+}
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder'));
 
