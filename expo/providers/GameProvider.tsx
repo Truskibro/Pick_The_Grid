@@ -133,6 +133,129 @@ function buildPredictionPayload(
   };
 }
 
+type PredictionPayload = ReturnType<typeof buildPredictionPayload>;
+
+type PredictionWriteResult = {
+  synced: boolean;
+  row: PredictionRow | null;
+  errorMessage?: string;
+};
+
+function latestPredictionRow(rows: PredictionRow[]): PredictionRow | null {
+  if (rows.length === 0) return null;
+  return [...rows].sort((a, b) => {
+    const aTime = Date.parse(a.updated_at ?? '') || 0;
+    const bTime = Date.parse(b.updated_at ?? '') || 0;
+    return bTime - aTime;
+  })[0] ?? null;
+}
+
+async function fetchSupabaseProfileNames(userId: string): Promise<{
+  username: string | null;
+  displayName: string | null;
+}> {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('username, display_name')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (error) {
+    console.log('[savePrediction] Could not read profile names:', error.message);
+    return { username: null, displayName: null };
+  }
+
+  const profileRow = data as { username?: string | null; display_name?: string | null } | null;
+  const username = cleanText(profileRow?.username);
+  const displayName = cleanText(profileRow?.display_name) ?? username;
+
+  return { username, displayName };
+}
+
+async function ensureSupabaseProfileForPrediction(
+  userId: string,
+  username: string,
+  displayName: string,
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({
+      id: userId,
+      username,
+      display_name: displayName,
+    }, { onConflict: 'id' });
+
+  if (error) {
+    console.log('[savePrediction] Profile upsert before prediction failed:', error.message);
+  }
+}
+
+async function writePredictionRow(payload: PredictionPayload): Promise<PredictionWriteResult> {
+  const updateValues = {
+    username: payload.username,
+    display_name: payload.display_name,
+    predicted_top10: payload.predicted_top10,
+    predicted_fastest_lap: payload.predicted_fastest_lap,
+    predicted_dnf: payload.predicted_dnf,
+    points_earned: payload.points_earned,
+    predicted_sprint_top8: payload.predicted_sprint_top8,
+    sprint_points_earned: payload.sprint_points_earned,
+    updated_at: payload.updated_at,
+  };
+
+  const updateExisting = async (): Promise<PredictionWriteResult> => {
+    const { data, error } = await supabase
+      .from('user_predictions')
+      .update(updateValues)
+      .eq('user_id', payload.user_id)
+      .eq('race_id', payload.race_id)
+      .select('*');
+
+    if (error) {
+      console.log('[savePrediction] Supabase update failed:', {
+        code: error.code,
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+      });
+      return { synced: false, row: null, errorMessage: error.message };
+    }
+
+    const updatedRows = (data ?? []) as PredictionRow[];
+    const row = latestPredictionRow(updatedRows);
+    return { synced: row !== null, row };
+  };
+
+  const updated = await updateExisting();
+  if (updated.synced) return updated;
+  if (updated.errorMessage) return updated;
+
+  const { data: insertedData, error: insertError } = await supabase
+    .from('user_predictions')
+    .insert(payload)
+    .select('*')
+    .single();
+
+  if (!insertError) {
+    return { synced: true, row: insertedData as PredictionRow };
+  }
+
+  // If another save inserted the row between update and insert, retry the update path.
+  if (insertError.code === '23505' || /duplicate|unique/i.test(insertError.message)) {
+    const retried = await updateExisting();
+    if (retried.synced) return retried;
+  }
+
+  console.log('[savePrediction] Supabase insert failed:', {
+    code: insertError.code,
+    message: insertError.message,
+    details: insertError.details,
+    hint: insertError.hint,
+  });
+
+  return { synced: false, row: null, errorMessage: insertError.message };
+}
+
 let lastSaveTimeGlobal: number = 0;
 
 export const [GameProvider, useGame] = createContextHook(() => {
@@ -263,7 +386,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [profile]);
 
   const savePrediction = useCallback(
-    async (prediction: PredictionInput): Promise<{ synced: boolean }> => {
+    async (prediction: PredictionInput): Promise<{ synced: boolean; errorMessage?: string }> => {
       const now = new Date().toISOString();
       const existingPrediction = predictionsRef.current.find((p) => p.raceId === prediction.raceId);
       const isEdit = !!existingPrediction;
@@ -320,26 +443,25 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return { synced: false };
       }
 
-      const payload = buildPredictionPayload(savedPrediction, userId, currentUsername, currentDisplayName);
+      const cloudNames = await fetchSupabaseProfileNames(userId);
+      const syncUsername = cloudNames.username ?? currentUsername ?? `user_${userId.substring(0, 8)}`;
+      const syncDisplayName = cloudNames.displayName ?? currentDisplayName ?? syncUsername;
+      await ensureSupabaseProfileForPrediction(userId, syncUsername, syncDisplayName);
 
-      const { data, error } = await supabase
-        .from('user_predictions')
-        .upsert(payload, { onConflict: 'user_id,race_id' })
-        .select('*')
-        .single();
+      const predictionForSync = normalizePrediction({
+        ...savedPrediction,
+        username: syncUsername,
+        displayName: syncDisplayName,
+      });
+      const payload = buildPredictionPayload(predictionForSync, userId, syncUsername, syncDisplayName);
+      const writeResult = await writePredictionRow(payload);
 
-      if (error) {
-        console.log('[savePrediction] Supabase upsert failed:', {
-          code: error.code,
-          message: error.message,
-          details: error.details,
-          hint: error.hint,
-        });
-        return { synced: false };
+      if (!writeResult.synced) {
+        return { synced: false, errorMessage: writeResult.errorMessage };
       }
 
-      if (data) {
-        const confirmedPrediction = mapPredictionRow(data as PredictionRow);
+      if (writeResult.row) {
+        const confirmedPrediction = mapPredictionRow(writeResult.row);
         const confirmedPredictions = [
           ...predictionsRef.current.filter((p) => p.raceId !== confirmedPrediction.raceId),
           confirmedPrediction,
@@ -590,13 +712,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
     if (!userId) return;
 
     await Promise.all(changedPredictions.map(async (prediction) => {
-      const payload = buildPredictionPayload(prediction, userId, names.username ?? prediction.username, names.displayName ?? prediction.displayName);
-      const { error } = await supabase
-        .from('user_predictions')
-        .upsert(payload, { onConflict: 'user_id,race_id' });
+      const syncUsername = names.username ?? prediction.username ?? `user_${userId.substring(0, 8)}`;
+      const syncDisplayName = names.displayName ?? prediction.displayName ?? syncUsername;
+      await ensureSupabaseProfileForPrediction(userId, syncUsername, syncDisplayName);
+      const payload = buildPredictionPayload(prediction, userId, syncUsername, syncDisplayName);
+      const writeResult = await writePredictionRow(payload);
 
-      if (error) {
-        console.log('[GameProvider] Scored prediction sync failed:', error.message);
+      if (!writeResult.synced) {
+        console.log('[GameProvider] Scored prediction sync failed:', writeResult.errorMessage ?? 'Unknown error');
       }
     }));
 
