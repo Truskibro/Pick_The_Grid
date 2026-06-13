@@ -1,8 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { Stack } from "expo-router";
+import { Stack, useRouter } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { StatusBar } from "expo-status-bar";
-import React, { useEffect } from "react";
+import * as Notifications from "expo-notifications";
+import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import Colors from "@/constants/colors";
 import { UserProvider } from "@/providers/UserProvider";
@@ -12,6 +13,38 @@ import { AchievementProvider } from "@/providers/AchievementProvider";
 import ScoringBridge from "@/components/ScoringBridge";
 
 void SplashScreen.preventAutoHideAsync();
+
+function NotificationTapHandler() {
+  const router = useRouter();
+  const responseListener = useRef<Notifications.EventSubscription | null>(null);
+
+  useEffect(() => {
+    // Handle notifications that were tapped while the app was closed/backgrounded.
+    void Notifications.getLastNotificationResponseAsync().then((response) => {
+      if (response?.notification.request.content.data?.raceId) {
+        const raceId = response.notification.request.content.data.raceId as string;
+        router.push(`/predict-race/${raceId}`);
+      }
+    });
+
+    // Handle future notification taps while the app is in the foreground.
+    const sub = Notifications.addNotificationResponseReceivedListener(
+      (response) => {
+        const raceId = response.notification.request.content.data?.raceId as string | undefined;
+        if (raceId) {
+          router.push(`/predict-race/${raceId}`);
+        }
+      }
+    );
+    responseListener.current = sub;
+
+    return () => {
+      sub.remove();
+    };
+  }, [router]);
+
+  return null;
+}
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -117,6 +150,7 @@ export default function RootLayout() {
             <GameProvider>
               <AchievementProvider>
                 <ScoringBridge />
+                <NotificationTapHandler />
                 <StatusBar style="light" />
                 <RootLayoutNav />
               </AchievementProvider>

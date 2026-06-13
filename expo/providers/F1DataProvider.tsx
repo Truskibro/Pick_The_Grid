@@ -11,6 +11,7 @@ import {
   MOCK_RACE_RESULTS as FALLBACK_RESULTS,
 } from '@/constants/f1-data';
 import { fetchLiveDriverStandings, fetchLiveRaceResults } from '@/lib/f1-api';
+import { registerForPushNotifications, scheduleRaceReminders } from '@/lib/notifications';
 
 const POLL_INTERVAL = 60_000;
 
@@ -268,6 +269,17 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const drivers = useMemo(() => driversQuery.data ?? FALLBACK_DRIVERS, [driversQuery.data]);
   const races = useMemo(() => racesQuery.data ?? updateRaceStatuses(FALLBACK_RACES), [racesQuery.data]);
   const raceResults = useMemo(() => resultsQuery.data ?? FALLBACK_RESULTS, [resultsQuery.data]);
+
+  // Register for push notifications on first load.
+  useEffect(() => {
+    void registerForPushNotifications();
+  }, []);
+
+  // Schedule race reminder notifications whenever race data changes.
+  useEffect(() => {
+    if (races.length === 0) return;
+    void scheduleRaceReminders(races);
+  }, [races]);
 
   const nextRace = useMemo(() => {
     const live = races.filter(r => r.status === 'live');

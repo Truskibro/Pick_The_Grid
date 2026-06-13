@@ -300,31 +300,32 @@ export const [GameProvider, useGame] = createContextHook(() => {
           // Local-only prediction — add it and sync to Supabase.
           preds.push(lp);
 
-          supabase
-            .from('user_predictions')
-            .upsert(
-              {
-                user_id: userId,
-                race_id: lp.raceId,
-                predicted_top10: lp.top10,
-                predicted_fastest_lap: lp.fastestLap,
-                predicted_dnf: lp.dnf,
-                predicted_sprint_top8: lp.sprintTop8,
-                points_earned: lp.pointsEarned ?? 0,
-                sprint_points_earned: lp.sprintPointsEarned ?? 0,
-                username: myUsername || localProfileRef.current.username,
-                updated_at: lp.updatedAt,
-              },
-              { onConflict: 'user_id,race_id' }
-            )
-            .then(({ error }) => {
+          void (async () => {
+            try {
+              const { error } = await supabase
+                .from('user_predictions')
+                .upsert(
+                  {
+                    user_id: userId,
+                    race_id: lp.raceId,
+                    predicted_top10: lp.top10,
+                    predicted_fastest_lap: lp.fastestLap,
+                    predicted_dnf: lp.dnf,
+                    predicted_sprint_top8: lp.sprintTop8,
+                    points_earned: lp.pointsEarned ?? 0,
+                    sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                    username: myUsername || localProfileRef.current.username,
+                    updated_at: lp.updatedAt,
+                  },
+                  { onConflict: 'user_id,race_id' }
+                );
               if (error) {
                 console.log('[loadFromSupabase] Sync upsert error for', lp.raceId, ':', error.message);
               } else {
                 console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
               }
-            })
-            .catch(() => {});
+            } catch {}
+          })();
         } else if (lp.updatedAt && (!remote.updatedAt || new Date(lp.updatedAt) > new Date(remote.updatedAt))) {
           // Local is newer — replace the stale remote entry and sync to Supabase.
           const idx = preds.findIndex((p) => p.raceId === lp.raceId);
@@ -334,31 +335,32 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
           console.log('[loadFromSupabase] Local prediction newer than remote for', lp.raceId, '— using local');
 
-          supabase
-            .from('user_predictions')
-            .upsert(
-              {
-                user_id: userId,
-                race_id: lp.raceId,
-                predicted_top10: lp.top10,
-                predicted_fastest_lap: lp.fastestLap,
-                predicted_dnf: lp.dnf,
-                predicted_sprint_top8: lp.sprintTop8,
-                points_earned: lp.pointsEarned ?? 0,
-                sprint_points_earned: lp.sprintPointsEarned ?? 0,
-                username: myUsername || localProfileRef.current.username,
-                updated_at: lp.updatedAt,
-              },
-              { onConflict: 'user_id,race_id' }
-            )
-            .then(({ error }) => {
+          void (async () => {
+            try {
+              const { error } = await supabase
+                .from('user_predictions')
+                .upsert(
+                  {
+                    user_id: userId,
+                    race_id: lp.raceId,
+                    predicted_top10: lp.top10,
+                    predicted_fastest_lap: lp.fastestLap,
+                    predicted_dnf: lp.dnf,
+                    predicted_sprint_top8: lp.sprintTop8,
+                    points_earned: lp.pointsEarned ?? 0,
+                    sprint_points_earned: lp.sprintPointsEarned ?? 0,
+                    username: myUsername || localProfileRef.current.username,
+                    updated_at: lp.updatedAt,
+                  },
+                  { onConflict: 'user_id,race_id' }
+                );
               if (error) {
                 console.log('[loadFromSupabase] Local-newer upsert error for', lp.raceId, ':', error.message);
               } else {
                 console.log('[loadFromSupabase] Synced newer local prediction to Supabase:', lp.raceId);
               }
-            })
-            .catch(() => {});
+            } catch {}
+          })();
         }
       }
 
@@ -440,29 +442,30 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintPts
           );
 
-          supabase
-            .from('user_predictions')
-            .upsert(
-              {
-                user_id: userId,
-                race_id: fullPred.raceId,
-                predicted_top10: fullPred.top10,
-                predicted_fastest_lap: fullPred.fastestLap,
-                predicted_dnf: fullPred.dnf,
-                predicted_sprint_top8: fullPred.sprintTop8,
-                points_earned: fullPred.pointsEarned,
-                sprint_points_earned: fullPred.sprintPointsEarned,
-                username: localProfileRef.current.username,
-                updated_at: fullPred.updatedAt,
-              },
-              { onConflict: 'user_id,race_id' }
-            )
-            .then(({ error }) => {
+          void (async () => {
+            try {
+              const { error } = await supabase
+                .from('user_predictions')
+                .upsert(
+                  {
+                    user_id: userId,
+                    race_id: fullPred.raceId,
+                    predicted_top10: fullPred.top10,
+                    predicted_fastest_lap: fullPred.fastestLap,
+                    predicted_dnf: fullPred.dnf,
+                    predicted_sprint_top8: fullPred.sprintTop8,
+                    points_earned: fullPred.pointsEarned,
+                    sprint_points_earned: fullPred.sprintPointsEarned,
+                    username: localProfileRef.current.username,
+                    updated_at: fullPred.updatedAt,
+                  },
+                  { onConflict: 'user_id,race_id' }
+                );
               if (error) {
                 console.log('[Seed] Upsert error for', raceId, ':', error.message);
               }
-            })
-            .catch(() => {});
+            } catch {}
+          })();
         }
 
         if (rescored) {
@@ -521,20 +524,21 @@ export const [GameProvider, useGame] = createContextHook(() => {
         // Push corrected points back to Supabase so the next load is clean.
         for (const p of preds) {
           if (p.top10.length === 0) continue;
-          supabase
-            .from('user_predictions')
-            .update({
-              points_earned: p.pointsEarned ?? 0,
-              sprint_points_earned: p.sprintPointsEarned ?? 0,
-            })
-            .eq('user_id', userId)
-            .eq('race_id', p.raceId)
-            .then(({ error }) => {
+          void (async () => {
+            try {
+              const { error } = await supabase
+                .from('user_predictions')
+                .update({
+                  points_earned: p.pointsEarned ?? 0,
+                  sprint_points_earned: p.sprintPointsEarned ?? 0,
+                })
+                .eq('user_id', userId)
+                .eq('race_id', p.raceId);
               if (error) {
                 console.log('[loadFromSupabase] Supabase rescore update error for', p.raceId, ':', error.message);
               }
-            })
-            .catch(() => {});
+            } catch {}
+          })();
         }
 
         const rescoredTotal = preds.reduce(
@@ -543,14 +547,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
         );
 
         await updateProfileRef.current({ totalPoints: rescoredTotal }).catch(() => {});
-        await supabase
-          .from('profiles')
-          .update({ total_points: rescoredTotal })
-          .eq('id', userId)
-          .then(({ error }) => {
+        void (async () => {
+          try {
+            const { error } = await supabase
+              .from('profiles')
+              .update({ total_points: rescoredTotal })
+              .eq('id', userId);
             if (error) console.log('[loadFromSupabase] Profile update error:', error.message);
-          })
-          .catch(() => {});
+          } catch {}
+        })();
       }
 
       setPredictions(preds);
