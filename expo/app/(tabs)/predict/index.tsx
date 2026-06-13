@@ -259,7 +259,6 @@ export default function PredictScreen() {
       pointsEarned: existing?.pointsEarned ?? 0,
       sprintTop8: sprintTop8,
       sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-      username: existing?.username ?? null,
     });
     setSaved(true);
     Alert.alert(

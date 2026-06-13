@@ -264,7 +264,6 @@ export default function PredictRaceScreen() {
         pointsEarned: existing?.pointsEarned ?? 0,
         sprintTop8: sprintTop8,
         sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-        username: existing?.username ?? null,
       });
       setSaved(true);
 
@@ -1461,47 +1460,5 @@ const styles = StyleSheet.create({
   },
   sprintPointText: {
     color: Colors.info, fontSize: 10, fontWeight: '800' as const,
-  },
-
-  // ---- Completed race banner ----
-  completedBanner: {
-    backgroundColor: 'rgba(48, 209, 88, 0.08)',
-    borderRadius: 14,
-    borderWidth: 1,
-    borderColor: 'rgba(48, 209, 88, 0.3)',
-    padding: 16,
-    marginTop: 14,
-    gap: 12,
-  },
-  completedBannerTop: {
-    flexDirection: 'row', alignItems: 'center', gap: 10,
-  },
-  completedBannerPoints: {
-    flex: 1, alignItems: 'center',
-  },
-  completedBannerValue: {
-    color: Colors.warning, fontSize: 28, fontWeight: '800' as const, letterSpacing: -0.5,
-  },
-  completedBannerLabel: {
-    color: Colors.textMuted, fontSize: 10, fontWeight: '700' as const, letterSpacing: 1, marginTop: 2,
-  },
-  completedBannerBreakdown: {
-    flexDirection: 'row', flexWrap: 'wrap', gap: 6,
-  },
-  breakdownChipMini: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
-    backgroundColor: Colors.surfaceHighlight,
-    borderRadius: 6, paddingHorizontal: 8, paddingVertical: 4,
-  },
-  breakdownChipMiniText: {
-    color: Colors.textSecondary, fontSize: 11, fontWeight: '600' as const,
-  },
-  completedViewBtn: {
-    flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6,
-    backgroundColor: 'rgba(225, 6, 0, 0.12)',
-    borderRadius: 10, paddingVertical: 10,
-  },
-  completedViewBtnText: {
-    color: Colors.f1Red, fontSize: 13, fontWeight: '700' as const,
   },
 });

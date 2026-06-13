@@ -41,6 +41,7 @@ const DRIVER_CODE_MAP: Record<string, string> = {
   'leclerc': 'LEC',
   'hamilton': 'HAM',
   'max_verstappen': 'VER',
+  'max_verstappen': 'VER',
   'verstappen': 'VER',
   'hadjar': 'HAD',
   'russell': 'RUS',

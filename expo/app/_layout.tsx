@@ -9,7 +9,6 @@ import { UserProvider } from "@/providers/UserProvider";
 import { GameProvider } from "@/providers/GameProvider";
 import { F1DataProvider } from "@/providers/F1DataProvider";
 import { AchievementProvider } from "@/providers/AchievementProvider";
-import { NotificationProvider } from "@/providers/NotificationProvider";
 import ScoringBridge from "@/components/ScoringBridge";
 
 void SplashScreen.preventAutoHideAsync();
@@ -114,17 +113,15 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <UserProvider>
-          <NotificationProvider>
-            <F1DataProvider>
-              <GameProvider>
-                <AchievementProvider>
-                  <ScoringBridge />
-                  <StatusBar style="light" />
-                  <RootLayoutNav />
-                </AchievementProvider>
-              </GameProvider>
-            </F1DataProvider>
-          </NotificationProvider>
+          <F1DataProvider>
+            <GameProvider>
+              <AchievementProvider>
+                <ScoringBridge />
+                <StatusBar style="light" />
+                <RootLayoutNav />
+              </AchievementProvider>
+            </GameProvider>
+          </F1DataProvider>
         </UserProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

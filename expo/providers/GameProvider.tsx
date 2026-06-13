@@ -323,7 +323,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
               } else {
                 console.log('[loadFromSupabase] Synced local prediction to Supabase:', lp.raceId);
               }
-            }, () => {});
+            })
+            .catch(() => {});
         } else if (lp.updatedAt && (!remote.updatedAt || new Date(lp.updatedAt) > new Date(remote.updatedAt))) {
           // Local is newer — replace the stale remote entry and sync to Supabase.
           const idx = preds.findIndex((p) => p.raceId === lp.raceId);
@@ -356,7 +357,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
               } else {
                 console.log('[loadFromSupabase] Synced newer local prediction to Supabase:', lp.raceId);
               }
-            }, () => {});
+            })
+            .catch(() => {});
         }
       }
 
@@ -459,7 +461,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
               if (error) {
                 console.log('[Seed] Upsert error for', raceId, ':', error.message);
               }
-            }, () => {});
+            })
+            .catch(() => {});
         }
 
         if (rescored) {
@@ -530,7 +533,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
               if (error) {
                 console.log('[loadFromSupabase] Supabase rescore update error for', p.raceId, ':', error.message);
               }
-            }, () => {});
+            })
+            .catch(() => {});
         }
 
         const rescoredTotal = preds.reduce(
@@ -545,7 +549,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
           .eq('id', userId)
           .then(({ error }) => {
             if (error) console.log('[loadFromSupabase] Profile update error:', error.message);
-          }, () => {});
+          })
+          .catch(() => {});
       }
 
       setPredictions(preds);
