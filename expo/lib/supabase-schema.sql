@@ -226,12 +226,15 @@ create table if not exists user_predictions (
   predicted_sprint_top8 text[] default '{}',
   sprint_points_earned integer default 0,
   username text,
+  display_name text,
   updated_at timestamptz default now(),
   unique(user_id, race_id)
 );
 
 alter table user_predictions add column if not exists predicted_sprint_top8 text[] default '{}';
 alter table user_predictions add column if not exists sprint_points_earned integer default 0;
+alter table user_predictions add column if not exists display_name text;
+create unique index if not exists user_predictions_user_race_unique_idx on user_predictions (user_id, race_id);
 
 alter table user_predictions enable row level security;
 do $$
@@ -242,9 +245,95 @@ begin
   end loop;
 end $$;
 create policy "predictions_select_all" on user_predictions for select using (true);
-create policy "predictions_insert_auth" on user_predictions for insert with check (auth.role() = 'authenticated');
-create policy "predictions_update_auth" on user_predictions for update using (auth.role() = 'authenticated') with check (auth.role() = 'authenticated');
-create policy "predictions_delete_auth" on user_predictions for delete using (auth.role() = 'authenticated');
+create policy "predictions_insert_own" on user_predictions for insert with check (auth.uid() = user_id);
+create policy "predictions_update_own" on user_predictions for update using (auth.uid() = user_id) with check (auth.uid() = user_id);
+create policy "predictions_delete_own" on user_predictions for delete using (auth.uid() = user_id);
+
+create or replace function public.sync_prediction_profile_names()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+begin
+  select p.username, p.display_name
+    into new.username, new.display_name
+  from public.profiles p
+  where p.id = new.user_id;
+
+  new.username := coalesce(nullif(new.username, ''), 'user_' || substr(new.user_id::text, 1, 8));
+  new.display_name := coalesce(nullif(new.display_name, ''), new.username);
+  new.updated_at := coalesce(new.updated_at, now());
+
+  return new;
+end;
+$$;
+
+drop trigger if exists user_predictions_sync_profile_names on public.user_predictions;
+create trigger user_predictions_sync_profile_names
+  before insert or update on public.user_predictions
+  for each row
+  execute function public.sync_prediction_profile_names();
+
+create or replace function public.save_user_prediction(
+  p_race_id text,
+  p_predicted_top10 text[],
+  p_predicted_fastest_lap text default null,
+  p_predicted_dnf text default null,
+  p_points_earned integer default 0,
+  p_predicted_sprint_top8 text[] default '{}',
+  p_sprint_points_earned integer default 0
+)
+returns public.user_predictions
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  current_user_id uuid := auth.uid();
+  saved_row public.user_predictions;
+begin
+  if current_user_id is null then
+    raise exception 'Not authenticated' using errcode = '28000';
+  end if;
+
+  insert into public.user_predictions (
+    user_id,
+    race_id,
+    predicted_top10,
+    predicted_fastest_lap,
+    predicted_dnf,
+    points_earned,
+    predicted_sprint_top8,
+    sprint_points_earned,
+    updated_at
+  )
+  values (
+    current_user_id,
+    p_race_id,
+    coalesce(p_predicted_top10, '{}'),
+    p_predicted_fastest_lap,
+    p_predicted_dnf,
+    coalesce(p_points_earned, 0),
+    coalesce(p_predicted_sprint_top8, '{}'),
+    coalesce(p_sprint_points_earned, 0),
+    now()
+  )
+  on conflict (user_id, race_id) do update set
+    predicted_top10 = excluded.predicted_top10,
+    predicted_fastest_lap = excluded.predicted_fastest_lap,
+    predicted_dnf = excluded.predicted_dnf,
+    points_earned = excluded.points_earned,
+    predicted_sprint_top8 = excluded.predicted_sprint_top8,
+    sprint_points_earned = excluded.sprint_points_earned,
+    updated_at = now()
+  returning * into saved_row;
+
+  return saved_row;
+end;
+$$;
+
+grant execute on function public.save_user_prediction(text, text[], text, text, integer, text[], integer) to authenticated;
 
 -- ============================================
 -- 7. LEAGUES
