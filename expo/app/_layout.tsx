@@ -5,6 +5,7 @@ import { StatusBar } from "expo-status-bar";
 import * as Notifications from "expo-notifications";
 import React, { useEffect, useRef } from "react";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
+import { Platform } from "react-native";
 import Colors from "@/constants/colors";
 import { UserProvider } from "@/providers/UserProvider";
 import { GameProvider } from "@/providers/GameProvider";
@@ -19,6 +20,9 @@ function NotificationTapHandler() {
   const responseListener = useRef<Notifications.EventSubscription | null>(null);
 
   useEffect(() => {
+    // expo-notifications is not available on web.
+    if (Platform.OS === 'web') return;
+
     // Handle notifications that were tapped while the app was closed/backgrounded.
     void Notifications.getLastNotificationResponseAsync().then((response) => {
       if (response?.notification.request.content.data?.raceId) {

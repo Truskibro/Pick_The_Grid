@@ -15,18 +15,25 @@ export interface ScheduledNotification {
 }
 
 /** Configure how notifications appear when the app is in the foreground. */
-Notifications.setNotificationHandler({
-  handleNotification: async () => ({
-    shouldShowAlert: true,
-    shouldShowBanner: true,
-    shouldShowList: true,
-    shouldPlaySound: true,
-    shouldSetBadge: false,
-  }),
-});
+if (Platform.OS !== 'web') {
+  Notifications.setNotificationHandler({
+    handleNotification: async () => ({
+      shouldShowAlert: true,
+      shouldShowBanner: true,
+      shouldShowList: true,
+      shouldPlaySound: true,
+      shouldSetBadge: false,
+    }),
+  });
+}
 
 /** Request notification permissions and return the token (or null). */
 export async function registerForPushNotifications(): Promise<string | null> {
+  if (Platform.OS === 'web') {
+    console.log('[Notifications] Web platform — skipping registration');
+    return null;
+  }
+
   if (!Device.isDevice) {
     console.log('[Notifications] Not a physical device — skipping registration');
     return null;
@@ -147,6 +154,11 @@ async function loadScheduled(): Promise<ScheduledNotification[]> {
  * Cancels and reschedules if the trigger date has changed (e.g. rescheduled race).
  */
 export async function scheduleRaceReminders(races: Race[]): Promise<void> {
+  if (Platform.OS === 'web') {
+    console.log('[Notifications] Web platform — skipping schedule');
+    return;
+  }
+
   const upcomingRaces = races.filter(
     (r) => r.status === 'upcoming' && r.raceDate && r.raceTime
   );
@@ -203,6 +215,11 @@ export async function scheduleRaceReminders(races: Race[]): Promise<void> {
  * Cancel all scheduled race reminders.
  */
 export async function cancelAllRaceReminders(): Promise<void> {
+  if (Platform.OS === 'web') {
+    await AsyncStorage.removeItem(STORAGE_KEY);
+    return;
+  }
+
   await Notifications.cancelAllScheduledNotificationsAsync();
   await AsyncStorage.removeItem(STORAGE_KEY);
   console.log('[Notifications] All race reminders cancelled');
