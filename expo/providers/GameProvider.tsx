@@ -90,7 +90,6 @@ function normalizePrediction(prediction: Prediction): Prediction {
     sprintPointsEarned: prediction.sprintPointsEarned ?? 0,
     updatedAt: prediction.updatedAt ?? new Date().toISOString(),
     username: prediction.username ?? null,
-    displayName: prediction.displayName ?? null,
   };
 }
 
@@ -276,7 +275,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintPointsEarned: p.sprint_points_earned || 0,
             updatedAt: p.updated_at,
             username: p.username ?? null,
-            displayName: p.display_name ?? null,
           });
           remoteMap.set(pred.raceId, pred);
         }
@@ -284,13 +282,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       let preds: Prediction[] = [...remoteMap.values()];
 
-      // Backfill missing usernames and display names from the local profile.
+      // Backfill missing usernames from the local profile.
       const myUsername = localProfileRef.current.username;
-      const myDisplayName = localProfileRef.current.displayName;
       if (myUsername && myUsername !== 'guest') {
         for (const p of preds) {
           if (!p.username) p.username = myUsername;
-          if (!p.displayName) p.displayName = myDisplayName;
         }
       }
 
@@ -319,7 +315,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
                     points_earned: lp.pointsEarned ?? 0,
                     sprint_points_earned: lp.sprintPointsEarned ?? 0,
                     username: myUsername || localProfileRef.current.username,
-                    display_name: localProfileRef.current.displayName,
                     updated_at: lp.updatedAt,
                   },
                   { onConflict: 'user_id,race_id' }
@@ -355,7 +350,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
                     points_earned: lp.pointsEarned ?? 0,
                     sprint_points_earned: lp.sprintPointsEarned ?? 0,
                     username: myUsername || localProfileRef.current.username,
-                    display_name: localProfileRef.current.displayName,
                     updated_at: lp.updatedAt,
                   },
                   { onConflict: 'user_id,race_id' }
@@ -402,7 +396,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
               sprintPointsEarned: 0,
               updatedAt: '2026-01-01T00:00:00Z',
               username: seedUsername,
-              displayName: seedUser?.displayName ?? null,
             });
 
             const breakdown = calculatePoints(scoringPred, raceResult);
@@ -434,7 +427,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
             sprintPointsEarned: sprintPts,
             updatedAt: '2026-01-01T00:00:00Z',
             username: seedUsername,
-            displayName: seedUser?.displayName ?? null,
           });
 
           preds.push(fullPred);
@@ -465,7 +457,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
                     points_earned: fullPred.pointsEarned,
                     sprint_points_earned: fullPred.sprintPointsEarned,
                     username: localProfileRef.current.username,
-                    display_name: localProfileRef.current.displayName,
                     updated_at: fullPred.updatedAt,
                   },
                   { onConflict: 'user_id,race_id' }
@@ -697,14 +688,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
         const parsed: Prediction[] = JSON.parse(predData);
         const normalized = parsed.map(normalizePrediction);
 
-        // Backfill missing usernames and display names from the local profile so predictions
+        // Backfill missing usernames from the local profile so predictions
         // never display "Your Prediction" when a real username is available.
         const myUsername = localProfileRef.current.username;
-        const myDisplayName = localProfileRef.current.displayName;
         if (myUsername && myUsername !== 'guest') {
           for (const p of normalized) {
             if (!p.username) p.username = myUsername;
-            if (!p.displayName) p.displayName = myDisplayName;
           }
         }
 
@@ -836,7 +825,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
           existingPrediction?.sprintPointsEarned ?? prediction.sprintPointsEarned ?? 0,
         updatedAt: now,
         username: existingPrediction?.username ?? localProfileRef.current.username ?? null,
-        displayName: existingPrediction?.displayName ?? localProfileRef.current.displayName ?? null,
       });
 
       const nextPredictions = [
@@ -901,7 +889,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
             points_earned: savedPrediction.pointsEarned,
             sprint_points_earned: savedPrediction.sprintPointsEarned,
             username: localProfileRef.current.username,
-            display_name: localProfileRef.current.displayName,
             updated_at: savedPrediction.updatedAt,
           };
           console.log('[savePrediction] Upsert payload:', JSON.stringify(payload, null, 2));
