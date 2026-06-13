@@ -1,5 +1,4 @@
 {
-  "$schema": "https://rork.com/schema/rork.json",
   "apps": [
     {
       "name": "Expo",
@@ -10,11 +9,7 @@
       "name": "Backend",
       "path": "backend",
       "framework": "supabase"
-    },
-    {
-      "name": "Pick The Grid",
-      "path": "ios",
-      "framework": "swift"
     }
-  ]
+  ],
+  "$schema": "https://rork.com/schema/rork.json"
 }
