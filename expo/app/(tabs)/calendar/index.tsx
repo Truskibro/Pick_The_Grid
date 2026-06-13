@@ -1,6 +1,6 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Animated } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
 import { useGame } from '@/providers/GameProvider';
@@ -11,12 +11,23 @@ import { Race } from '@/types';
 export default function CalendarScreen() {
   const router = useRouter();
   const { races, isRefreshing, refreshAll, getRaceResult } = useF1Data();
-  const { getPrediction } = useGame();
+  const { getPrediction, refreshPredictions } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 400, useNativeDriver: true }).start();
-  }, []);
+  }, [fadeAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPredictions();
+    }, [refreshPredictions]),
+  );
+
+  const handleRefresh = useCallback(() => {
+    void refreshPredictions();
+    void refreshAll();
+  }, [refreshAll, refreshPredictions]);
 
   const upcoming = races.filter(r => r.status === 'upcoming');
   const completed = races
@@ -108,7 +119,7 @@ export default function CalendarScreen() {
           );
         }}
         refreshing={isRefreshing}
-        onRefresh={refreshAll}
+        onRefresh={handleRefresh}
         ListHeaderComponent={
           <View style={styles.header}>
             <Text style={styles.headerTitle}>{races.length} Races</Text>

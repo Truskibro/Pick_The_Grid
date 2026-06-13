@@ -381,7 +381,37 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      save_user_prediction: {
+        Args: {
+          p_points_earned?: number
+          p_predicted_dnf?: string
+          p_predicted_fastest_lap?: string
+          p_predicted_sprint_top8?: string[]
+          p_predicted_top10: string[]
+          p_race_id: string
+          p_sprint_points_earned?: number
+        }
+        Returns: {
+          display_name: string | null
+          id: string
+          points_earned: number | null
+          predicted_dnf: string | null
+          predicted_fastest_lap: string | null
+          predicted_sprint_top8: string[] | null
+          predicted_top10: string[]
+          race_id: string
+          sprint_points_earned: number | null
+          updated_at: string | null
+          user_id: string
+          username: string | null
+        }
+        SetofOptions: {
+          from: "*"
+          to: "user_predictions"
+          isOneToOne: true
+          isSetofReturn: false
+        }
+      }
     }
     Enums: {
       [_ in never]: never

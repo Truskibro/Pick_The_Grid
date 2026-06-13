@@ -79,15 +79,43 @@ function mapPredictionRow(row: PredictionRow): Prediction {
   });
 }
 
+function predictionUpdatedAtMs(prediction: Prediction): number {
+  return Date.parse(prediction.updatedAt ?? '') || 0;
+}
+
+function shouldUseCandidatePrediction(
+  existing: Prediction | undefined,
+  candidate: Prediction,
+  preferCandidateOnTie: boolean,
+): boolean {
+  if (!existing) return true;
+
+  const candidateTime = predictionUpdatedAtMs(candidate);
+  const existingTime = predictionUpdatedAtMs(existing);
+
+  if (candidateTime === existingTime) return preferCandidateOnTie;
+  return candidateTime > existingTime;
+}
+
 function mergePredictions(localPredictions: Prediction[], cloudPredictions: Prediction[]): Prediction[] {
   const byRaceId = new Map<string, Prediction>();
 
   for (const prediction of localPredictions) {
-    byRaceId.set(prediction.raceId, normalizePrediction(prediction));
+    const normalized = normalizePrediction(prediction);
+    const existing = byRaceId.get(normalized.raceId);
+    if (shouldUseCandidatePrediction(existing, normalized, false)) {
+      byRaceId.set(normalized.raceId, normalized);
+    }
   }
 
   for (const prediction of cloudPredictions) {
-    byRaceId.set(prediction.raceId, normalizePrediction(prediction));
+    const normalized = normalizePrediction(prediction);
+    const existing = byRaceId.get(normalized.raceId);
+    // Supabase is authoritative when timestamps match, but older duplicate rows
+    // must never overwrite a newer local or cloud save for the same race.
+    if (shouldUseCandidatePrediction(existing, normalized, true)) {
+      byRaceId.set(normalized.raceId, normalized);
+    }
   }
 
   return Array.from(byRaceId.values()).sort((a, b) => a.raceId.localeCompare(b.raceId));
@@ -141,15 +169,6 @@ type PredictionWriteResult = {
   errorMessage?: string;
 };
 
-function latestPredictionRow(rows: PredictionRow[]): PredictionRow | null {
-  if (rows.length === 0) return null;
-  return [...rows].sort((a, b) => {
-    const aTime = Date.parse(a.updated_at ?? '') || 0;
-    const bTime = Date.parse(b.updated_at ?? '') || 0;
-    return bTime - aTime;
-  })[0] ?? null;
-}
-
 async function fetchSupabaseProfileNames(userId: string): Promise<{
   username: string | null;
   displayName: string | null;
@@ -191,69 +210,27 @@ async function ensureSupabaseProfileForPrediction(
 }
 
 async function writePredictionRow(payload: PredictionPayload): Promise<PredictionWriteResult> {
-  const updateValues = {
-    username: payload.username,
-    display_name: payload.display_name,
-    predicted_top10: payload.predicted_top10,
-    predicted_fastest_lap: payload.predicted_fastest_lap,
-    predicted_dnf: payload.predicted_dnf,
-    points_earned: payload.points_earned,
-    predicted_sprint_top8: payload.predicted_sprint_top8,
-    sprint_points_earned: payload.sprint_points_earned,
-    updated_at: payload.updated_at,
-  };
-
-  const updateExisting = async (): Promise<PredictionWriteResult> => {
-    const { data, error } = await supabase
-      .from('user_predictions')
-      .update(updateValues)
-      .eq('user_id', payload.user_id)
-      .eq('race_id', payload.race_id)
-      .select('*');
-
-    if (error) {
-      console.log('[savePrediction] Supabase update failed:', {
-        code: error.code,
-        message: error.message,
-        details: error.details,
-        hint: error.hint,
-      });
-      return { synced: false, row: null, errorMessage: error.message };
-    }
-
-    const updatedRows = (data ?? []) as PredictionRow[];
-    const row = latestPredictionRow(updatedRows);
-    return { synced: row !== null, row };
-  };
-
-  const updated = await updateExisting();
-  if (updated.synced) return updated;
-  if (updated.errorMessage) return updated;
-
-  const { data: insertedData, error: insertError } = await supabase
-    .from('user_predictions')
-    .insert(payload)
-    .select('*')
-    .single();
-
-  if (!insertError) {
-    return { synced: true, row: insertedData as PredictionRow };
-  }
-
-  // If another save inserted the row between update and insert, retry the update path.
-  if (insertError.code === '23505' || /duplicate|unique/i.test(insertError.message)) {
-    const retried = await updateExisting();
-    if (retried.synced) return retried;
-  }
-
-  console.log('[savePrediction] Supabase insert failed:', {
-    code: insertError.code,
-    message: insertError.message,
-    details: insertError.details,
-    hint: insertError.hint,
+  const { data, error } = await supabase.rpc('save_user_prediction', {
+    p_race_id: payload.race_id,
+    p_predicted_top10: payload.predicted_top10,
+    p_predicted_fastest_lap: payload.predicted_fastest_lap,
+    p_predicted_dnf: payload.predicted_dnf,
+    p_points_earned: payload.points_earned,
+    p_predicted_sprint_top8: payload.predicted_sprint_top8,
+    p_sprint_points_earned: payload.sprint_points_earned,
   });
 
-  return { synced: false, row: null, errorMessage: insertError.message };
+  if (error) {
+    console.log('[savePrediction] Supabase RPC save failed:', {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+    });
+    return { synced: false, row: null, errorMessage: error.message };
+  }
+
+  return { synced: true, row: data as PredictionRow };
 }
 
 let lastSaveTimeGlobal: number = 0;
@@ -350,14 +327,19 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return predictionsRef.current;
       }
 
-      const cloudPredictions = ((data ?? []) as PredictionRow[]).map(mapPredictionRow);
-      const merged = mergePredictions(predictionsRef.current, cloudPredictions);
+      const cloudRows = (data ?? []) as PredictionRow[];
+      const cloudPredictions = cloudRows.map(mapPredictionRow);
+      const newestCloudPredictions = mergePredictions([], cloudPredictions);
+      const merged = mergePredictions(predictionsRef.current, newestCloudPredictions);
 
       setPredictions(merged);
       predictionsRef.current = merged;
       await persistPredictions(merged);
 
-      console.log('[GameProvider] Loaded cloud predictions:', cloudPredictions.length);
+      console.log('[GameProvider] Loaded cloud predictions:', {
+        rows: cloudRows.length,
+        races: newestCloudPredictions.length,
+      });
       return merged;
     } catch (e: any) {
       console.log('[GameProvider] Cloud prediction load threw:', e?.message || e);
@@ -472,6 +454,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
       if (!writeResult.synced) {
         return { synced: false, errorMessage: writeResult.errorMessage };
       }
+
+      console.log('[savePrediction] Supabase synced prediction:', {
+        raceId: predictionForSync.raceId,
+        picks: predictionForSync.top10.slice(0, 3),
+      });
 
       cloudLoadedForUserRef.current = userId;
 

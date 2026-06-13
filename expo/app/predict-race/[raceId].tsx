@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, ScrollView, Alert, Animated, Modal, Pressable, TextInput, Platform } from 'react-native';
 import { LinearGradient } from 'expo-linear-gradient';
-import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
+import { useFocusEffect, useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
@@ -32,7 +32,7 @@ export default function PredictRaceScreen() {
   const navigation = useNavigation();
   const router = useRouter();
   const { getRaceById, drivers, getTeamById, getRaceResult } = useF1Data();
-  const { savePrediction, getPrediction } = useGame();
+  const { savePrediction, getPrediction, refreshPredictions } = useGame();
   const { profile, isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -94,6 +94,12 @@ export default function PredictRaceScreen() {
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, [fadeAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPredictions();
+    }, [refreshPredictions]),
+  );
 
   const locked = race ? isLocked(race.raceDate, race.raceTime) : true;
 
@@ -276,7 +282,7 @@ export default function PredictRaceScreen() {
       } else {
         Alert.alert(
           'Prediction Saved Locally',
-          'Could not sync to cloud. Your session may have expired.\n\nTo fix: go to Settings > Sign Out, then sign back in.',
+          result.errorMessage ?? 'Could not sync to cloud. Please sign out and sign back in, then try again.',
           [{ text: 'OK' }]
         );
       }
@@ -284,7 +290,7 @@ export default function PredictRaceScreen() {
       console.log('[handleSave] Error:', e?.message || e);
       Alert.alert('Save Failed', 'An unexpected error occurred. Please try again.');
     }
-  }, [race, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest]);
+  }, [race, selectedDrivers, sprintTop8, fastestLap, dnf, savePrediction, getPrediction, isGuest, profile.username, profile.displayName]);
 
   const openPicker = useCallback((mode: PickerMode) => {
     if (locked) return;

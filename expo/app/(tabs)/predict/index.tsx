@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, ScrollView, Alert, Animated, Modal, Pressable, 
 import { LinearGradient } from 'expo-linear-gradient';
 import { Save, Check, Lock, AlertTriangle, X, Zap, ChevronUp, ChevronDown, Plus, Search, Trophy, Flag, Trash2, ChevronRight } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
-import { useRouter } from 'expo-router';
+import { useFocusEffect, useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
 import { useF1Data } from '@/providers/F1DataProvider';
 import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, Driver, Race } from '@/types';
@@ -30,7 +30,7 @@ const SPRINT_PODIUM_COLORS: Record<number, string> = {
 export default function PredictScreen() {
   const router = useRouter();
   const { nextRace, drivers, getTeamById, races, raceResults, getRaceResult } = useF1Data();
-  const { savePrediction, getPrediction } = useGame();
+  const { savePrediction, getPrediction, refreshPredictions } = useGame();
   const { profile, isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -93,6 +93,12 @@ export default function PredictScreen() {
   useEffect(() => {
     Animated.timing(fadeAnim, { toValue: 1, duration: 450, useNativeDriver: true }).start();
   }, [fadeAnim]);
+
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPredictions();
+    }, [refreshPredictions]),
+  );
 
   const locked = nextRace ? isLocked(nextRace.raceDate, nextRace.raceTime) : true;
 
