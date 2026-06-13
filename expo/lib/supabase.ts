@@ -3,12 +3,18 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
 const REQUIRED_SUPABASE_URL = 'https://fxwgbpassouaddakgyus.supabase.co';
+const REQUIRED_SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4d2dicGFzc291YWRkYWtneXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDQ0NDAsImV4cCI6MjA4NzQ4MDQ0MH0.OLiqosY-xSUAs1o3oPyAx9OFN97ldqxLWeZbbJmxgN8';
 const envSupabaseUrl = process.env.EXPO_PUBLIC_SUPABASE_URL || '';
+const envSupabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 const supabaseUrl = REQUIRED_SUPABASE_URL;
-const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseAnonKey = REQUIRED_SUPABASE_ANON_KEY;
 
 if (envSupabaseUrl && envSupabaseUrl !== REQUIRED_SUPABASE_URL) {
   console.log('[Supabase] Ignoring mismatched configured URL. Using project:', REQUIRED_SUPABASE_URL);
+}
+
+if (envSupabaseAnonKey && envSupabaseAnonKey !== REQUIRED_SUPABASE_ANON_KEY) {
+  console.log('[Supabase] Ignoring mismatched configured anon key. Using the key for project:', REQUIRED_SUPABASE_URL);
 }
 
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder'));
