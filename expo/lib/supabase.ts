@@ -8,10 +8,15 @@ const supabaseAnonKey = process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';
 export const isSupabaseConfigured = !!(supabaseUrl && supabaseAnonKey && supabaseUrl.startsWith('http') && !supabaseUrl.includes('placeholder'));
 
 let _supabaseReachable: boolean | null = null;
+let _supabaseReachableAt: number = 0;
+const REACHABILITY_TTL_MS = 30_000;
 
 export async function checkSupabaseReachable(): Promise<boolean> {
   if (!isSupabaseConfigured) return false;
-  if (_supabaseReachable !== null) return _supabaseReachable;
+  const now = Date.now();
+  if (_supabaseReachable !== null && (now - _supabaseReachableAt) < REACHABILITY_TTL_MS) {
+    return _supabaseReachable;
+  }
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 6000);
@@ -21,17 +26,20 @@ export async function checkSupabaseReachable(): Promise<boolean> {
     });
     clearTimeout(timeoutId);
     _supabaseReachable = res.ok;
+    _supabaseReachableAt = now;
     console.log('[Supabase] Reachability check:', _supabaseReachable ? 'OK' : 'NOT OK (' + res.status + ')');
     return _supabaseReachable;
   } catch (e: any) {
     console.log('[Supabase] Reachability check failed:', e?.message || e);
     _supabaseReachable = false;
+    _supabaseReachableAt = now;
     return false;
   }
 }
 
 export function resetReachabilityCache() {
   _supabaseReachable = null;
+  _supabaseReachableAt = 0;
 }
 
 if (!isSupabaseConfigured) {
@@ -43,24 +51,9 @@ const safeStorage = {
     try {
       const value = await AsyncStorage.getItem(key);
       if (value === null || value === undefined) return null;
-      if (typeof value !== 'string') {
-        console.log('[Supabase Storage] Non-string value for key:', key, '- clearing');
-        await AsyncStorage.removeItem(key);
-        return null;
-      }
-      if (value.trim().startsWith('{') || value.trim().startsWith('[') || value.trim().startsWith('"')) {
-        try {
-          JSON.parse(value);
-        } catch {
-          console.log('[Supabase Storage] Corrupted JSON for key:', key, '- clearing');
-          await AsyncStorage.removeItem(key);
-          return null;
-        }
-      }
       return value;
     } catch (e) {
       console.log('[Supabase Storage] getItem error for key:', key, e);
-      try { await AsyncStorage.removeItem(key); } catch {}
       return null;
     }
   },
