@@ -33,7 +33,7 @@ export default function PredictRaceScreen() {
   const router = useRouter();
   const { getRaceById, drivers, getTeamById, getRaceResult } = useF1Data();
   const { savePrediction, getPrediction } = useGame();
-  const { isGuest } = useUser();
+  const { profile, isGuest } = useUser();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
   const race = raceId ? getRaceById(raceId) : undefined;
@@ -264,7 +264,8 @@ export default function PredictRaceScreen() {
         pointsEarned: existing?.pointsEarned ?? 0,
         sprintTop8: sprintTop8,
         sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-        username: existing?.username ?? null,
+        username: existing?.username ?? profile.username,
+        displayName: existing?.displayName ?? profile.displayName,
       });
       setSaved(true);
 

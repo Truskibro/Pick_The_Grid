@@ -102,7 +102,7 @@ export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07', 'r08'] as 
 // Raw prediction type
 // ---------------------------------------------------------------------------
 
-export type RawPrediction = Omit<Prediction, 'id' | 'updatedAt' | 'username'> & { username?: string | null };
+export type RawPrediction = Omit<Prediction, 'id' | 'updatedAt' | 'username' | 'displayName'> & { username?: string | null; displayName?: string | null };
 
 // ---------------------------------------------------------------------------
 // Seeded predictions by user and race
@@ -757,6 +757,7 @@ export function scoreSeededPredictions(
       id: `seed-${userId}-${raceId}`,
       ...pred,
       username: pred.username ?? null,
+      displayName: pred.displayName ?? null,
       updatedAt: '2026-01-01T00:00:00Z',
     };
 

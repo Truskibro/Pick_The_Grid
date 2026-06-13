@@ -125,6 +125,27 @@ export type Database = {
         }
         Relationships: []
       }
+      notification_log: {
+        Row: {
+          id: string
+          race_id: string
+          recipient_count: number | null
+          sent_at: string | null
+        }
+        Insert: {
+          id?: string
+          race_id: string
+          recipient_count?: number | null
+          sent_at?: string | null
+        }
+        Update: {
+          id?: string
+          race_id?: string
+          recipient_count?: number | null
+          sent_at?: string | null
+        }
+        Relationships: []
+      }
       profiles: {
         Row: {
           country: string
@@ -133,6 +154,7 @@ export type Database = {
           first_name: string
           id: string
           last_name: string
+          push_token: string | null
           total_points: number
           updated_at: string | null
           username: string
@@ -144,6 +166,7 @@ export type Database = {
           first_name?: string
           id: string
           last_name?: string
+          push_token?: string | null
           total_points?: number
           updated_at?: string | null
           username: string
@@ -155,6 +178,7 @@ export type Database = {
           first_name?: string
           id?: string
           last_name?: string
+          push_token?: string | null
           total_points?: number
           updated_at?: string | null
           username?: string
@@ -294,6 +318,7 @@ export type Database = {
       }
       user_predictions: {
         Row: {
+          display_name: string | null
           id: string
           points_earned: number | null
           predicted_dnf: string | null
@@ -307,6 +332,7 @@ export type Database = {
           username: string | null
         }
         Insert: {
+          display_name?: string | null
           id?: string
           points_earned?: number | null
           predicted_dnf?: string | null
@@ -320,6 +346,7 @@ export type Database = {
           username?: string | null
         }
         Update: {
+          display_name?: string | null
           id?: string
           points_earned?: number | null
           predicted_dnf?: string | null
