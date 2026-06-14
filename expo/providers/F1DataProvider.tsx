@@ -155,7 +155,7 @@ async function fetchRaces(): Promise<Race[]> {
  * Race IDs that have verified mock data available as a fallback.
  * Used only when the live API returns no results for these races.
  */
-const FALLBACK_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07', 'r08']);
+const FALLBACK_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07', 'r08', 'r09']);
 
 async function fetchRaceResults(): Promise<RaceResult[]> {
   // Primary: live API is the source of truth for all race results.

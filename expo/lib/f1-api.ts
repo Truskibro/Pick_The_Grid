@@ -447,25 +447,46 @@ async function fetchResultsForRound(
   }
 }
 
+/** Our races that were cancelled — the API skips them in its numbering. */
+const CANCELLED_ROUNDS = new Set([4, 5]);
+
+/**
+ * Convert our round number to the Jolpica API round number.
+ * The API skips cancelled races, so e.g. our r09 (Spain) is API round 7.
+ */
+function getApiRound(ourRound: number): number {
+  let apiRound = 0;
+  for (let i = 1; i <= ourRound; i++) {
+    if (!CANCELLED_ROUNDS.has(i)) apiRound++;
+  }
+  return apiRound;
+}
+
 /**
  * Fetch full classification for all completed races in the current season
- * from the Jolpica/Ergast API. Uses the single /current/results.json endpoint
- * to avoid round-number mismatches (the API skips cancelled races in its
- * sequential numbering, so our round numbers don't match).
+ * from the Jolpica/Ergast API.
  *
- * Matches API races to our RACES by date and name, then fetches sprint
- * results for sprint weekends.
+ * Strategy:
+ * 1. Try /current/results.json for bulk data (fast, single request).
+ * 2. For completed races NOT covered by step 1, try per-round endpoints
+ *    using the corrected API round number (skips cancelled races).
+ * 3. Matches API races to our RACES by date and name, then fetches sprint
+ *    results for sprint weekends.
  */
 export async function fetchLiveRaceResults(): Promise<RaceResult[]> {
   const season = new Date().getFullYear().toString();
-  console.log('[F1 API] Fetching live race results for season', season, 'via /current/results.json');
+  console.log('[F1 API] Fetching live race results for season', season);
 
-  // 1. Fetch ALL results in one call — no per-round numbering issues.
-  let allRaceData: JolpicaRacesResponse;
+  const results: RaceResult[] = [];
+  const coveredRaceIds = new Set<string>();
+
+  // --- Phase 1: /current/results.json (bulk) ---
+  console.log('[F1 API] Phase 1: /current/results.json');
+  let allRaceData: JolpicaRacesResponse = { MRData: { RaceTable: { season: '', Races: [] } } };
   try {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000);
-    let response: Response;
+    let response: Response | undefined;
     try {
       response = await fetch(`${JOLPICA_BASE}/current/results.json?limit=200`, {
         headers: { 'Accept': 'application/json' },
@@ -474,89 +495,143 @@ export async function fetchLiveRaceResults(): Promise<RaceResult[]> {
     } catch (e: any) {
       clearTimeout(timeoutId);
       console.log('[F1 API] /current/results.json fetch failed:', e?.message || e);
-      return [];
     }
     clearTimeout(timeoutId);
 
-    if (!response.ok) {
+    if (response?.ok) {
+      allRaceData = await response.json();
+    } else if (response) {
       console.log('[F1 API] /current/results.json not OK:', response.status);
-      return [];
     }
-
-    allRaceData = await response.json();
   } catch (e: any) {
     console.log('[F1 API] /current/results.json parse error:', e?.message || e);
-    return [];
   }
 
-  const apiRaces = allRaceData?.MRData?.RaceTable?.Races || [];
-  console.log('[F1 API] Got', apiRaces.length, 'races from /current/results.json');
+  const bulkApiRaces = allRaceData.MRData.RaceTable.Races || [];
+  console.log('[F1 API] Phase 1: got', bulkApiRaces.length, 'races');
 
-  if (apiRaces.length === 0) {
-    console.log('[F1 API] No race data in /current/results.json');
-    return [];
-  }
-
-  // 2. Match API races to our RACES by combining date + name heuristics.
-  //    The API uses its own round numbers (skipping cancelled races), but
-  //    date and race name uniquely identify each race.
-  const results: RaceResult[] = [];
-
-  for (const apiRace of apiRaces) {
+  // Parse bulk results.
+  for (const apiRace of bulkApiRaces) {
     if (!apiRace.Results || apiRace.Results.length === 0) continue;
+    const matchedRace = matchApiRace(apiRace);
+    if (!matchedRace) continue;
 
-    // Match by date first, then fall back to name substring matching.
-    const apiDate = apiRace.date;
-    let matchedRace = RACES.find(r => r.raceDate === apiDate);
-
-    if (!matchedRace) {
-      // Fallback: match by name keyword (e.g. "Barcelona Grand Prix" → "Spanish Grand Prix")
-      const apiName = apiRace.raceName.toLowerCase();
-      matchedRace = RACES.find(r => {
-        const ourName = r.name.toLowerCase();
-        // Check if either name contains a common keyword
-        const apiWords = apiName.split(' ');
-        return apiWords.some((w: string) => w.length > 3 && ourName.includes(w));
-      });
+    const parsed = parseAndAddResult(apiRace, matchedRace);
+    if (parsed) {
+      results.push(parsed);
+      coveredRaceIds.add(matchedRace.id);
     }
-
-    if (!matchedRace) {
-      console.log(`[F1 API] No match for API race: ${apiRace.raceName} (${apiDate})`);
-      continue;
-    }
-
-    // 3. Parse the race result using the matched race's round number
-    //    (we still need the round for sprint fetching, but we use OUR round).
-    const tempResponse: JolpicaRacesResponse = {
-      MRData: {
-        RaceTable: {
-          season: apiRace.season,
-          Races: [apiRace],
-        },
-      },
-    };
-
-    const live = parseResultsForRound(matchedRace.round, tempResponse);
-    if (!live) {
-      console.log(`[F1 API] Failed to parse results for ${matchedRace.name}`);
-      continue;
-    }
-
-    // 4. Fetch sprint results if this race has a sprint, using the
-    //    /current/sprint.json endpoint (same round-number mismatch issue).
-    let sprint: ClassificationEntry[] | null = null;
-    if (matchedRace.hasSprint) {
-      sprint = await fetchSprintResultsForRace(matchedRace);
-    }
-
-    const raceResult: RaceResult = sprint && sprint.length > 0
-      ? { ...live, sprintClassification: sprint }
-      : live;
-
-    results.push(raceResult);
-    console.log(`[F1 API] Parsed ${matchedRace.name}: ${live.classification.length} results${sprint ? ', +sprint' : ''}`);
   }
 
-  console.log('[F1 API] Returning', results.length, 'race results from live API');
+  // --- Phase 2: per-round fallback for completed races not yet covered ---
+  const today = new Date().toISOString().split('T')[0];
+  const missingCompleted = RACES.filter(r => {
+    if (coveredRaceIds.has(r.id)) return false;
+    if (r.status === 'cancelled' || CANCELLED_ROUNDS.has(r.round)) return false;
+    // Race must have already happened (date <= today).
+    return r.raceDate <= today;
+  });
+
+  if (missingCompleted.length > 0) {
+    console.log('[F1 API] Phase 2: per-round fallback for', missingCompleted.map(r => `${r.id} (round ${r.round})`).join(', '));
+
+    for (const race of missingCompleted) {
+      const apiRound = getApiRound(race.round);
+      console.log(`[F1 API] Trying API round ${apiRound} for ${race.id} (our round ${race.round})`);
+
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 8000);
+        let response: Response;
+        try {
+          response = await fetch(`${JOLPICA_BASE}/${season}/${apiRound}/results.json?limit=30`, {
+            headers: { 'Accept': 'application/json' },
+            signal: controller.signal,
+          });
+        } catch (e: any) {
+          clearTimeout(timeoutId);
+          console.log(`[F1 API] Per-round ${apiRound} fetch failed:`, e?.message || e);
+          continue;
+        }
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          console.log(`[F1 API] Per-round ${apiRound} not OK:`, response.status);
+          continue;
+        }
+
+        const data: JolpicaRacesResponse = await response.json();
+        const apiRace = data?.MRData?.RaceTable?.Races?.[0];
+        if (!apiRace || !apiRace.Results || apiRace.Results.length === 0) {
+          console.log(`[F1 API] Per-round ${apiRound}: no results`);
+          continue;
+        }
+
+        const parsed = parseAndAddResult(apiRace, race);
+        if (parsed) {
+          results.push(parsed);
+          coveredRaceIds.add(race.id);
+          console.log(`[F1 API] Per-round ${apiRound} → ${race.name}: ${parsed.classification.length} results`);
+        }
+      } catch (e: any) {
+        console.log(`[F1 API] Per-round ${apiRound} error:`, e?.message || e);
+      }
+    }
+  }
+
+  // --- Phase 3: fetch sprint results for sprint weekends ---
+  for (let i = 0; i < results.length; i++) {
+    const race = RACES.find(r => r.id === results[i].raceId);
+    if (race?.hasSprint) {
+      const sprint = await fetchSprintResultsForRace(race);
+      if (sprint && sprint.length > 0) {
+        results[i] = { ...results[i], sprintClassification: sprint };
+      }
+    }
+  }
+
+  console.log('[F1 API] Returning', results.length, 'race results total');
   return results;
+}
+
+/** Match an API race to our RACES entry by date, then by name keyword. */
+function matchApiRace(apiRace: { raceName: string; date?: string }): typeof RACES[0] | undefined {
+  const apiDate = apiRace.date;
+  let matched = RACES.find(r => r.raceDate === apiDate);
+  if (matched) return matched;
+
+  const apiName = apiRace.raceName.toLowerCase();
+  matched = RACES.find(r => {
+    const ourName = r.name.toLowerCase();
+    const apiWords = apiName.split(' ');
+    return apiWords.some((w: string) => w.length > 3 && ourName.includes(w));
+  });
+  if (!matched) {
+    console.log(`[F1 API] No match for API race: ${apiRace.raceName} (${apiDate})`);
+  }
+  return matched;
+}
+
+/** Parse an API race entry into a RaceResult for a matched RACES entry. */
+function parseAndAddResult(
+  apiRace: { season: string; Results?: JolpicaResultEntry[] },
+  matchedRace: typeof RACES[0],
+): RaceResult | null {
+  const tempResponse: JolpicaRacesResponse = {
+    MRData: {
+      RaceTable: {
+        season: apiRace.season,
+        Races: [apiRace as any],
+      },
+    },
+  };
+
+  const live = parseResultsForRound(matchedRace.round, tempResponse);
+  if (!live) {
+    console.log(`[F1 API] Failed to parse results for ${matchedRace.name}`);
+    return null;
+  }
+
+  console.log(`[F1 API] Parsed ${matchedRace.name}: ${live.classification.length} results`);
+  return live;
 }
