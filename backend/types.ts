@@ -125,27 +125,6 @@ export type Database = {
         }
         Relationships: []
       }
-      notification_log: {
-        Row: {
-          id: string
-          race_id: string
-          recipient_count: number | null
-          sent_at: string | null
-        }
-        Insert: {
-          id?: string
-          race_id: string
-          recipient_count?: number | null
-          sent_at?: string | null
-        }
-        Update: {
-          id?: string
-          race_id?: string
-          recipient_count?: number | null
-          sent_at?: string | null
-        }
-        Relationships: []
-      }
       profiles: {
         Row: {
           country: string
@@ -289,128 +268,12 @@ export type Database = {
         }
         Relationships: []
       }
-      user_achievements: {
-        Row: {
-          achievement_id: string
-          current_value: number | null
-          unlocked_at: Json | null
-          unlocked_tiers: string[] | null
-          updated_at: string | null
-          user_id: string
-        }
-        Insert: {
-          achievement_id: string
-          current_value?: number | null
-          unlocked_at?: Json | null
-          unlocked_tiers?: string[] | null
-          updated_at?: string | null
-          user_id: string
-        }
-        Update: {
-          achievement_id?: string
-          current_value?: number | null
-          unlocked_at?: Json | null
-          unlocked_tiers?: string[] | null
-          updated_at?: string | null
-          user_id?: string
-        }
-        Relationships: []
-      }
-      user_predictions: {
-        Row: {
-          created_at: string
-          display_name: string
-          id: string
-          points_earned: number
-          predicted_dnf: string | null
-          predicted_fastest_lap: string | null
-          predicted_sprint_top8: string[]
-          predicted_top10: string[]
-          race_id: string
-          sprint_points_earned: number
-          updated_at: string
-          user_id: string
-          username: string
-        }
-        Insert: {
-          created_at?: string
-          display_name: string
-          id?: string
-          points_earned?: number
-          predicted_dnf?: string | null
-          predicted_fastest_lap?: string | null
-          predicted_sprint_top8?: string[]
-          predicted_top10?: string[]
-          race_id: string
-          sprint_points_earned?: number
-          updated_at?: string
-          user_id: string
-          username: string
-        }
-        Update: {
-          created_at?: string
-          display_name?: string
-          id?: string
-          points_earned?: number
-          predicted_dnf?: string | null
-          predicted_fastest_lap?: string | null
-          predicted_sprint_top8?: string[]
-          predicted_top10?: string[]
-          race_id?: string
-          sprint_points_earned?: number
-          updated_at?: string
-          user_id?: string
-          username?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "user_predictions_race_id_fkey"
-            columns: ["race_id"]
-            isOneToOne: false
-            referencedRelation: "races"
-            referencedColumns: ["id"]
-          },
-        ]
-      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      save_user_prediction: {
-        Args: {
-          p_display_name?: string
-          p_points_earned?: number
-          p_predicted_dnf?: string
-          p_predicted_fastest_lap?: string
-          p_predicted_sprint_top8?: string[]
-          p_predicted_top10: string[]
-          p_race_id: string
-          p_sprint_points_earned?: number
-          p_username?: string
-        }
-        Returns: {
-          created_at: string
-          display_name: string
-          id: string
-          points_earned: number
-          predicted_dnf: string | null
-          predicted_fastest_lap: string | null
-          predicted_sprint_top8: string[]
-          predicted_top10: string[]
-          race_id: string
-          sprint_points_earned: number
-          updated_at: string
-          user_id: string
-          username: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "user_predictions"
-          isOneToOne: true
-          isSetofReturn: false
-        }
-      }
+      [_ in never]: never
     }
     Enums: {
       [_ in never]: never
