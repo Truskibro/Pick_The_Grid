@@ -377,11 +377,11 @@ export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
 ];
 
 /**
- * Real 2026 F1 season race results for completed races through Spain.
+ * Verified 2026 F1 season race results (r01–r08).
  *
- * Used as fallback when Supabase / live API doesn't return data.
+ * Used ONLY as a fallback when the live API doesn't return data.
+ * The live Jolpica API is the authoritative source — this data fills gaps.
  * Excludes: Bahrain (r04) and Saudi Arabia (r05) — both cancelled.
- * Upcoming: Austrian GP (r10+) — not included in results.
  *
  * DNS is separate from DNF:
  * - DNS drivers use status: 'dns'
@@ -597,36 +597,6 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
     ],
     fastestLapDriverId: 'ANT',
     dnfDriverIds: ['ALO', 'STR'],
-    dnsDriverIds: [],
-  },
-  {
-    raceId: 'r09',
-    classification: [
-      { position: 1,  driverId: 'ANT', time: '1:23:41.152', gap: 'Leader',   points: 25, status: 'finished' as const },
-      { position: 2,  driverId: 'VER', time: '1:23:47.423', gap: '+6.271s',   points: 18, status: 'finished' as const },
-      { position: 3,  driverId: 'RUS', time: '1:23:55.817', gap: '+14.665s',  points: 15, status: 'finished' as const },
-      { position: 4,  driverId: 'LEC', time: '1:24:06.334', gap: '+25.182s',  points: 12, status: 'finished' as const },
-      { position: 5,  driverId: 'HAM', time: '1:24:19.561', gap: '+38.409s',  points: 10, status: 'finished' as const },
-      { position: 6,  driverId: 'NOR', time: '1:24:20.996', gap: '+39.844s',  points: 8,  status: 'finished' as const },
-      { position: 7,  driverId: 'PIA', time: '1:24:22.348', gap: '+41.196s',  points: 6,  status: 'finished' as const },
-      { position: 8,  driverId: 'HAD', time: '1:24:47.211', gap: '+66.059s',  points: 4,  status: 'finished' as const },
-      { position: 9,  driverId: 'GAS', time: '1:24:51.889', gap: '+70.737s',  points: 2,  status: 'finished' as const },
-      { position: 10, driverId: 'LAW', time: '1:24:56.462', gap: '+75.310s',  points: 1,  status: 'finished' as const },
-      { position: 11, driverId: 'BEA', time: '1:25:03.514', gap: '+82.362s',  points: 0,  status: 'finished' as const },
-      { position: 12, driverId: 'COL', time: '1:25:07.822', gap: '+86.670s',  points: 0,  status: 'finished' as const },
-      { position: 13, driverId: 'ALB', time: '1:23:57.103', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 14, driverId: 'SAI', time: '1:24:03.447', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 15, driverId: 'OCO', time: '1:24:05.891', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 16, driverId: 'LIN', time: '1:24:12.209', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 17, driverId: 'HUL', time: '1:24:18.734', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 18, driverId: 'BOR', time: '1:24:25.671', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 19, driverId: 'BOT', time: '1:24:29.348', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 20, driverId: 'PER', time: '1:24:33.112', gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 21, driverId: 'STR', time: '',            gap: 'DNF',        points: 0,  status: 'dnf' as const },
-      { position: 22, driverId: 'ALO', time: '',            gap: 'DNF',        points: 0,  status: 'dnf' as const },
-    ],
-    fastestLapDriverId: 'ANT',
-    dnfDriverIds: ['STR', 'ALO'],
     dnsDriverIds: [],
   },
 ];

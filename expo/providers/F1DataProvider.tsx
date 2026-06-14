@@ -152,59 +152,67 @@ async function fetchRaces(): Promise<Race[]> {
 }
 
 /**
- * Completed race IDs that must always use the canonical MOCK_RACE_RESULTS.
- * This ensures the scoring engine produces consistent, correct points
- * regardless of what Supabase or the live API return.
+ * Race IDs that have verified mock data available as a fallback.
+ * Used only when the live API returns no results for these races.
  */
-const COMPLETED_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07', 'r08', 'r09']);
+const FALLBACK_RACE_IDS_SET = new Set(['r01', 'r02', 'r03', 'r06', 'r07', 'r08']);
 
 async function fetchRaceResults(): Promise<RaceResult[]> {
-  // Always build from canonical mock data for completed races.
-  // Any Supabase / live-API results are only used for races NOT in the
-  // completed set (e.g. Monaco r08+ once they happen).
-  const canonical = [...FALLBACK_RESULTS];
+  // Primary: live API is the source of truth for all race results.
+  // Fallback: mock data only fills in when the live API has nothing.
+  let results: RaceResult[] = [];
+  const liveRaceIds = new Set<string>();
 
-  // 1. Try live API for non-completed races.
+  // 1. Try live API — this is the authoritative source.
   try {
     const live = await fetchLiveRaceResults();
     if (live && live.length > 0) {
-      const extra = live.filter(r => !COMPLETED_RACE_IDS_SET.has(r.raceId));
-      if (extra.length > 0) {
-        console.log('Race results: adding', extra.length, 'non-canonical results from live API');
-        canonical.push(...extra);
+      for (const r of live) {
+        liveRaceIds.add(r.raceId);
       }
-      console.log('Race results: using canonical mock data for completed races +', extra.length, 'live extras');
-      return canonical;
+      results.push(...live);
+      console.log('Race results: loaded', live.length, 'from live API:', [...liveRaceIds].join(', '));
     }
   } catch (e) {
-    console.log('Race results: live API failed, trying Supabase', e);
+    console.log('Race results: live API failed:', e);
   }
 
-  // 2. Try Supabase for non-completed races.
+  // 2. Fill gaps with mock data for races the live API didn't return.
+  const mockFallbacks = FALLBACK_RESULTS.filter(r => !liveRaceIds.has(r.raceId));
+  if (mockFallbacks.length > 0) {
+    console.log('Race results: adding', mockFallbacks.length, 'mock fallbacks:', mockFallbacks.map(r => r.raceId).join(', '));
+    results.push(...mockFallbacks);
+  }
+
+  // 3. Try Supabase for any remaining gaps (races not in live or mock).
   if (isSupabaseConfigured) {
+    const coveredIds = new Set(results.map(r => r.raceId));
     try {
       const { data, error } = await supabase
         .from('race_results')
         .select('*');
 
       if (!error && data && data.length > 0) {
-        const supabaseResults = data.map((r: any) => ({
-          raceId: r.race_id,
-          classification: r.classification || [],
-          fastestLapDriverId: r.fastest_lap_driver_id || '',
-          dnfDriverIds: r.dnf_driver_ids || [],
-        }));
-        const extra = supabaseResults.filter(r => !COMPLETED_RACE_IDS_SET.has(r.raceId));
-        console.log('Race results: loaded', data.length, 'from Supabase, adding', extra.length, 'non-canonical extras');
-        canonical.push(...extra);
+        const supabaseResults = data
+          .map((r: any) => ({
+            raceId: r.race_id,
+            classification: r.classification || [],
+            fastestLapDriverId: r.fastest_lap_driver_id || '',
+            dnfDriverIds: r.dnf_driver_ids || [],
+          }))
+          .filter(r => !coveredIds.has(r.raceId));
+        if (supabaseResults.length > 0) {
+          console.log('Race results: adding', supabaseResults.length, 'from Supabase:', supabaseResults.map(r => r.raceId).join(', '));
+          results.push(...supabaseResults);
+        }
       }
     } catch (e) {
-      console.log('Race results fetch error:', e);
+      console.log('Race results: Supabase fetch error:', e);
     }
   }
 
-  console.log('Race results: returning', canonical.length, 'results (canonical mock for completed races)');
-  return canonical;
+  console.log('Race results: returning', results.length, 'total');
+  return results;
 }
 
 export const [F1DataProvider, useF1Data] = createContextHook(() => {
