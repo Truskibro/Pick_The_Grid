@@ -181,7 +181,13 @@ export function calculatePoints(
   const actualDnsDriverIds = getDnsDriverIds(result);
   const actualDnfDriverIds = getTrueDnfDriverIds(result);
 
-  if (predictedDnf && actualDnsDriverIds.has(predictedDnf)) {
+  if (!predictedDnf && actualDnfDriverIds.size === 0) {
+    dnfPoints = DNF_BONUS;
+
+    console.log(
+      `[Scoring] DNF correct: no DNF predicted and none retired = +${DNF_BONUS}`
+    );
+  } else if (predictedDnf && actualDnsDriverIds.has(predictedDnf)) {
     console.log(
       `[Scoring] DNF pick was DNS, no DNF points awarded: ${predictedDnf}`
     );
