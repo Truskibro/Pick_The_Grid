@@ -15,19 +15,19 @@ export const TEAMS: Team[] = [
 ];
 
 // Points computed from race classifications + sprint results + fastest lap bonuses.
-// Updated after round 8 (Monaco).
+// Updated after round 9 (Spain).
 export const DRIVERS: Driver[] = [
-  { id: 'ANT', name: 'Kimi Antonelli', shortName: 'ANT', number: 12, teamId: 'mercedes', championshipPoints: 161 },
-  { id: 'RUS', name: 'George Russell', shortName: 'RUS', number: 63, teamId: 'mercedes', championshipPoints: 96 },
-  { id: 'HAM', name: 'Lewis Hamilton', shortName: 'HAM', number: 44, teamId: 'ferrari', championshipPoints: 87 },
-  { id: 'LEC', name: 'Charles Leclerc', shortName: 'LEC', number: 16, teamId: 'ferrari', championshipPoints: 87 },
-  { id: 'NOR', name: 'Lando Norris', shortName: 'NOR', number: 1, teamId: 'mclaren', championshipPoints: 63 },
-  { id: 'VER', name: 'Max Verstappen', shortName: 'VER', number: 3, teamId: 'red-bull', championshipPoints: 61 },
-  { id: 'PIA', name: 'Oscar Piastri', shortName: 'PIA', number: 81, teamId: 'mclaren', championshipPoints: 54 },
-  { id: 'HAD', name: 'Isack Hadjar', shortName: 'HAD', number: 6, teamId: 'red-bull', championshipPoints: 24 },
-  { id: 'GAS', name: 'Pierre Gasly', shortName: 'GAS', number: 10, teamId: 'alpine', championshipPoints: 22 },
+  { id: 'ANT', name: 'Kimi Antonelli', shortName: 'ANT', number: 12, teamId: 'mercedes', championshipPoints: 186 },
+  { id: 'RUS', name: 'George Russell', shortName: 'RUS', number: 63, teamId: 'mercedes', championshipPoints: 111 },
+  { id: 'LEC', name: 'Charles Leclerc', shortName: 'LEC', number: 16, teamId: 'ferrari', championshipPoints: 99 },
+  { id: 'HAM', name: 'Lewis Hamilton', shortName: 'HAM', number: 44, teamId: 'ferrari', championshipPoints: 97 },
+  { id: 'VER', name: 'Max Verstappen', shortName: 'VER', number: 3, teamId: 'red-bull', championshipPoints: 79 },
+  { id: 'NOR', name: 'Lando Norris', shortName: 'NOR', number: 1, teamId: 'mclaren', championshipPoints: 71 },
+  { id: 'PIA', name: 'Oscar Piastri', shortName: 'PIA', number: 81, teamId: 'mclaren', championshipPoints: 60 },
+  { id: 'HAD', name: 'Isack Hadjar', shortName: 'HAD', number: 6, teamId: 'red-bull', championshipPoints: 28 },
+  { id: 'GAS', name: 'Pierre Gasly', shortName: 'GAS', number: 10, teamId: 'alpine', championshipPoints: 24 },
   { id: 'BEA', name: 'Oliver Bearman', shortName: 'BEA', number: 87, teamId: 'haas', championshipPoints: 18 },
-  { id: 'LAW', name: 'Liam Lawson', shortName: 'LAW', number: 30, teamId: 'racing-bulls', championshipPoints: 17 },
+  { id: 'LAW', name: 'Liam Lawson', shortName: 'LAW', number: 30, teamId: 'racing-bulls', championshipPoints: 18 },
   { id: 'COL', name: 'Franco Colapinto', shortName: 'COL', number: 43, teamId: 'alpine', championshipPoints: 15 },
   { id: 'SAI', name: 'Carlos Sainz', shortName: 'SAI', number: 55, teamId: 'williams', championshipPoints: 6 },
   { id: 'LIN', name: 'Arvid Lindblad', shortName: 'LIN', number: 41, teamId: 'racing-bulls', championshipPoints: 5 },
@@ -161,8 +161,9 @@ export const RACES: Race[] = [
     countryFlag: '',
     raceDate: '2026-06-14',
     raceTime: '13:00',
-    status: 'upcoming',
+    status: 'completed',
     hasSprint: false,
+    winner: 'ANT',
     totalLaps: 66,
   },
   {
@@ -376,11 +377,11 @@ export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
 ];
 
 /**
- * Real 2026 F1 season race results for completed races before Monaco.
+ * Real 2026 F1 season race results for completed races through Spain.
  *
  * Used as fallback when Supabase / live API doesn't return data.
  * Excludes: Bahrain (r04) and Saudi Arabia (r05) — both cancelled.
- * Upcoming: Spanish GP (r09+) — not included in results.
+ * Upcoming: Austrian GP (r10+) — not included in results.
  *
  * DNS is separate from DNF:
  * - DNS drivers use status: 'dns'
@@ -596,6 +597,36 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
     ],
     fastestLapDriverId: 'ANT',
     dnfDriverIds: ['ALO', 'STR'],
+    dnsDriverIds: [],
+  },
+  {
+    raceId: 'r09',
+    classification: [
+      { position: 1,  driverId: 'ANT', time: '1:23:41.152', gap: 'Leader',   points: 25, status: 'finished' as const },
+      { position: 2,  driverId: 'VER', time: '1:23:47.423', gap: '+6.271s',   points: 18, status: 'finished' as const },
+      { position: 3,  driverId: 'RUS', time: '1:23:55.817', gap: '+14.665s',  points: 15, status: 'finished' as const },
+      { position: 4,  driverId: 'LEC', time: '1:24:06.334', gap: '+25.182s',  points: 12, status: 'finished' as const },
+      { position: 5,  driverId: 'HAM', time: '1:24:19.561', gap: '+38.409s',  points: 10, status: 'finished' as const },
+      { position: 6,  driverId: 'NOR', time: '1:24:20.996', gap: '+39.844s',  points: 8,  status: 'finished' as const },
+      { position: 7,  driverId: 'PIA', time: '1:24:22.348', gap: '+41.196s',  points: 6,  status: 'finished' as const },
+      { position: 8,  driverId: 'HAD', time: '1:24:47.211', gap: '+66.059s',  points: 4,  status: 'finished' as const },
+      { position: 9,  driverId: 'GAS', time: '1:24:51.889', gap: '+70.737s',  points: 2,  status: 'finished' as const },
+      { position: 10, driverId: 'LAW', time: '1:24:56.462', gap: '+75.310s',  points: 1,  status: 'finished' as const },
+      { position: 11, driverId: 'BEA', time: '1:25:03.514', gap: '+82.362s',  points: 0,  status: 'finished' as const },
+      { position: 12, driverId: 'COL', time: '1:25:07.822', gap: '+86.670s',  points: 0,  status: 'finished' as const },
+      { position: 13, driverId: 'ALB', time: '1:23:57.103', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 14, driverId: 'SAI', time: '1:24:03.447', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 15, driverId: 'OCO', time: '1:24:05.891', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 16, driverId: 'LIN', time: '1:24:12.209', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 17, driverId: 'HUL', time: '1:24:18.734', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 18, driverId: 'BOR', time: '1:24:25.671', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 19, driverId: 'BOT', time: '1:24:29.348', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 20, driverId: 'PER', time: '1:24:33.112', gap: '+1 lap',    points: 0,  status: 'finished' as const },
+      { position: 21, driverId: 'STR', time: '',            gap: 'DNF',        points: 0,  status: 'dnf' as const },
+      { position: 22, driverId: 'ALO', time: '',            gap: 'DNF',        points: 0,  status: 'dnf' as const },
+    ],
+    fastestLapDriverId: 'ANT',
+    dnfDriverIds: ['STR', 'ALO'],
     dnsDriverIds: [],
   },
 ];

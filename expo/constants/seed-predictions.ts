@@ -96,7 +96,7 @@ export const SEED_USERS: SeedUser[] = [
 // Completed race IDs
 // ---------------------------------------------------------------------------
 
-export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07', 'r08'] as const;
+export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07', 'r08', 'r09'] as const;
 
 // ---------------------------------------------------------------------------
 // Raw prediction type
