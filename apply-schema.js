@@ -3,60 +3,49 @@ const fs = require('fs');
 
 const SQL = fs.readFileSync('/home/user/rork-app/expo/lib/supabase-fix-predictions.sql', 'utf8');
 
-const SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4d2dicGFzc291YWRkYWtneXVzIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3MTkwNDQ0MCwiZXhwIjoyMDg3NDgwNDQwfQ.RPGyDnHI5bMPCCXsZAkX-sYB-rzda6SAnf4CVv0D9Wg';
-const ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4d2dicGFzc291YWRkYWtneXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDQ0NDAsImV4cCI6MjA4NzQ4MDQ0MH0.OLiqosY-xSUAs1o3oPyAx9OFN97ldqxLWeZbbJmxgN8';
+const HOST = 'aws-0-us-east-1.pooler.supabase.com';
+const DB_USER = 'postgres.fxwgbpassouaddakgyus';
+const DB_PASSWORD = 'Dkivail3025!';
+const DB_NAME = 'postgres';
+const DB_PORT = 6543;
 
-const HOST = 'db.fxwgbpassouaddakgyus.supabase.co';
-
-async function tryConnect(port, user, password, useSSL) {
-  console.log(`\nTrying: ${user}@${HOST}:${port} ssl=${useSSL} pass=${password ? password.substring(0,20)+'...' : '(empty)'}`);
+async function main() {
+  console.log(`Connecting to ${DB_USER}@${HOST}:${DB_PORT}/${DB_NAME}...`);
   const client = new Client({
     host: HOST,
-    port: port,
-    user: user,
-    password: password || undefined,
-    database: 'postgres',
-    ssl: useSSL ? { rejectUnauthorized: false } : false,
-    connectionTimeoutMillis: 10000,
+    port: DB_PORT,
+    user: DB_USER,
+    password: DB_PASSWORD,
+    database: DB_NAME,
+    ssl: { rejectUnauthorized: false },
+    connectionTimeoutMillis: 15000,
+
   });
+  
   try {
     await client.connect();
     const res = await client.query('SELECT current_user, current_database(), version()');
-    console.log('SUCCESS:', res.rows[0]);
-    return client;
+    console.log('Connected!', res.rows[0]);
+    
+    console.log('Applying schema (supabase-fix-predictions.sql)...');
+    await client.query(SQL);
+    console.log('Schema applied successfully!');
+    
+    // Verify tables
+    const tables = await client.query(`
+      SELECT table_name FROM information_schema.tables 
+      WHERE table_schema = 'public' 
+      ORDER BY table_name
+    `);
+    console.log('\nTables in public schema:', tables.rows.map(r => r.table_name).join(', '));
+    
+    await client.end();
+    console.log('Done.');
   } catch(e) {
-    console.log('FAILED:', e.message);
-    return null;
+    console.error('Error:', e.message);
+    if (client) await client.end();
+    process.exit(1);
   }
 }
 
-async function main() {
-  const combos = [
-    [6543, 'postgres', SERVICE_KEY, true],
-    [5432, 'postgres', SERVICE_KEY, true],
-    [6543, 'postgres', ANON_KEY, true],
-    [5432, 'postgres', ANON_KEY, true],
-    [6543, 'postgres', '', true],
-    [5432, 'postgres', '', true],
-    [6543, 'authenticator', SERVICE_KEY, true],
-    [5432, 'authenticator', SERVICE_KEY, true],
-  ];
-  
-  for (const [port, user, pass, ssl] of combos) {
-    const client = await tryConnect(port, user, pass, ssl);
-    if (client) {
-      console.log('\nConnected! Running schema...');
-      try {
-        await client.query(SQL);
-        console.log('Schema applied successfully!');
-      } catch(e) {
-        console.log('SQL error:', e.message);
-      }
-      await client.end();
-      return;
-    }
-  }
-  console.log('\nAll connection attempts failed.');
-}
-
-main().catch(e => console.error('Fatal:', e));
+main();
