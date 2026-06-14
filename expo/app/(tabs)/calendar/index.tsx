@@ -10,7 +10,7 @@ import { Race } from '@/types';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { races, isRefreshing, refreshAll, getRaceResult } = useF1Data();
+  const { races, isRefreshing, refreshAll, getRaceResult, getDriverById } = useF1Data();
   const { getPrediction, refreshPredictions } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -100,6 +100,19 @@ export default function CalendarScreen() {
             }
           }
 
+          // Resolve pick driver IDs to short names for the RaceCard
+          const pickNames: string[] | undefined = prediction?.top10
+            ? prediction.top10
+                .map((id: string) => getDriverById(id)?.shortName)
+                .filter((n: string | undefined): n is string => !!n)
+            : undefined;
+          const fastestLapPickName: string | null = prediction?.fastestLap
+            ? (getDriverById(prediction.fastestLap)?.shortName ?? null)
+            : null;
+          const dnfPickName: string | null = prediction?.dnf
+            ? (getDriverById(prediction.dnf)?.shortName ?? null)
+            : null;
+
           return (
             <RaceCard
               race={item.race}
@@ -115,6 +128,9 @@ export default function CalendarScreen() {
               pointsEarned={livePoints}
               sprintPointsEarned={liveSprintPoints}
               hasPrediction={hasPrediction}
+              pickNames={pickNames}
+              fastestLapPickName={fastestLapPickName}
+              dnfPickName={dnfPickName}
             />
           );
         }}

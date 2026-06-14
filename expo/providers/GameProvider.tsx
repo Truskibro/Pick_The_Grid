@@ -343,6 +343,20 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       const cloudRows = (data ?? []) as PredictionRow[];
       const cloudPredictions = cloudRows.map(mapPredictionRow);
+      const localPredictions = predictionsRef.current;
+
+      // If Supabase is empty but we have local predictions, keep the locals.
+      // This prevents wiping a user's picks when the Supabase table exists but
+      // has no rows (e.g. after a fresh migration or wrong-project issue).
+      if (cloudPredictions.length === 0 && localPredictions.length > 0) {
+        console.log('[GameProvider] Supabase returned empty — keeping local predictions:', {
+          localCount: localPredictions.length,
+        });
+        // Still persist locals so they survive app restarts.
+        await persistPredictions(localPredictions);
+        return localPredictions;
+      }
+
       const newestCloudPredictions = mergePredictions([], cloudPredictions);
 
       // For signed-in users, Supabase is the rebuilt source of truth. Do not
