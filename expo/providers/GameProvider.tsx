@@ -6,6 +6,8 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
+import { SEED_USERS, scoreSeededPredictions } from '@/constants/seed-predictions';
+import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions_rebuilt_v2',
@@ -607,17 +609,37 @@ export const [GameProvider, useGame] = createContextHook(() => {
     return leagues.filter((l) => l.visibility === 'public');
   }, [leagues]);
 
+  function buildSeedLeaderboard(): LeaderboardEntry[] {
+    const seedResults = MOCK_RACE_RESULTS;
+    const entries: LeaderboardEntry[] = SEED_USERS.map((user) => ({
+      rank: 0,
+      userId: user.userId,
+      username: user.username,
+      displayName: user.displayName,
+      totalPoints: scoreSeededPredictions(user.userId, seedResults),
+    }));
+
+    entries.sort((a, b) => b.totalPoints - a.totalPoints);
+    entries.forEach((entry, index) => {
+      entry.rank = index + 1;
+    });
+
+    return entries;
+  }
+
   const fetchGlobalLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
-    if (!isSupabaseConfigured) return [];
+    if (!isSupabaseConfigured) {
+      return buildSeedLeaderboard();
+    }
 
     try {
       const { data, error } = await supabase
         .from('user_predictions')
         .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
 
-      if (error || !data) {
+      if (error || !data || data.length === 0) {
         if (error) console.log('[GameProvider] Leaderboard load failed:', error.message);
-        return [];
+        return buildSeedLeaderboard();
       }
 
       const userMap = new Map<string, {
@@ -668,7 +690,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return entries;
     } catch (e: any) {
       console.log('[GameProvider] Leaderboard load threw:', e?.message || e);
-      return [];
+      return buildSeedLeaderboard();
     }
   }, []);
 
