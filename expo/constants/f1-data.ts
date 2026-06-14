@@ -163,7 +163,7 @@ export const RACES: Race[] = [
     raceTime: '13:00',
     status: 'completed',
     hasSprint: false,
-    winner: 'ANT',
+    winner: 'HAM',
     totalLaps: 66,
   },
   {

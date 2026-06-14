@@ -238,7 +238,9 @@ interface JolpicaRacesResponse {
         season: string;
         round: string;
         raceName: string;
+        date?: string;
         Results?: JolpicaResultEntry[];
+        SprintResults?: JolpicaResultEntry[];
       }[];
     };
   };
@@ -297,6 +299,72 @@ function parseResultsForRound(
     fastestLapDriverId,
     dnfDriverIds,
   };
+}
+
+/**
+ * Fetch sprint results for a race by matching via /current/sprint.json.
+ * Avoids the per-round endpoint which has the same numbering mismatch.
+ */
+async function fetchSprintResultsForRace(
+  race: { raceDate: string; name: string },
+): Promise<ClassificationEntry[] | null> {
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let response: Response;
+    try {
+      response = await fetch(`${JOLPICA_BASE}/current/sprint.json?limit=100`, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      clearTimeout(timeoutId);
+      console.log('[F1 API] Sprint /current fetch failed:', e?.message || e);
+      return null;
+    }
+    clearTimeout(timeoutId);
+
+    if (!response.ok) return null;
+
+    const data: any = await response.json();
+    const apiRaces = data?.MRData?.RaceTable?.Races || [];
+
+    // Match by date, then by name keyword fallback.
+    let sprintRace = apiRaces.find((r: any) => r.date === race.raceDate);
+    if (!sprintRace) {
+      const apiNameLower = race.name.toLowerCase();
+      sprintRace = apiRaces.find((r: any) => {
+        const words = (r.raceName as string).toLowerCase().split(' ');
+        return words.some((w: string) => w.length > 3 && apiNameLower.includes(w));
+      });
+    }
+
+    if (!sprintRace) {
+      console.log(`[F1 API] No sprint data match for ${race.name}`);
+      return null;
+    }
+
+    const sprintResults = sprintRace.SprintResults;
+    if (!sprintResults || sprintResults.length === 0) return null;
+
+    const classification: ClassificationEntry[] = [];
+    for (const r of sprintResults) {
+      const driverId = mapJolpicaCodeToDriverId(r.Driver.driverId, r.Driver.code || '');
+      if (!driverId) continue;
+      const position = parseInt(r.position, 10);
+      const status = statusToClassification(r.status);
+      const points = parseInt(r.points, 10) || 0;
+      const time = r.Time?.time || '';
+      const gap = position === 1 ? time : (status === 'finished' ? (r.status.startsWith('+') ? r.status : time) : '');
+      classification.push({ position, driverId, time, gap, points, status });
+    }
+    classification.sort((a, b) => a.position - b.position);
+    console.log(`[F1 API] Got ${classification.length} sprint results for ${race.name}`);
+    return classification;
+  } catch (e: any) {
+    console.log(`[F1 API] Sprint error for ${race.name}:`, e?.message || e);
+    return null;
+  }
 }
 
 async function fetchSprintResultsForRound(
@@ -381,44 +449,114 @@ async function fetchResultsForRound(
 
 /**
  * Fetch full classification for all completed races in the current season
- * from the Jolpica/Ergast API. Races without data are simply skipped.
+ * from the Jolpica/Ergast API. Uses the single /current/results.json endpoint
+ * to avoid round-number mismatches (the API skips cancelled races in its
+ * sequential numbering, so our round numbers don't match).
+ *
+ * Matches API races to our RACES by date and name, then fetches sprint
+ * results for sprint weekends.
  */
 export async function fetchLiveRaceResults(): Promise<RaceResult[]> {
   const season = new Date().getFullYear().toString();
-  console.log('[F1 API] Fetching live race results for season', season);
+  console.log('[F1 API] Fetching live race results for season', season, 'via /current/results.json');
 
-  const now = new Date();
-  const completedRounds = RACES.filter(r => {
-    const raceEnd = new Date(`${r.raceDate}T${r.raceTime}:00Z`).getTime() + 3 * 60 * 60 * 1000;
-    return now.getTime() > raceEnd;
-  }).map(r => r.round);
+  // 1. Fetch ALL results in one call — no per-round numbering issues.
+  let allRaceData: JolpicaRacesResponse;
+  try {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 10000);
+    let response: Response;
+    try {
+      response = await fetch(`${JOLPICA_BASE}/current/results.json?limit=200`, {
+        headers: { 'Accept': 'application/json' },
+        signal: controller.signal,
+      });
+    } catch (e: any) {
+      clearTimeout(timeoutId);
+      console.log('[F1 API] /current/results.json fetch failed:', e?.message || e);
+      return [];
+    }
+    clearTimeout(timeoutId);
 
-  if (completedRounds.length === 0) {
-    console.log('[F1 API] No completed rounds to fetch yet');
+    if (!response.ok) {
+      console.log('[F1 API] /current/results.json not OK:', response.status);
+      return [];
+    }
+
+    allRaceData = await response.json();
+  } catch (e: any) {
+    console.log('[F1 API] /current/results.json parse error:', e?.message || e);
     return [];
   }
 
-  console.log('[F1 API] Fetching results for', completedRounds.length, 'completed rounds:', completedRounds);
+  const apiRaces = allRaceData?.MRData?.RaceTable?.Races || [];
+  console.log('[F1 API] Got', apiRaces.length, 'races from /current/results.json');
 
-  const results = await Promise.all(
-    completedRounds.map(async round => {
-      const race = RACES.find(r => r.round === round);
-      const [live, sprint] = await Promise.all([
-        fetchResultsForRound(season, round),
-        race?.hasSprint ? fetchSprintResultsForRound(season, round) : Promise.resolve(null),
-      ]);
-      if (!live) {
-        console.log(`[F1 API] No live data for round ${round}, skipping`);
-        return null;
-      }
-      if (sprint && sprint.length > 0) {
-        return { ...live, sprintClassification: sprint } as RaceResult;
-      }
-      return live;
-    }),
-  );
+  if (apiRaces.length === 0) {
+    console.log('[F1 API] No race data in /current/results.json');
+    return [];
+  }
 
-  const valid = results.filter((r): r is RaceResult => r !== null);
-  console.log('[F1 API] Got', valid.length, 'race results from live API');
-  return valid;
+  // 2. Match API races to our RACES by combining date + name heuristics.
+  //    The API uses its own round numbers (skipping cancelled races), but
+  //    date and race name uniquely identify each race.
+  const results: RaceResult[] = [];
+
+  for (const apiRace of apiRaces) {
+    if (!apiRace.Results || apiRace.Results.length === 0) continue;
+
+    // Match by date first, then fall back to name substring matching.
+    const apiDate = apiRace.date;
+    let matchedRace = RACES.find(r => r.raceDate === apiDate);
+
+    if (!matchedRace) {
+      // Fallback: match by name keyword (e.g. "Barcelona Grand Prix" → "Spanish Grand Prix")
+      const apiName = apiRace.raceName.toLowerCase();
+      matchedRace = RACES.find(r => {
+        const ourName = r.name.toLowerCase();
+        // Check if either name contains a common keyword
+        const apiWords = apiName.split(' ');
+        return apiWords.some((w: string) => w.length > 3 && ourName.includes(w));
+      });
+    }
+
+    if (!matchedRace) {
+      console.log(`[F1 API] No match for API race: ${apiRace.raceName} (${apiDate})`);
+      continue;
+    }
+
+    // 3. Parse the race result using the matched race's round number
+    //    (we still need the round for sprint fetching, but we use OUR round).
+    const tempResponse: JolpicaRacesResponse = {
+      MRData: {
+        RaceTable: {
+          season: apiRace.season,
+          Races: [apiRace],
+        },
+      },
+    };
+
+    const live = parseResultsForRound(matchedRace.round, tempResponse);
+    if (!live) {
+      console.log(`[F1 API] Failed to parse results for ${matchedRace.name}`);
+      continue;
+    }
+
+    // 4. Fetch sprint results if this race has a sprint, using the
+    //    /current/sprint.json endpoint (same round-number mismatch issue).
+    let sprint: ClassificationEntry[] | null = null;
+    if (matchedRace.hasSprint) {
+      sprint = await fetchSprintResultsForRace(matchedRace);
+    }
+
+    const raceResult: RaceResult = sprint && sprint.length > 0
+      ? { ...live, sprintClassification: sprint }
+      : live;
+
+    results.push(raceResult);
+    console.log(`[F1 API] Parsed ${matchedRace.name}: ${live.classification.length} results${sprint ? ', +sprint' : ''}`);
+  }
+
+  console.log('[F1 API] Returning', results.length, 'race results from live API');
+  return results;
 }
