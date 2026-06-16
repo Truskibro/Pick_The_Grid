@@ -1,8 +1,7 @@
 /**
- * SEEDED 2026 MOCK PREDICTION DATA — sourced from the Pick The Grid spreadsheet.
+ * SEEDED MOCK PREDICTION DATA — sourced from the Pick The Grid spreadsheet.
  *
- * These are pre-submitted picks for four users across all completed races
- * before Monaco, excluding cancelled Bahrain and Saudi Arabia.
+ * These are pre-submitted picks for four users across all completed races.
  *
  * The picks are kept in sync with the Supabase user_predictions table.
  * The scoring engine calculates points from these picks against the app's known results.
@@ -48,10 +47,14 @@ export const SEED_USERS: SeedUser[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Completed race IDs (excludes cancelled r04 Bahrain, r05 Saudi Arabia)
+// Completed race IDs — all 24 races of the 2025 season are complete.
 // ---------------------------------------------------------------------------
 
-export const COMPLETED_RACE_IDS = ['r01', 'r02', 'r03', 'r06', 'r07', 'r08', 'r09'] as const;
+export const COMPLETED_RACE_IDS = [
+  'r01','r02','r03','r04','r05','r06','r07','r08','r09',
+  'r10','r11','r12','r13','r14','r15','r16','r17','r18',
+  'r19','r20','r21','r22','r23','r24',
+] as const;
 
 // ---------------------------------------------------------------------------
 // Raw prediction type

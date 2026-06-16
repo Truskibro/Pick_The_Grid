@@ -52,14 +52,12 @@ const DRIVER_CODE_MAP: Record<string, string> = {
   'albon': 'ALB',
   'sainz': 'SAI',
   'lawson': 'LAW',
-  'arvid_lindblad': 'LIN',
-  'lindblad': 'LIN',
   'hulkenberg': 'HUL',
   'bortoleto': 'BOR',
   'bearman': 'BEA',
   'ocon': 'OCO',
-  'perez': 'PER',
-  'bottas': 'BOT',
+  'tsunoda': 'TSU',
+  'doohan': 'DOO',
 };
 
 function mapJolpicaCodeToDriverId(driverId: string, code: string): string | null {
@@ -213,7 +211,7 @@ async function fetchFromF1Api(): Promise<Driver[] | null> {
 }
 
 export async function fetchCurrentSeason(): Promise<string> {
-  return new Date().getFullYear().toString();
+  return '2025';
 }
 
 interface JolpicaResultEntry {
@@ -453,8 +451,8 @@ async function fetchResultsForRound(
   }
 }
 
-/** Our races that were cancelled — the API skips them in its numbering. */
-const CANCELLED_ROUNDS = new Set([4, 5]);
+/** No cancelled rounds in the 2025 season. */
+const CANCELLED_ROUNDS = new Set<number>([]);
 
 /**
  * Convert our round number to the Jolpica API round number.
