@@ -15,7 +15,7 @@ import { registerForPushNotifications, scheduleRaceReminders } from '@/lib/notif
 
 const POLL_INTERVAL = 60_000;
 
-/** No cancelled races in the 2025 season. */
+/** No cancelled races in the 2026 season. */
 const CANCELLED_RACE_IDS = new Set<string>([]);
 
 function computeRaceStatus(race: Race): Race['status'] {
@@ -158,7 +158,7 @@ async function fetchRaces(): Promise<Race[]> {
 const FALLBACK_RACE_IDS_SET = new Set([
   'r01','r02','r03','r04','r05','r06','r07','r08','r09',
   'r10','r11','r12','r13','r14','r15','r16','r17','r18',
-  'r19','r20','r21','r22','r23','r24',
+  'r19','r20','r21','r22',
 ]);
 
 async function fetchRaceResults(): Promise<RaceResult[]> {

@@ -47,13 +47,12 @@ export const SEED_USERS: SeedUser[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Completed race IDs — all 24 races of the 2025 season are complete.
+// Completed race IDs — races R01–R07 of the 2026 season are complete.
+// More races will be added as the season progresses.
 // ---------------------------------------------------------------------------
 
 export const COMPLETED_RACE_IDS = [
-  'r01','r02','r03','r04','r05','r06','r07','r08','r09',
-  'r10','r11','r12','r13','r14','r15','r16','r17','r18',
-  'r19','r20','r21','r22','r23','r24',
+  'r01','r02','r03','r04','r05','r06','r07',
 ] as const;
 
 // ---------------------------------------------------------------------------

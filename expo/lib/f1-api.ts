@@ -56,8 +56,9 @@ const DRIVER_CODE_MAP: Record<string, string> = {
   'bortoleto': 'BOR',
   'bearman': 'BEA',
   'ocon': 'OCO',
-  'tsunoda': 'TSU',
-  'doohan': 'DOO',
+  'lindblad': 'LIN',
+  'bottas': 'BOT',
+  'perez': 'PER',
 };
 
 function mapJolpicaCodeToDriverId(driverId: string, code: string): string | null {
@@ -211,7 +212,7 @@ async function fetchFromF1Api(): Promise<Driver[] | null> {
 }
 
 export async function fetchCurrentSeason(): Promise<string> {
-  return '2025';
+  return '2026';
 }
 
 interface JolpicaResultEntry {
@@ -451,7 +452,7 @@ async function fetchResultsForRound(
   }
 }
 
-/** No cancelled rounds in the 2025 season. */
+/** No cancelled rounds in the 2026 season. */
 const CANCELLED_ROUNDS = new Set<number>([]);
 
 /**
