@@ -71,25 +71,10 @@ function normalizePrediction(prediction: Prediction): Prediction {
   };
 }
 
-/**
- * Maps incorrect DB race IDs (r06→r04, r07→r05, r08→r06, r09→r07)
- * to match the verified 2026 F1 calendar. The DB was seeded with
- * shifted race IDs before Bahrain/Saudi Arabia cancellations.
- */
-function fixRaceId(raceId: string): string {
-  const MAP: Record<string, string> = {
-    r06: 'r04',
-    r07: 'r05',
-    r08: 'r06',
-    r09: 'r07',
-  };
-  return MAP[raceId] ?? raceId;
-}
-
 function mapPredictionRow(row: PredictionRow): Prediction {
   return normalizePrediction({
     id: row.id,
-    raceId: fixRaceId(row.race_id),
+    raceId: row.race_id,
     top10: row.predicted_top10 ?? [],
     fastestLap: row.predicted_fastest_lap ?? null,
     dnf: row.predicted_dnf ?? null,

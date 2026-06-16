@@ -164,8 +164,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r06: {
-      raceId: 'r06',
+    r04: {
+      raceId: 'r04',
       top10: ['PIA', 'VER', 'NOR', 'ANT', 'LEC', 'RUS', 'HAM', 'COL', 'SAI', 'GAS'],
       fastestLap: null,
       dnf: 'STR',
@@ -173,8 +173,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['NOR', 'LEC', 'ANT', 'PIA', 'VER', 'RUS', 'HAM', 'COL'],
       sprintPointsEarned: 0,
     },
-    r07: {
-      raceId: 'r07',
+    r05: {
+      raceId: 'r05',
       top10: ['RUS', 'ANT', 'NOR', 'PIA', 'VER', 'LEC', 'HAM', 'HAD', 'LIN', 'COL'],
       fastestLap: 'ANT',
       dnf: 'STR',
@@ -182,8 +182,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['ANT', 'RUS', 'PIA', 'NOR', 'VER', 'LEC', 'HAM', 'HAD'],
       sprintPointsEarned: 0,
     },
-    r08: {
-      raceId: 'r08',
+    r06: {
+      raceId: 'r06',
       top10: ['ANT', 'HAM', 'HAD', 'PIA', 'LEC', 'LIN', 'LAW', 'GAS', 'ALB', 'PER'],
       fastestLap: 'ANT',
       dnf: 'STR',
@@ -191,8 +191,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r09: {
-      raceId: 'r09',
+    r07: {
+      raceId: 'r07',
       top10: ['HAM', 'RUS', 'VER', 'LEC', 'PIA', 'HAD', 'GAS', 'LAW', 'LIN', 'COL'],
       fastestLap: 'ANT',
       dnf: 'ALO',
@@ -231,8 +231,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r06: {
-      raceId: 'r06',
+    r04: {
+      raceId: 'r04',
       top10: ['VER', 'ANT', 'NOR', 'LEC', 'RUS', 'PIA', 'HAM', 'GAS', 'HAD', 'COL'],
       fastestLap: 'ANT',
       dnf: 'ALO',
@@ -240,8 +240,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['ANT', 'NOR', 'PIA', 'LEC', 'RUS', 'VER', 'HAM', 'HAD'],
       sprintPointsEarned: 0,
     },
-    r07: {
-      raceId: 'r07',
+    r05: {
+      raceId: 'r05',
       top10: ['RUS', 'ANT', 'NOR', 'PIA', 'HAM', 'LEC', 'VER', 'HAD', 'LIN', 'LAW'],
       fastestLap: 'NOR',
       dnf: 'BOT',
@@ -249,8 +249,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['RUS', 'ANT', 'NOR', 'PIA', 'HAM', 'LEC', 'VER', 'HAD'],
       sprintPointsEarned: 0,
     },
-    r08: {
-      raceId: 'r08',
+    r06: {
+      raceId: 'r06',
       top10: ['ANT', 'HAM', 'PIA', 'HAD', 'LAW', 'LIN', 'GAS', 'ALB', 'OCO', 'PER'],
       fastestLap: 'ANT',
       dnf: 'HAD',
@@ -258,8 +258,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r09: {
-      raceId: 'r09',
+    r07: {
+      raceId: 'r07',
       top10: ['RUS', 'ANT', 'HAM', 'VER', 'LEC', 'PIA', 'HAD', 'LAW', 'SAI', 'LIN'],
       fastestLap: 'ANT',
       dnf: null,
@@ -298,8 +298,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r06: {
-      raceId: 'r06',
+    r04: {
+      raceId: 'r04',
       top10: ['VER', 'ANT', 'NOR', 'LEC', 'RUS', 'LEC', 'PIA', 'HAM', 'GAS', 'HUL'],
       fastestLap: 'VER',
       dnf: null,
@@ -307,8 +307,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['NOR', 'ANT', 'PIA', 'LEC', 'RUS', 'VER', 'HAM', 'HAD'],
       sprintPointsEarned: 0,
     },
-    r07: {
-      raceId: 'r07',
+    r05: {
+      raceId: 'r05',
       top10: ['ANT', 'RUS', 'NOR', 'PIA', 'VER', 'LEC', 'HAM', 'HAD', 'LIN', 'COL'],
       fastestLap: 'ANT',
       dnf: 'ALO',
@@ -316,8 +316,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: ['ANT', 'RUS', 'PIA', 'NOR', 'VER', 'LEC', 'HAM', 'HAD'],
       sprintPointsEarned: 0,
     },
-    r08: {
-      raceId: 'r08',
+    r06: {
+      raceId: 'r06',
       top10: ['VER', 'ANT', 'HAM', 'LEC', 'HAD', 'RUS', 'PIA', 'NOR', 'GAS', 'LAW'],
       fastestLap: 'VER',
       dnf: 'BOR',
@@ -325,8 +325,8 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
-    r09: {
-      raceId: 'r09',
+    r07: {
+      raceId: 'r07',
       top10: ['RUS', 'HAM', 'ANT', 'VER', 'NOR', 'LEC', 'HAD', 'PIA', 'HUL', 'LAW'],
       fastestLap: 'RUS',
       dnf: null,
