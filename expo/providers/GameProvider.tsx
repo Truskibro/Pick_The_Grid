@@ -357,19 +357,61 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return localPredictions;
       }
 
-      const newestCloudPredictions = mergePredictions([], cloudPredictions);
+      // Merge local + cloud — local picks that were never synced to Supabase
+      // are preserved, and cloud picks that are newer win on conflict.
+      const mergedPredictions = mergePredictions(localPredictions, cloudPredictions);
 
-      // For signed-in users, Supabase is the rebuilt source of truth. Do not
-      // merge old AsyncStorage picks back in, or deleted/stale rows reappear.
-      setPredictions(newestCloudPredictions);
-      predictionsRef.current = newestCloudPredictions;
-      await persistPredictions(newestCloudPredictions);
+      // Identify local-only predictions (never synced) and upload them now.
+      const cloudRaceIds = new Set(cloudPredictions.map((p) => p.raceId));
+      const unsyncedPredictions = localPredictions.filter(
+        (p) => !cloudRaceIds.has(p.raceId) && p.top10.length > 0
+      );
+
+      if (unsyncedPredictions.length > 0) {
+        console.log('[GameProvider] Syncing', unsyncedPredictions.length, 'local-only predictions to Supabase');
+        const names = profileNames(profile);
+        const syncUsername = names.username ?? `user_${userId.substring(0, 8)}`;
+        const syncDisplayName = names.displayName ?? syncUsername;
+
+        await Promise.all(unsyncedPredictions.map(async (prediction) => {
+          const payload = buildPredictionPayload(prediction, userId, syncUsername, syncDisplayName);
+          const result = await writePredictionRow(payload);
+          if (!result.synced) {
+            console.log('[GameProvider] Failed to sync local prediction for', prediction.raceId, ':', result.errorMessage);
+          }
+        }));
+
+        // Reload from Supabase after uploading to get the confirmed rows back.
+        const { data: reloadData } = await supabase
+          .from('user_predictions')
+          .select('*')
+          .eq('user_id', userId)
+          .order('updated_at', { ascending: false });
+        const reloadedRows = (reloadData ?? []) as PredictionRow[];
+        const reloadedCloud = reloadedRows.map(mapPredictionRow);
+        const finalMerged = mergePredictions(localPredictions, reloadedCloud);
+
+        setPredictions(finalMerged);
+        predictionsRef.current = finalMerged;
+        await persistPredictions(finalMerged);
+
+        console.log('[GameProvider] Loaded cloud predictions + synced locals:', {
+          cloudRows: reloadedRows.length,
+          races: finalMerged.length,
+          synced: unsyncedPredictions.length,
+        });
+        return finalMerged;
+      }
+
+      setPredictions(mergedPredictions);
+      predictionsRef.current = mergedPredictions;
+      await persistPredictions(mergedPredictions);
 
       console.log('[GameProvider] Loaded cloud predictions:', {
         rows: cloudRows.length,
-        races: newestCloudPredictions.length,
+        races: mergedPredictions.length,
       });
-      return newestCloudPredictions;
+      return mergedPredictions;
     } catch (e: any) {
       console.log('[GameProvider] Cloud prediction load threw:', e?.message || e);
       return predictionsRef.current;
