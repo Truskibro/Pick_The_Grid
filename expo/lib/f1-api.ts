@@ -250,7 +250,7 @@ function statusToClassification(status: string): ClassificationEntry['status'] {
   const s = status.toLowerCase();
   if (s === 'finished' || s === 'lapped' || s.startsWith('+')) return 'finished';
   if (s === 'dnf' || s === 'did not finish') return 'dnf';
-  if (s === 'did not start' || s === 'dns') return 'dnf';
+  if (s === 'did not start' || s === 'dns') return 'dns';
   return 'retired';
 }
 
@@ -266,6 +266,7 @@ function parseResultsForRound(
 
   const classification: ClassificationEntry[] = [];
   const dnfDriverIds: string[] = [];
+  const dnsDriverIds: string[] = [];
   let fastestLapDriverId = '';
 
   for (const r of raceEntry.Results) {
@@ -287,7 +288,11 @@ function parseResultsForRound(
       status,
     });
 
-    if (status !== 'finished') dnfDriverIds.push(driverId);
+    if (status === 'dns') {
+      dnsDriverIds.push(driverId);
+    } else if (status !== 'finished') {
+      dnfDriverIds.push(driverId);
+    }
     if (r.FastestLap && r.FastestLap.rank === '1') fastestLapDriverId = driverId;
   }
 
@@ -298,6 +303,7 @@ function parseResultsForRound(
     classification,
     fastestLapDriverId,
     dnfDriverIds,
+    dnsDriverIds,
   };
 }
 
