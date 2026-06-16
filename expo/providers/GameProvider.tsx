@@ -359,7 +359,23 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       // Merge local + cloud — local picks that were never synced to Supabase
       // are preserved, and cloud picks that are newer win on conflict.
-      const mergedPredictions = mergePredictions(localPredictions, cloudPredictions);
+      let mergedPredictions = mergePredictions(localPredictions, cloudPredictions);
+
+      // Safety net: never let an empty cloud prediction overwrite a local
+      // prediction that has actual picks. This guards against stale/partial
+      // Supabase rows from failed syncs or trigger-induced timestamp mismatches.
+      const localByRace = new Map(localPredictions.map((p) => [p.raceId, p]));
+      mergedPredictions = mergedPredictions.map((mp) => {
+        const local = localByRace.get(mp.raceId);
+        if (!local) return mp;
+        const localHasPicks = local.top10.length > 0 || local.sprintTop8.length > 0 || local.fastestLap || local.dnf;
+        const mergedHasPicks = mp.top10.length > 0 || mp.sprintTop8.length > 0 || mp.fastestLap || mp.dnf;
+        if (localHasPicks && !mergedHasPicks) {
+          console.log('[GameProvider] Keeping local picks for', mp.raceId, '(cloud had empty picks)');
+          return local;
+        }
+        return mp;
+      });
 
       // Identify local-only predictions (never synced) and upload them now.
       const cloudRaceIds = new Set(cloudPredictions.map((p) => p.raceId));
@@ -389,7 +405,21 @@ export const [GameProvider, useGame] = createContextHook(() => {
           .order('updated_at', { ascending: false });
         const reloadedRows = (reloadData ?? []) as PredictionRow[];
         const reloadedCloud = reloadedRows.map(mapPredictionRow);
-        const finalMerged = mergePredictions(localPredictions, reloadedCloud);
+        let finalMerged = mergePredictions(localPredictions, reloadedCloud);
+
+        // Same safety net: never let empty cloud data overwrite local picks.
+        const finalLocalByRace = new Map(localPredictions.map((p) => [p.raceId, p]));
+        finalMerged = finalMerged.map((mp) => {
+          const local = finalLocalByRace.get(mp.raceId);
+          if (!local) return mp;
+          const localHasPicks = local.top10.length > 0 || local.sprintTop8.length > 0 || local.fastestLap || local.dnf;
+          const mergedHasPicks = mp.top10.length > 0 || mp.sprintTop8.length > 0 || mp.fastestLap || mp.dnf;
+          if (localHasPicks && !mergedHasPicks) {
+            console.log('[GameProvider] Keeping local picks for', mp.raceId, '(post-sync cloud had empty picks)');
+            return local;
+          }
+          return mp;
+        });
 
         setPredictions(finalMerged);
         predictionsRef.current = finalMerged;
@@ -549,7 +579,10 @@ export const [GameProvider, useGame] = createContextHook(() => {
       lastSaveTimeGlobal = Date.now();
       AsyncStorage.setItem(STORAGE_KEYS.lastSaveTime, String(lastSaveTimeRef.current)).catch(() => {});
 
-      await loadCloudPredictionsForUser(userId);
+      // Do NOT reload from Supabase here. The confirmed row from the RPC is the
+      // source of truth, and reloading can introduce a race where a stale cloud
+      // row (with a server-set updated_at that differs from the RPC response)
+      // overwrites the just-saved picks during merge.
 
       return { synced: true };
     },
