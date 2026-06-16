@@ -1,4 +1,4 @@
-import { Team, Driver, Race, RaceResult, LeaderboardEntry } from '@/types';
+import { Team, Driver, Race, RaceResult } from '@/types';
 
 export const TEAMS: Team[] = [
   { id: 'mclaren', name: 'McLaren', color: '#FF8000', shortName: 'MCL' },
@@ -361,19 +361,6 @@ export const RACES: Race[] = [
     hasSprint: false,
     totalLaps: 58,
   },
-];
-
-export const MOCK_LEADERBOARD: LeaderboardEntry[] = [
-  { rank: 1, userId: 'u1', username: 'speedking', displayName: 'Speed King', totalPoints: 287, previousRank: 1 },
-  { rank: 2, userId: 'u2', username: 'f1oracle', displayName: 'F1 Oracle', totalPoints: 264, previousRank: 3 },
-  { rank: 3, userId: 'u3', username: 'racefan99', displayName: 'Race Fan 99', totalPoints: 251, previousRank: 2 },
-  { rank: 4, userId: 'u4', username: 'apexhunter', displayName: 'Apex Hunter', totalPoints: 238, previousRank: 5 },
-  { rank: 5, userId: 'u5', username: 'pitstopguru', displayName: 'Pit Stop Guru', totalPoints: 225, previousRank: 4 },
-  { rank: 6, userId: 'u6', username: 'slipstream', displayName: 'Slipstream', totalPoints: 212, previousRank: 7 },
-  { rank: 7, userId: 'u7', username: 'drszone', displayName: 'DRS Zone', totalPoints: 198, previousRank: 6 },
-  { rank: 8, userId: 'u8', username: 'gridwalker', displayName: 'Grid Walker', totalPoints: 185, previousRank: 9 },
-  { rank: 9, userId: 'u9', username: 'checkered', displayName: 'Checkered Flag', totalPoints: 172, previousRank: 8 },
-  { rank: 10, userId: 'u10', username: 'turbolag', displayName: 'Turbo Lag', totalPoints: 158, previousRank: 10 },
 ];
 
 /**

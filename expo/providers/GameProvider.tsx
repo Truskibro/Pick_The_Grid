@@ -763,13 +763,25 @@ export const [GameProvider, useGame] = createContextHook(() => {
         });
       }
 
-      const entries: LeaderboardEntry[] = Array.from(userMap.entries()).map(([userId, info]) => ({
-        rank: 0,
-        userId,
-        username: info.username,
-        displayName: info.displayName,
-        totalPoints: info.totalPoints,
-      }));
+      // Exclude test/placeholder accounts from the leaderboard.
+      const TEST_USER_IDS = new Set([
+        'ec85e5ec-edca-4196-91a6-56b19bfff6c7', // Admin test account
+      ]);
+      const TEST_USERNAMES = new Set(['admin']);
+
+      const entries: LeaderboardEntry[] = Array.from(userMap.entries())
+        .filter(([userId, info]) => {
+          if (TEST_USER_IDS.has(userId)) return false;
+          if (TEST_USERNAMES.has((info.username ?? '').toLowerCase())) return false;
+          return true;
+        })
+        .map(([userId, info]) => ({
+          rank: 0,
+          userId,
+          username: info.username,
+          displayName: info.displayName,
+          totalPoints: info.totalPoints,
+        }));
 
       entries.sort((a, b) => b.totalPoints - a.totalPoints);
       entries.forEach((entry, index) => {
