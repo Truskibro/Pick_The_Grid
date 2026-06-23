@@ -169,25 +169,31 @@ export type Database = {
           classification: Json
           created_at: string | null
           dnf_driver_ids: string[] | null
+          dns_driver_ids: string[] | null
           fastest_lap_driver_id: string | null
           id: string
           race_id: string | null
+          sprint_classification: Json | null
         }
         Insert: {
           classification?: Json
           created_at?: string | null
           dnf_driver_ids?: string[] | null
+          dns_driver_ids?: string[] | null
           fastest_lap_driver_id?: string | null
           id?: string
           race_id?: string | null
+          sprint_classification?: Json | null
         }
         Update: {
           classification?: Json
           created_at?: string | null
           dnf_driver_ids?: string[] | null
+          dns_driver_ids?: string[] | null
           fastest_lap_driver_id?: string | null
           id?: string
           race_id?: string | null
+          sprint_classification?: Json | null
         }
         Relationships: [
           {

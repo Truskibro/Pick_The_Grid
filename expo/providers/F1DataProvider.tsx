@@ -181,14 +181,7 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
     console.log('Race results: live API failed:', e);
   }
 
-  // 2. Fill gaps with mock data for races the live API didn't return.
-  const mockFallbacks = FALLBACK_RESULTS.filter(r => !liveRaceIds.has(r.raceId));
-  if (mockFallbacks.length > 0) {
-    console.log('Race results: adding', mockFallbacks.length, 'mock fallbacks:', mockFallbacks.map(r => r.raceId).join(', '));
-    results.push(...mockFallbacks);
-  }
-
-  // 3. Try Supabase for any remaining gaps (races not in live or mock).
+  // 2. Try Supabase for any gaps — this is the curated source of truth.
   if (isSupabaseConfigured) {
     const coveredIds = new Set(results.map(r => r.raceId));
     try {
@@ -201,8 +194,10 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
           .map((r: any) => ({
             raceId: r.race_id,
             classification: r.classification || [],
-            fastestLapDriverId: r.fastest_lap_driver_id || '',
+            fastestLapDriverId: r.fastest_lap_driver_id || null,
             dnfDriverIds: r.dnf_driver_ids || [],
+            dnsDriverIds: r.dns_driver_ids || [],
+            sprintClassification: r.sprint_classification || undefined,
           }))
           .filter(r => !coveredIds.has(r.raceId));
         if (supabaseResults.length > 0) {
@@ -213,6 +208,14 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
     } catch (e) {
       console.log('Race results: Supabase fetch error:', e);
     }
+  }
+
+  // 3. Fill remaining gaps with mock data (last resort fallback).
+  const coveredAfterSupabase = new Set(results.map(r => r.raceId));
+  const mockFallbacks = FALLBACK_RESULTS.filter(r => !coveredAfterSupabase.has(r.raceId));
+  if (mockFallbacks.length > 0) {
+    console.log('Race results: adding', mockFallbacks.length, 'mock fallbacks:', mockFallbacks.map(r => r.raceId).join(', '));
+    results.push(...mockFallbacks);
   }
 
   console.log('Race results: returning', results.length, 'total');
