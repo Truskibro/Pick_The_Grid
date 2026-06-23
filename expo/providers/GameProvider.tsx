@@ -734,76 +734,92 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }
 
     try {
-      const { data, error } = await supabase
-        .from('user_predictions')
-        .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
+      // Query BOTH profiles and user_predictions so we include every registered
+      // user — not just the ones who happen to have prediction rows.
+      const [profilesRes, predictionsRes] = await Promise.all([
+        supabase.from('profiles').select('id, username, display_name, total_points'),
+        supabase.from('user_predictions').select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at'),
+      ]);
 
-      if (error || !data || data.length === 0) {
-        if (error) console.log('[GameProvider] Leaderboard load failed:', error.message);
-        return seedLeaderboard;
-      }
+      const allProfiles = (profilesRes.data ?? []) as Array<{
+        id: string;
+        username: string | null;
+        display_name: string | null;
+        total_points: number | null;
+      }>;
 
-      const userMap = new Map<string, {
-        username: string;
-        displayName: string;
-        totalPoints: number;
-        latestUpdatedAt: string;
-        isSeedUser: boolean;
-      }>();
-
-      for (const row of data as Array<{
+      const allPredictions = (predictionsRes.data ?? []) as Array<{
         user_id: string;
         username: string | null;
         display_name: string | null;
         points_earned: number | null;
         sprint_points_earned: number | null;
         updated_at: string | null;
-      }>) {
-        const existing = userMap.get(row.user_id);
-        const rowUserId = row.user_id;
-        const isSeed = seedUserIdSet.has(rowUserId);
+      }>;
 
-        // For seed users, ignore Supabase points and use verified seed scores instead.
-        const points = isSeed ? 0 : ((row.points_earned ?? 0) + (row.sprint_points_earned ?? 0));
-        const latestUpdatedAt = row.updated_at ?? '';
-        const shouldUseRowName = !existing || latestUpdatedAt >= existing.latestUpdatedAt;
+      if (predictionsRes.error) {
+        console.log('[GameProvider] Predictions query error:', predictionsRes.error.message);
+      }
+      if (profilesRes.error) {
+        console.log('[GameProvider] Profiles query error:', profilesRes.error.message);
+      }
 
-        userMap.set(row.user_id, {
-          username: shouldUseRowName
-            ? cleanText(row.username) ?? existing?.username ?? 'Unknown'
-            : existing.username,
-          displayName: shouldUseRowName
-            ? cleanText(row.display_name) ?? existing?.displayName ?? cleanText(row.username) ?? 'Unknown'
-            : existing.displayName,
-          totalPoints: (existing?.totalPoints ?? 0) + points,
-          latestUpdatedAt: shouldUseRowName ? latestUpdatedAt : existing?.latestUpdatedAt ?? '',
+      // Build a map of every user from profiles.
+      const userMap = new Map<string, {
+        username: string;
+        displayName: string;
+        totalPoints: number;
+        isSeedUser: boolean;
+      }>();
+
+      for (const profile of allProfiles) {
+        const isSeed = seedUserIdSet.has(profile.id);
+        userMap.set(profile.id, {
+          username: cleanText(profile.username) ?? 'Unknown',
+          displayName: cleanText(profile.display_name) ?? cleanText(profile.username) ?? 'Unknown',
+          totalPoints: isSeed ? (seedScoreMap.get(profile.id) ?? 0) : (profile.total_points ?? 0),
           isSeedUser: isSeed,
         });
       }
 
-      // Exclude test/placeholder accounts from the leaderboard.
-      const TEST_USER_IDS = new Set([
-        'ec85e5ec-edca-4196-91a6-56b19bfff6c7', // Admin test account
-      ]);
-      const TEST_USERNAMES = new Set(['admin']);
+      // For non-seed users, compute points from their prediction rows (more
+      // accurate than profiles.total_points, which may be stale).
+      const nonSeedPoints = new Map<string, number>();
+      for (const row of allPredictions) {
+        if (seedUserIdSet.has(row.user_id)) continue;
+        const current = nonSeedPoints.get(row.user_id) ?? 0;
+        nonSeedPoints.set(
+          row.user_id,
+          current + (row.points_earned ?? 0) + (row.sprint_points_earned ?? 0),
+        );
+      }
 
+      // Override non-seed user points with the sum from predictions.
+      for (const [userId, points] of nonSeedPoints) {
+        const existing = userMap.get(userId);
+        if (existing && !existing.isSeedUser) {
+          existing.totalPoints = points;
+        }
+      }
+
+      // Build the entries, excluding only truly bogus placeholder accounts.
+      // We no longer exclude by user ID — real users with low points should
+      // still appear. Only filter out entries that have no meaningful name.
       const entries: LeaderboardEntry[] = Array.from(userMap.entries())
-        .filter(([userId, info]) => {
-          if (TEST_USER_IDS.has(userId)) return false;
-          if (TEST_USERNAMES.has((info.username ?? '').toLowerCase())) return false;
-          return true;
+        .filter(([_userId, info]) => {
+          const name = info.displayName || info.username || '';
+          // Keep any entry that looks like a real person.
+          return name.length > 0 && name !== 'Unknown';
         })
         .map(([userId, info]) => ({
           rank: 0,
           userId,
           username: info.isSeedUser ? (seedNameMap.get(userId)?.username ?? info.username) : info.username,
           displayName: info.isSeedUser ? (seedNameMap.get(userId)?.displayName ?? info.displayName) : info.displayName,
-          // Seed users get their verified seed scores; others use Supabase sums.
           totalPoints: info.isSeedUser ? (seedScoreMap.get(userId) ?? info.totalPoints) : info.totalPoints,
         }));
 
-      // Ensure seed users always appear on the leaderboard, even if they have
-      // no rows in Supabase (e.g. after a migration or accidental deletion).
+      // Ensure seed users always appear, even if their profile is missing.
       const existingUserIds = new Set(entries.map((e) => e.userId));
       for (const seedEntry of seedLeaderboard) {
         if (!existingUserIds.has(seedEntry.userId)) {

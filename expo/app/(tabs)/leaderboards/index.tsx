@@ -21,6 +21,7 @@ import {
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
+import { useUser } from '@/providers/UserProvider';
 import { LeaderboardEntry, League } from '@/types';
 
 type TabType = 'global' | 'league';
@@ -37,6 +38,7 @@ export default function LeaderboardsScreen() {
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
+  const { profile, session } = useUser();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -54,14 +56,38 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(true);
 
     try {
-      const data = await fetchGlobalLeaderboard();
+      let data = await fetchGlobalLeaderboard();
+
+      // Ensure the currently logged-in user always appears on the leaderboard.
+      const currentUserId = session?.user?.id;
+      if (currentUserId && profile && profile.id !== 'guest') {
+        const isInList = data.some((entry) => entry.userId === currentUserId);
+        if (!isInList) {
+          data = [
+            ...data,
+            {
+              rank: 0,
+              userId: currentUserId,
+              username: profile.username,
+              displayName: profile.displayName,
+              totalPoints,
+            },
+          ];
+          // Re-sort and re-rank after adding the current user.
+          data.sort((a, b) => b.totalPoints - a.totalPoints);
+          data.forEach((entry, index) => {
+            entry.rank = index + 1;
+          });
+        }
+      }
+
       setGlobalLeaderboard(data);
     } catch (e) {
       console.log('Leaderboard load error:', e);
     }
 
     setLoadingLeaderboard(false);
-  }, [fetchGlobalLeaderboard]);
+  }, [fetchGlobalLeaderboard, session, profile, totalPoints]);
 
   // Refresh leaderboard whenever the tab is focused.
   useFocusEffect(

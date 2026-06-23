@@ -21,7 +21,7 @@ export const TEAMS: Team[] = [
  * Standings reflect completed races R01–R07 as of 2026-06-16.
  */
 export const DRIVERS: Driver[] = [
-  { id: 'ANT', name: 'Andrea Kimi Antonelli', shortName: 'ANT', number: 12, teamId: 'mercedes', championshipPoints: 156 },
+  { id: 'ANT', name: 'Kimi Antonelli', shortName: 'ANT', number: 12, teamId: 'mercedes', championshipPoints: 156 },
   { id: 'HAM', name: 'Lewis Hamilton', shortName: 'HAM', number: 44, teamId: 'ferrari', championshipPoints: 115 },
   { id: 'RUS', name: 'George Russell', shortName: 'RUS', number: 63, teamId: 'mercedes', championshipPoints: 106 },
   { id: 'LEC', name: 'Charles Leclerc', shortName: 'LEC', number: 16, teamId: 'ferrari', championshipPoints: 75 },

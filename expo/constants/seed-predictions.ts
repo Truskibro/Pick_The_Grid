@@ -52,7 +52,7 @@ export const SEED_USERS: SeedUser[] = [
 // ---------------------------------------------------------------------------
 
 export const COMPLETED_RACE_IDS = [
-  'r01','r02','r03','r04','r05','r06',
+  'r01','r02','r03','r04','r05','r06','r07',
 ] as const;
 
 // ---------------------------------------------------------------------------
@@ -126,6 +126,15 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
+    r07: {
+      raceId: 'r07',
+      top10: ['ANT', 'RUS', 'HAM', 'NOR', 'VER', 'PIA', 'LEC', 'HAD', 'HUL', 'GAS'],
+      fastestLap: 'ANT',
+      dnf: 'LAW',
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
   },
 
   // ---- Whitney Trujillo ----
@@ -180,6 +189,15 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       top10: ['ANT', 'VER', 'HAM', 'LEC', 'HAD', 'PIA', 'RUS', 'NOR', 'GAS', 'SAI'],
       fastestLap: 'ANT',
       dnf: 'STR',
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
+    r07: {
+      raceId: 'r07',
+      top10: ['HAM', 'RUS', 'VER', 'LEC', 'PIA', 'HAD', 'GAS', 'LAW', 'LIN', 'COL'],
+      fastestLap: 'ANT',
+      dnf: 'ALO',
       pointsEarned: 0,
       sprintTop8: [],
       sprintPointsEarned: 0,
@@ -242,6 +260,15 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       sprintTop8: [],
       sprintPointsEarned: 0,
     },
+    r07: {
+      raceId: 'r07',
+      top10: ['RUS', 'ANT', 'HAM', 'VER', 'LEC', 'PIA', 'HAD', 'LAW', 'SAI', 'LIN'],
+      fastestLap: 'ANT',
+      dnf: null,
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
   },
 
   // ---- Carlos Trujillo (sainz4ever55) ----
@@ -296,6 +323,15 @@ export const SEED_PREDICTIONS: Record<string, Record<string, RawPrediction>> = {
       top10: ['VER', 'ANT', 'HAM', 'LEC', 'HAD', 'RUS', 'PIA', 'NOR', 'GAS', 'LAW'],
       fastestLap: 'VER',
       dnf: 'BOR',
+      pointsEarned: 0,
+      sprintTop8: [],
+      sprintPointsEarned: 0,
+    },
+    r07: {
+      raceId: 'r07',
+      top10: ['RUS', 'HAM', 'ANT', 'VER', 'NOR', 'LEC', 'HAD', 'PIA', 'HUL', 'LAW'],
+      fastestLap: 'RUS',
+      dnf: null,
       pointsEarned: 0,
       sprintTop8: [],
       sprintPointsEarned: 0,
