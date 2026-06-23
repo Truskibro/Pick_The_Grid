@@ -13,7 +13,7 @@ import CountdownTimer, { isLocked } from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { calculatePoints } from '@/lib/scoring';
 
-type PickerMode = { type: 'fl' } | { type: 'dnf' } | null;
+type PickerMode = { type: 'fl' } | { type: 'dnf' } | { type: 'grid'; slotIndex: number } | { type: 'sprint'; slotIndex: number } | null;
 
 const PODIUM_COLORS: Record<number, string> = {
   1: '#FFD700',
@@ -65,6 +65,8 @@ export default function PredictScreen() {
   const [lastSyncedRaceId, setLastSyncedRaceId] = useState<string | null>(null);
   const [picker, setPicker] = useState<PickerMode>(null);
   const [search, setSearch] = useState<string>('');
+  const [gridPickerSlot, setGridPickerSlot] = useState<number | null>(null);
+  const [sprintPickerSlot, setSprintPickerSlot] = useState<number | null>(null);
 
   useEffect(() => {
     if (!nextRace) return;
@@ -291,10 +293,28 @@ export default function PredictScreen() {
     setPicker(mode);
   }, [locked]);
 
-  const closePicker = useCallback(() => setPicker(null), []);
+  const openGridPicker = useCallback((slotIndex: number) => {
+    if (locked) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearch('');
+    setGridPickerSlot(slotIndex);
+  }, [locked]);
+
+  const openSprintPicker = useCallback((slotIndex: number) => {
+    if (locked) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    setSearch('');
+    setSprintPickerSlot(slotIndex);
+  }, [locked]);
+
+  const closePicker = useCallback(() => {
+    setPicker(null);
+    setGridPickerSlot(null);
+    setSprintPickerSlot(null);
+  }, []);
 
   const pickerDrivers = useMemo(() => {
-    if (!picker) return [];
+    if (!picker && gridPickerSlot === null && sprintPickerSlot === null) return [];
     const all = [...drivers].sort((a, b) => b.championshipPoints - a.championshipPoints);
     if (!search.trim()) return all;
     const q = search.trim().toLowerCase();
@@ -302,7 +322,7 @@ export default function PredictScreen() {
       const team = getTeamById(d.teamId);
       return d.name.toLowerCase().includes(q) || (team?.shortName.toLowerCase().includes(q) ?? false);
     });
-  }, [picker, drivers, search, getTeamById]);
+  }, [picker, gridPickerSlot, sprintPickerSlot, drivers, search, getTeamById]);
 
   const handlePickerSelect = useCallback((driverId: string) => {
     if (!picker) return;
@@ -310,6 +330,67 @@ export default function PredictScreen() {
     else selectDnf(driverId);
     closePicker();
   }, [picker, selectFastestLap, selectDnf, closePicker]);
+
+  const handleGridPickerSelect = useCallback((driverId: string) => {
+    if (gridPickerSlot === null) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const slotIndex = gridPickerSlot;
+    setSelectedDrivers(prev => {
+      const next = [...prev];
+      const existingIndex = next.indexOf(driverId);
+
+      if (existingIndex === slotIndex) {
+        // Tapping the same driver in same slot — remove it
+        next.splice(slotIndex, 1);
+      } else if (existingIndex !== -1) {
+        // Driver is at another position — move to this slot, old slot becomes empty
+        next.splice(existingIndex, 1);
+        const insertAt = existingIndex < slotIndex ? slotIndex - 1 : slotIndex;
+        next.splice(insertAt, 0, driverId);
+      } else {
+        // Driver not in grid — place at this position
+        if (slotIndex < next.length) {
+          next[slotIndex] = driverId;
+        } else {
+          while (next.length < slotIndex) next.push('' as any);
+          next.push(driverId);
+        }
+      }
+
+      return next;
+    });
+    setGridPickerSlot(null);
+    setSaved(false);
+  }, [gridPickerSlot]);
+
+  const handleSprintPickerSelect = useCallback((driverId: string) => {
+    if (sprintPickerSlot === null) return;
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    const slotIndex = sprintPickerSlot;
+    setSprintTop8(prev => {
+      const next = [...prev];
+      const existingIndex = next.indexOf(driverId);
+
+      if (existingIndex === slotIndex) {
+        next.splice(slotIndex, 1);
+      } else if (existingIndex !== -1) {
+        next.splice(existingIndex, 1);
+        const insertAt = existingIndex < slotIndex ? slotIndex - 1 : slotIndex;
+        next.splice(insertAt, 0, driverId);
+      } else {
+        if (slotIndex < next.length) {
+          next[slotIndex] = driverId;
+        } else {
+          while (next.length < slotIndex) next.push('' as any);
+          next.push(driverId);
+        }
+      }
+
+      return next;
+    });
+    setSprintPickerSlot(null);
+    setSaved(false);
+  }, [sprintPickerSlot]);
 
   const sortedPoolDrivers = useMemo(() => {
     return [...drivers]
@@ -554,6 +635,7 @@ export default function PredictScreen() {
                     onMoveUp={() => moveDriver(i, 'up')}
                     onMoveDown={() => moveDriver(i, 'down')}
                     onToggleFL={() => driver && selectFastestLap(driver.id)}
+                    onPress={() => openGridPicker(i)}
                   />
                 );
               })}
@@ -566,7 +648,7 @@ export default function PredictScreen() {
               <View style={styles.sectionHeader}>
                 <View>
                   <Text style={styles.sectionTitle}>Drivers</Text>
-                  <Text style={styles.sectionSubtitle}>Tap to add to grid · tap again to remove</Text>
+                  <Text style={styles.sectionSubtitle}>Tap a position slot to pick · or tap below to quick-add</Text>
                 </View>
               </View>
 
@@ -633,6 +715,7 @@ export default function PredictScreen() {
                       onRemove={() => driver && removeSprintDriver(driver.id)}
                       onMoveUp={() => moveSprintDriver(i, 'up')}
                       onMoveDown={() => moveSprintDriver(i, 'down')}
+                      onPress={() => openSprintPicker(i)}
                     />
                   );
                 })}
@@ -646,7 +729,7 @@ export default function PredictScreen() {
               <View style={styles.sectionHeader}>
                 <View>
                   <Text style={styles.sectionTitle}>Sprint Drivers</Text>
-                  <Text style={styles.sectionSubtitle}>Tap to add to sprint grid · tap again to remove</Text>
+                  <Text style={styles.sectionSubtitle}>Tap a sprint slot to pick · or tap below to quick-add</Text>
                 </View>
               </View>
 
@@ -893,6 +976,182 @@ export default function PredictScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Grid position picker modal */}
+      <Modal
+        visible={gridPickerSlot !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setGridPickerSlot(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setGridPickerSlot(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  Pick P{gridPickerSlot !== null ? gridPickerSlot + 1 : ''}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  Who finishes in position {gridPickerSlot !== null ? gridPickerSlot + 1 : ''}?
+                </Text>
+              </View>
+              <AnimatedPressable onPress={() => setGridPickerSlot(null)} style={styles.modalCloseBtn} scaleDown={0.85}>
+                <X size={18} color={Colors.text} />
+              </AnimatedPressable>
+            </View>
+
+            <View style={styles.searchWrap}>
+              <Search size={16} color={Colors.textMuted} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search drivers or teams"
+                placeholderTextColor={Colors.textMuted}
+                style={styles.searchInput}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {search.length > 0 && (
+                <Pressable onPress={() => setSearch('')} hitSlop={10}>
+                  <X size={14} color={Colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView
+              style={styles.modalList}
+              contentContainerStyle={styles.modalListContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {pickerDrivers.length === 0 && (
+                <Text style={styles.modalEmpty}>No drivers found</Text>
+              )}
+              {pickerDrivers.map((d, idx) => {
+                const t = getTeamById(d.teamId);
+                const isInGrid = selectedDrivers.includes(d.id);
+                const isInSlot = gridPickerSlot !== null && selectedDrivers[gridPickerSlot] === d.id;
+                return (
+                  <AnimatedPressable
+                    key={d.id}
+                    onPress={() => handleGridPickerSelect(d.id)}
+                    style={[styles.pickerRow, isInSlot && styles.pickerRowActive]}
+                    scaleDown={0.98}
+                  >
+                    <View style={[styles.pickerStripe, { backgroundColor: t?.color || '#666' }]} />
+                    <Text style={styles.pickerRank}>{idx + 1}</Text>
+                    <View style={styles.flex}>
+                      <Text style={styles.pickerName}>{d.name}</Text>
+                      <Text style={styles.pickerTeam}>
+                        {t?.shortName || ''} · {d.championshipPoints} pts
+                        {isInGrid && !isInSlot ? ' (in grid)' : ''}
+                      </Text>
+                    </View>
+                    {isInSlot ? (
+                      <View style={styles.pickerCheck}>
+                        <Check size={14} color="#FFF" />
+                      </View>
+                    ) : (
+                      <View style={styles.pickerAdd}>
+                        <Plus size={14} color={Colors.text} />
+                      </View>
+                    )}
+                  </AnimatedPressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      {/* Sprint position picker modal */}
+      <Modal
+        visible={sprintPickerSlot !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setSprintPickerSlot(null)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setSprintPickerSlot(null)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHandle} />
+            <View style={styles.modalHeader}>
+              <View>
+                <Text style={styles.modalTitle}>
+                  Pick S{sprintPickerSlot !== null ? sprintPickerSlot + 1 : ''}
+                </Text>
+                <Text style={styles.modalSubtitle}>
+                  Who finishes in sprint position {sprintPickerSlot !== null ? sprintPickerSlot + 1 : ''}?
+                </Text>
+              </View>
+              <AnimatedPressable onPress={() => setSprintPickerSlot(null)} style={styles.modalCloseBtn} scaleDown={0.85}>
+                <X size={18} color={Colors.text} />
+              </AnimatedPressable>
+            </View>
+
+            <View style={styles.searchWrap}>
+              <Search size={16} color={Colors.textMuted} />
+              <TextInput
+                value={search}
+                onChangeText={setSearch}
+                placeholder="Search drivers or teams"
+                placeholderTextColor={Colors.textMuted}
+                style={styles.searchInput}
+                autoCorrect={false}
+                autoCapitalize="none"
+              />
+              {search.length > 0 && (
+                <Pressable onPress={() => setSearch('')} hitSlop={10}>
+                  <X size={14} color={Colors.textMuted} />
+                </Pressable>
+              )}
+            </View>
+
+            <ScrollView
+              style={styles.modalList}
+              contentContainerStyle={styles.modalListContent}
+              showsVerticalScrollIndicator={false}
+              keyboardShouldPersistTaps="handled"
+            >
+              {pickerDrivers.length === 0 && (
+                <Text style={styles.modalEmpty}>No drivers found</Text>
+              )}
+              {pickerDrivers.map((d, idx) => {
+                const t = getTeamById(d.teamId);
+                const isInSprint = sprintTop8.includes(d.id);
+                const isInSlot = sprintPickerSlot !== null && sprintTop8[sprintPickerSlot] === d.id;
+                return (
+                  <AnimatedPressable
+                    key={d.id}
+                    onPress={() => handleSprintPickerSelect(d.id)}
+                    style={[styles.pickerRow, isInSlot && styles.pickerRowActive]}
+                    scaleDown={0.98}
+                  >
+                    <View style={[styles.pickerStripe, { backgroundColor: t?.color || '#666' }]} />
+                    <Text style={styles.pickerRank}>{idx + 1}</Text>
+                    <View style={styles.flex}>
+                      <Text style={styles.pickerName}>{d.name}</Text>
+                      <Text style={styles.pickerTeam}>
+                        {t?.shortName || ''} · {d.championshipPoints} pts
+                        {isInSprint && !isInSlot ? ' (in sprint)' : ''}
+                      </Text>
+                    </View>
+                    {isInSlot ? (
+                      <View style={styles.pickerCheck}>
+                        <Check size={14} color="#FFF" />
+                      </View>
+                    ) : (
+                      <View style={styles.pickerAdd}>
+                        <Plus size={14} color={Colors.text} />
+                      </View>
+                    )}
+                  </AnimatedPressable>
+                );
+              })}
+            </ScrollView>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </View>
   );
 }
@@ -911,33 +1170,44 @@ interface SprintGridSlotProps {
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
+  onPress?: () => void;
 }
 
 const SprintGridSlot = React.memo(function SprintGridSlot({
   position, sprintColor, driver, teamColor, teamName,
-  locked, isFirst, isLast, onRemove, onMoveUp, onMoveDown,
+  locked, isFirst, isLast, onRemove, onMoveUp, onMoveDown, onPress,
 }: SprintGridSlotProps) {
   const pointValue = SPRINT_POINTS[position - 1] ?? 0;
 
   if (!driver) {
     return (
-      <View style={[styles.slotEmpty, sprintColor ? { borderColor: sprintColor + '55' } : null]}>
+      <AnimatedPressable
+        onPress={locked ? undefined : onPress}
+        style={[styles.slotEmpty, sprintColor ? { borderColor: sprintColor + '55' } : null]}
+        scaleDown={0.98}
+        disabled={locked}
+      >
         <View style={[styles.positionBadge, sprintColor ? { backgroundColor: sprintColor + '22', borderColor: sprintColor } : null]}>
           <Text style={[styles.positionText, sprintColor ? { color: sprintColor } : null]}>S{position}</Text>
         </View>
         <View style={styles.slotEmptyContent}>
           <Text style={styles.slotEmptyText}>Empty</Text>
-          <Text style={styles.slotEmptyHint}>Add a driver below</Text>
+          <Text style={styles.slotEmptyHint}>Tap to pick a driver</Text>
         </View>
         <View style={styles.sprintPointBadge}>
           <Text style={styles.sprintPointText}>{pointValue}pt</Text>
         </View>
-      </View>
+      </AnimatedPressable>
     );
   }
 
   return (
-    <View style={[styles.slotFilled, sprintColor ? { borderColor: sprintColor + '55' } : null]}>
+    <AnimatedPressable
+      onPress={locked ? undefined : onPress}
+      scaleDown={0.98}
+      disabled={locked}
+      style={[styles.slotFilled, sprintColor ? { borderColor: sprintColor + '55' } : null]}>
+    <View style={styles.slotFilledInner}>
       <View style={[styles.teamStripe, { backgroundColor: teamColor || '#666' }]} />
 
       <View style={[styles.positionBadge, sprintColor ? { backgroundColor: sprintColor + '22', borderColor: sprintColor } : null]}>
@@ -982,6 +1252,7 @@ const SprintGridSlot = React.memo(function SprintGridSlot({
         </View>
       )}
     </View>
+    </AnimatedPressable>
   );
 });
 
@@ -1028,28 +1299,39 @@ interface GridSlotProps {
   onMoveUp: () => void;
   onMoveDown: () => void;
   onToggleFL: () => void;
+  onPress: () => void;
 }
 
 const GridSlot = React.memo(function GridSlot({
   position, podiumColor, driver, teamColor, teamName, isFL, isDnf,
-  locked, isFirst, isLast, onRemove, onMoveUp, onMoveDown, onToggleFL,
+  locked, isFirst, isLast, onRemove, onMoveUp, onMoveDown, onToggleFL, onPress,
 }: GridSlotProps) {
   if (!driver) {
     return (
-      <View style={[styles.slotEmpty, podiumColor ? { borderColor: podiumColor + '55' } : null]}>
+      <AnimatedPressable
+        onPress={locked ? undefined : onPress}
+        style={[styles.slotEmpty, podiumColor ? { borderColor: podiumColor + '55' } : null]}
+        scaleDown={0.98}
+        disabled={locked}
+      >
         <View style={[styles.positionBadge, podiumColor ? { backgroundColor: podiumColor + '22', borderColor: podiumColor } : null]}>
           <Text style={[styles.positionText, podiumColor ? { color: podiumColor } : null]}>P{position}</Text>
         </View>
         <View style={styles.slotEmptyContent}>
           <Text style={styles.slotEmptyText}>Empty</Text>
-          <Text style={styles.slotEmptyHint}>Add a driver below</Text>
+          <Text style={styles.slotEmptyHint}>Tap to pick a driver</Text>
         </View>
-      </View>
+      </AnimatedPressable>
     );
   }
 
   return (
-    <View style={[styles.slotFilled, podiumColor ? { borderColor: podiumColor + '55' } : null]}>
+    <AnimatedPressable
+      onPress={locked ? undefined : onPress}
+      style={[styles.slotFilled, podiumColor ? { borderColor: podiumColor + '55' } : null]}
+      scaleDown={0.98}
+      disabled={locked}>
+    <View style={styles.slotFilledInner}>
       <View style={[styles.teamStripe, { backgroundColor: teamColor || '#666' }]} />
 
       <View style={[styles.positionBadge, podiumColor ? { backgroundColor: podiumColor + '22', borderColor: podiumColor } : null]}>
@@ -1108,12 +1390,13 @@ const GridSlot = React.memo(function GridSlot({
       )}
 
       {isDnf && (
-        <View style={styles.dnfRibbon}>
+        <View style={styles.dnfRibbon} pointerEvents="none">
           <AlertTriangle size={9} color={Colors.error} />
           <Text style={styles.dnfRibbonText}>DNF</Text>
         </View>
       )}
     </View>
+    </AnimatedPressable>
   );
 });
 
@@ -1244,7 +1527,10 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: Colors.border,
     overflow: 'hidden',
     minHeight: 62,
-    position: 'relative',
+  },
+  slotFilledInner: {
+    flexDirection: 'row', alignItems: 'center',
+    flex: 1,
   },
   teamStripe: { width: 4, alignSelf: 'stretch' },
   positionBadge: {
