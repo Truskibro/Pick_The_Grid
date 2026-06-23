@@ -104,7 +104,7 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 14, driverId: 'COL', time: '+1 lap',       gap: '+1 lap',    points: 0,  status: 'finished' as const },
       { position: 15, driverId: 'SAI', time: '+1 lap',       gap: '+1 lap',    points: 0,  status: 'finished' as const },
       { position: 16, driverId: 'PER', time: '+1 lap',       gap: '+1 lap',    points: 0,  status: 'finished' as const },
-      { position: 17, driverId: 'STR', time: '',              gap: 'DNF',       points: 0,  status: 'dnf' as const },
+      { position: 17, driverId: 'STR', time: '+1 lap',       gap: '+1 lap',    points: 0,  status: 'finished' as const },
       { position: 18, driverId: 'ALO', time: '',              gap: 'DNF',       points: 0,  status: 'dnf' as const },
       { position: 19, driverId: 'BOT', time: '',              gap: 'DNF',       points: 0,  status: 'dnf' as const },
       { position: 20, driverId: 'HAD', time: '',              gap: 'DNF',       points: 0,  status: 'dnf' as const },
@@ -112,7 +112,7 @@ export const MOCK_RACE_RESULTS: RaceResult[] = [
       { position: 22, driverId: 'HUL', time: '',              gap: 'DNS',       points: 0,  status: 'dns' as const },
     ],
     fastestLapDriverId: 'VER',
-    dnfDriverIds: ['STR', 'ALO', 'BOT', 'HAD'],
+    dnfDriverIds: ['ALO', 'BOT', 'HAD'],
     dnsDriverIds: ['PIA', 'HUL'],
   },
 
