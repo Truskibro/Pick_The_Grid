@@ -226,8 +226,13 @@ create table if not exists race_results (
   classification jsonb not null default '[]',
   fastest_lap_driver_id text,
   dnf_driver_ids text[] default '{}',
+  dns_driver_ids text[] default '{}',
+  sprint_classification jsonb,
   created_at timestamptz default now()
 );
+
+alter table race_results add column if not exists dns_driver_ids text[] default '{}';
+alter table race_results add column if not exists sprint_classification jsonb;
 
 alter table race_results enable row level security;
 drop policy if exists "Race results are viewable by everyone" on race_results;

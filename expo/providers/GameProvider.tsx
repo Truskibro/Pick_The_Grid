@@ -717,8 +717,20 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }
 
   const fetchGlobalLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
+    // Always compute seed-user points from the verified spreadsheet predictions.
+    // These are the authoritative scores, immune to stale Supabase cached values.
+    const seedUserIdSet = new Set(SEED_USERS.map((u) => u.userId));
+    const seedLeaderboard = buildSeedLeaderboard();
+    const seedScoreMap = new Map<string, number>();
+    const seedNameMap = new Map<string, { username: string; displayName: string }>();
+
+    for (const entry of seedLeaderboard) {
+      seedScoreMap.set(entry.userId, entry.totalPoints);
+      seedNameMap.set(entry.userId, { username: entry.username, displayName: entry.displayName });
+    }
+
     if (!isSupabaseConfigured) {
-      return buildSeedLeaderboard();
+      return seedLeaderboard;
     }
 
     try {
@@ -728,7 +740,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (error || !data || data.length === 0) {
         if (error) console.log('[GameProvider] Leaderboard load failed:', error.message);
-        return buildSeedLeaderboard();
+        return seedLeaderboard;
       }
 
       const userMap = new Map<string, {
@@ -736,6 +748,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         displayName: string;
         totalPoints: number;
         latestUpdatedAt: string;
+        isSeedUser: boolean;
       }>();
 
       for (const row of data as Array<{
@@ -747,7 +760,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
         updated_at: string | null;
       }>) {
         const existing = userMap.get(row.user_id);
-        const points = (row.points_earned ?? 0) + (row.sprint_points_earned ?? 0);
+        const rowUserId = row.user_id;
+        const isSeed = seedUserIdSet.has(rowUserId);
+
+        // For seed users, ignore Supabase points and use verified seed scores instead.
+        const points = isSeed ? 0 : ((row.points_earned ?? 0) + (row.sprint_points_earned ?? 0));
         const latestUpdatedAt = row.updated_at ?? '';
         const shouldUseRowName = !existing || latestUpdatedAt >= existing.latestUpdatedAt;
 
@@ -760,6 +777,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
             : existing.displayName,
           totalPoints: (existing?.totalPoints ?? 0) + points,
           latestUpdatedAt: shouldUseRowName ? latestUpdatedAt : existing?.latestUpdatedAt ?? '',
+          isSeedUser: isSeed,
         });
       }
 
@@ -778,9 +796,10 @@ export const [GameProvider, useGame] = createContextHook(() => {
         .map(([userId, info]) => ({
           rank: 0,
           userId,
-          username: info.username,
-          displayName: info.displayName,
-          totalPoints: info.totalPoints,
+          username: info.isSeedUser ? (seedNameMap.get(userId)?.username ?? info.username) : info.username,
+          displayName: info.isSeedUser ? (seedNameMap.get(userId)?.displayName ?? info.displayName) : info.displayName,
+          // Seed users get their verified seed scores; others use Supabase sums.
+          totalPoints: info.isSeedUser ? (seedScoreMap.get(userId) ?? info.totalPoints) : info.totalPoints,
         }));
 
       entries.sort((a, b) => b.totalPoints - a.totalPoints);
@@ -791,7 +810,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return entries;
     } catch (e: any) {
       console.log('[GameProvider] Leaderboard load threw:', e?.message || e);
-      return buildSeedLeaderboard();
+      return seedLeaderboard;
     }
   }, []);
 

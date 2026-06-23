@@ -162,57 +162,57 @@ const FALLBACK_RACE_IDS_SET = new Set([
 ]);
 
 async function fetchRaceResults(): Promise<RaceResult[]> {
-  // Primary: live API is the source of truth for all race results.
-  // Fallback: mock data only fills in when the live API has nothing.
+  // Supabase is the primary, curated source of truth for race results.
+  // Live API and mock data are used only as fallbacks.
   let results: RaceResult[] = [];
-  const liveRaceIds = new Set<string>();
+  const coveredRaceIds = new Set<string>();
 
-  // 1. Try live API — this is the authoritative source.
-  try {
-    const live = await fetchLiveRaceResults();
-    if (live && live.length > 0) {
-      for (const r of live) {
-        liveRaceIds.add(r.raceId);
-      }
-      results.push(...live);
-      console.log('Race results: loaded', live.length, 'from live API:', [...liveRaceIds].join(', '));
-    }
-  } catch (e) {
-    console.log('Race results: live API failed:', e);
-  }
-
-  // 2. Try Supabase for any gaps — this is the curated source of truth.
+  // 1. Supabase — primary source of truth.
   if (isSupabaseConfigured) {
-    const coveredIds = new Set(results.map(r => r.raceId));
     try {
       const { data, error } = await supabase
         .from('race_results')
         .select('*');
 
       if (!error && data && data.length > 0) {
-        const supabaseResults = data
-          .map((r: any) => ({
-            raceId: r.race_id,
-            classification: r.classification || [],
-            fastestLapDriverId: r.fastest_lap_driver_id || null,
-            dnfDriverIds: r.dnf_driver_ids || [],
-            dnsDriverIds: r.dns_driver_ids || [],
-            sprintClassification: r.sprint_classification || undefined,
-          }))
-          .filter(r => !coveredIds.has(r.raceId));
-        if (supabaseResults.length > 0) {
-          console.log('Race results: adding', supabaseResults.length, 'from Supabase:', supabaseResults.map(r => r.raceId).join(', '));
-          results.push(...supabaseResults);
+        const supabaseResults: RaceResult[] = data.map((r: any) => ({
+          raceId: r.race_id,
+          classification: r.classification || [],
+          fastestLapDriverId: r.fastest_lap_driver_id || null,
+          dnfDriverIds: r.dnf_driver_ids || [],
+          dnsDriverIds: r.dns_driver_ids || [],
+          sprintClassification: r.sprint_classification || undefined,
+        }));
+        for (const r of supabaseResults) {
+          coveredRaceIds.add(r.raceId);
         }
+        results.push(...supabaseResults);
+        console.log('Race results: loaded', supabaseResults.length, 'from Supabase:', [...coveredRaceIds].join(', '));
       }
     } catch (e) {
       console.log('Race results: Supabase fetch error:', e);
     }
   }
 
-  // 3. Fill remaining gaps with mock data (last resort fallback).
-  const coveredAfterSupabase = new Set(results.map(r => r.raceId));
-  const mockFallbacks = FALLBACK_RESULTS.filter(r => !coveredAfterSupabase.has(r.raceId));
+  // 2. Live API — secondary source, fills any gaps.
+  try {
+    const live = await fetchLiveRaceResults();
+    if (live && live.length > 0) {
+      const newLive = live.filter(r => !coveredRaceIds.has(r.raceId));
+      if (newLive.length > 0) {
+        for (const r of newLive) {
+          coveredRaceIds.add(r.raceId);
+        }
+        results.push(...newLive);
+        console.log('Race results: adding', newLive.length, 'from live API:', newLive.map(r => r.raceId).join(', '));
+      }
+    }
+  } catch (e) {
+    console.log('Race results: live API failed:', e);
+  }
+
+  // 3. Mock data — last resort fallback.
+  const mockFallbacks = FALLBACK_RESULTS.filter(r => !coveredRaceIds.has(r.raceId));
   if (mockFallbacks.length > 0) {
     console.log('Race results: adding', mockFallbacks.length, 'mock fallbacks:', mockFallbacks.map(r => r.raceId).join(', '));
     results.push(...mockFallbacks);
