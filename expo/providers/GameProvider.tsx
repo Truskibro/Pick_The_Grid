@@ -802,6 +802,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
           totalPoints: info.isSeedUser ? (seedScoreMap.get(userId) ?? info.totalPoints) : info.totalPoints,
         }));
 
+      // Ensure seed users always appear on the leaderboard, even if they have
+      // no rows in Supabase (e.g. after a migration or accidental deletion).
+      const existingUserIds = new Set(entries.map((e) => e.userId));
+      for (const seedEntry of seedLeaderboard) {
+        if (!existingUserIds.has(seedEntry.userId)) {
+          entries.push(seedEntry);
+        }
+      }
+
       entries.sort((a, b) => b.totalPoints - a.totalPoints);
       entries.forEach((entry, index) => {
         entry.rank = index + 1;
@@ -918,14 +927,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return [];
       }
 
+      // Compute member points from verified seed scores where available,
+      // falling back to profiles.total_points for non-seed users.
+      const seedScoreMap = new Map<string, number>();
+      for (const entry of buildSeedLeaderboard()) {
+        seedScoreMap.set(entry.userId, entry.totalPoints);
+      }
+
       const members: LeagueMember[] = (data as any[]).map((row) => {
         const profileData = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+        const computedPoints = seedScoreMap.get(row.user_id) ?? (profileData?.total_points || 0);
         return {
           userId: row.user_id,
           username: profileData?.username || 'Unknown',
           displayName: profileData?.display_name || profileData?.username || 'Unknown',
           role: row.role || 'member',
-          points: profileData?.total_points || 0,
+          points: computedPoints,
           joinedAt: row.joined_at || new Date().toISOString(),
         };
       });
