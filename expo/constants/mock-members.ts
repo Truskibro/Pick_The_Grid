@@ -3,7 +3,6 @@ import { RaceResult } from '@/types';
 import {
   SEED_USERS,
   scoreSeededPredictions,
-  COMPLETED_RACE_IDS,
 } from '@/constants/seed-predictions';
 
 /**
@@ -54,5 +53,4 @@ export function scoreMockMember(
   };
 }
 
-// Re-export for callers that need the race IDs
-export { COMPLETED_RACE_IDS };
+

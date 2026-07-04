@@ -47,13 +47,44 @@ export const SEED_USERS: SeedUser[] = [
 ];
 
 // ---------------------------------------------------------------------------
-// Completed race IDs — races R01–R07 of the 2026 season are complete.
-// R07 (Barcelona/Spanish GP) has no predictions in the spreadsheet yet.
+// Completed race IDs are now computed DYNAMICALLY from available race results.
+// Any race that has a completed status AND classification data is eligible.
+//
+// The helper below replaces the old hardcoded COMPLETED_RACE_IDS constant.
 // ---------------------------------------------------------------------------
 
-export const COMPLETED_RACE_IDS = [
-  'r01','r02','r03','r04','r05','r06',
-] as const;
+import { RACES as FALLBACK_RACES } from '@/constants/f1-data';
+
+/**
+ * Returns the race IDs that have actual race results available.
+ * A race is scored only if:
+ *   1. The race date has passed (or status is 'completed')
+ *   2. Race results with non-empty classification exist
+ */
+export function getCompletedRaceIds(
+  raceResults: RaceResult[],
+  races: typeof FALLBACK_RACES = FALLBACK_RACES
+): string[] {
+  const resultMap = new Map<string, RaceResult>();
+  for (const r of raceResults) {
+    if (r.classification && r.classification.length > 0) {
+      resultMap.set(r.raceId, r);
+    }
+  }
+
+  const now = new Date();
+  const today = now.toISOString().split('T')[0];
+
+  return races
+    .filter((race) => {
+      // Race must be in the past (date ≤ today) or marked completed.
+      if (race.status === 'completed') return true;
+      if (race.status === 'cancelled') return false;
+      return race.raceDate <= today;
+    })
+    .map((race) => race.id)
+    .filter((id) => resultMap.has(id));
+}
 
 // ---------------------------------------------------------------------------
 // Raw prediction type
@@ -318,9 +349,10 @@ export function scoreSeededPredictions(
 
   if (!userPreds) return 0;
 
+  const completedIds = getCompletedRaceIds(raceResults);
   let total = 0;
 
-  for (const raceId of COMPLETED_RACE_IDS) {
+  for (const raceId of completedIds) {
     const pred = userPreds[raceId];
 
     if (!pred) continue;

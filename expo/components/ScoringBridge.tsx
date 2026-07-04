@@ -1,65 +1,150 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useCallback } from 'react';
 import { useF1Data } from '@/providers/F1DataProvider';
 import { useGame } from '@/providers/GameProvider';
+import { SEED_USERS, scoreSeededPredictions, getCompletedRaceIds } from '@/constants/seed-predictions';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import type { RaceResult } from '@/types';
 
 /**
- * Monitors race statuses and race results, automatically triggering scoring
- * whenever a race completes and results are available.
+ * Auto-scoring bridge that fires whenever race results become available
+ * for completed races. Handles:
  *
- * Uses a scored-race-IDs ref instead of fragile pointsEarned checks so that
- * no legitimate scoring event is ever skipped.
+ *  1. Current user's predictions — scored via GameProvider.scorePredictions
+ *  2. Seed users' points — computed fresh and persisted to Supabase profiles
+ *  3. Achievement evaluation — triggered by the reactively-updated state
+ *
+ * Detection strategy:
+ *  - A race is "scorable" when it has classification data AND its date has passed
+ *  - We don't rely on the race.status field (which may lag behind actual results)
+ *  - Uses a stable scoring-id ref to avoid redundant re-scoring
  */
 export default function ScoringBridge() {
   const { raceResults, races } = useF1Data();
-  const { scorePredictions, predictions } = useGame();
+  const { scorePredictions, predictions, refreshPredictions } = useGame();
 
-  // Track which (raceId × predictionsLength) combo we last scored.
-  // The scoring identity changes when either the predictions list grows/changes
-  // or when a new race's results become available.
+  // Stable identity of what we've already scored — avoids infinite loops.
   const lastScoringId = useRef<string>('');
 
-  // Build lookup sets once per render.
-  const completedRaceIds = new Set(
-    races.filter((r) => r.status === 'completed').map((r) => r.id)
-  );
+  /**
+   * Persist seed-user total points to Supabase profiles.
+   * Uses the admin RPC if available; falls back to a best-effort direct update.
+   */
+  const persistSeedScores = useCallback(
+    async (seedScores: Map<string, number>) => {
+      if (!isSupabaseConfigured) return;
 
-  const resultRaceIds = new Set(raceResults.map((r) => r.raceId));
+      for (const [userId, totalPoints] of seedScores) {
+        try {
+          // Try the admin RPC first (security definer, bypasses RLS).
+          const { error } = await supabase.rpc('admin_set_profile_points', {
+            p_user_id: userId,
+            p_total_points: totalPoints,
+          });
+
+          if (error) {
+            // RPC might not exist yet — fall back to direct profile upsert
+            // (only works if the caller is the profile owner; graceful no-op otherwise).
+            console.log(
+              '[ScoringBridge] admin_set_profile_points RPC unavailable, trying direct update:',
+              error.message
+            );
+            const seedUser = SEED_USERS.find((u) => u.userId === userId);
+            await supabase.from('profiles').upsert(
+              {
+                id: userId,
+                username: seedUser?.username ?? `user_${userId.substring(0, 8)}`,
+                display_name: seedUser?.displayName ?? 'Seed Player',
+                total_points: totalPoints,
+              },
+              { onConflict: 'id' }
+            );
+          }
+        } catch (e: any) {
+          console.log('[ScoringBridge] Failed to persist seed score for', userId, ':', e?.message || e);
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     if (!raceResults || raceResults.length === 0) return;
-    if (predictions.length === 0) return;
 
-    // Find predictions for completed races that have results available.
-    const candidates = predictions.filter((p) => {
-      if (p.top10.length === 0) return false;
-      if (!completedRaceIds.has(p.raceId)) return false;
-      if (!resultRaceIds.has(p.raceId)) return false;
-      return true;
-    });
+    // Determine which races have scorable results (classification data present).
+    const resultsWithData = raceResults.filter(
+      (r) => r.classification && r.classification.length > 0
+    );
+    if (resultsWithData.length === 0) return;
 
-    if (candidates.length === 0) return;
+    // Find races that are in the past (or marked completed) and have results.
+    const today = new Date().toISOString().split('T')[0];
+    const scorableRaceIds = new Set(
+      races
+        .filter((race) => {
+          if (race.status === 'completed') return true;
+          if (race.status === 'cancelled') return false;
+          return race.raceDate <= today;
+        })
+        .filter((race) => resultsWithData.some((r) => r.raceId === race.id))
+        .map((race) => race.id)
+    );
 
-    // Build a stable scoring identity: concatenate sorted candidate race IDs
-    // plus the predictions length. When this changes, scoring must re-run.
-    const candidateRaceIds = [...new Set(candidates.map((p) => p.raceId))].sort().join(',');
-    const scoringId = `${predictions.length}:${candidateRaceIds}`;
+    if (scorableRaceIds.size === 0) return;
+
+    // Build a stable scoring identity: sorted race IDs + result count.
+    const sortedIds = [...scorableRaceIds].sort().join(',');
+    const scoringId = `${resultsWithData.length}:${sortedIds}`;
 
     if (scoringId === lastScoringId.current) {
-      // Already scored this exact set — nothing changed.
+      // Already scored this exact result set.
       return;
     }
 
     lastScoringId.current = scoringId;
 
     console.log(
-      '[ScoringBridge] Race(s) completed — scoring',
-      candidates.length,
-      'predictions for:',
-      candidateRaceIds,
+      '[ScoringBridge] Race results detected for:',
+      sortedIds,
+      '— triggering scoring pipeline'
     );
 
-    void scorePredictions(raceResults);
-  }, [raceResults, predictions, scorePredictions, completedRaceIds.size, resultRaceIds.size]);
+    // ── 1. Score the current user's predictions ──────────────────────────
+    if (predictions.length > 0) {
+      const hasUnscoredPredictions = predictions.some((p) => {
+        if (p.top10.length === 0) return false;
+        if (!scorableRaceIds.has(p.raceId)) return false;
+        return true;
+      });
+
+      if (hasUnscoredPredictions) {
+        console.log('[ScoringBridge] Scoring current user predictions');
+        void scorePredictions(raceResults);
+      }
+    }
+
+    // ── 2. Score seed users and persist to Supabase ──────────────────────
+    // This keeps profiles.total_points in sync with computed scores.
+    const seedScores = new Map<string, number>();
+    for (const seedUser of SEED_USERS) {
+      const points = scoreSeededPredictions(seedUser.userId, raceResults);
+      seedScores.set(seedUser.userId, points);
+      console.log(`[ScoringBridge] Seed user ${seedUser.displayName}: ${points} pts`);
+    }
+    void persistSeedScores(seedScores);
+
+    // ── 3. Refresh predictions from Supabase (ensures cloud data is current) ──
+    // Only refresh if we have a logged-in user and Supabase is configured.
+    if (isSupabaseConfigured) {
+      void refreshPredictions();
+    }
+  }, [
+    raceResults,
+    races,
+    predictions.length,
+    scorePredictions,
+    refreshPredictions,
+    persistSeedScores,
+  ]);
 
   return null;
 }

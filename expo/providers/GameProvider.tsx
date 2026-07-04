@@ -6,7 +6,7 @@ import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
-import { SEED_USERS, scoreSeededPredictions } from '@/constants/seed-predictions';
+import { SEED_USERS, scoreSeededPredictions, getCompletedRaceIds } from '@/constants/seed-predictions';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 
 const STORAGE_KEYS = {
@@ -699,6 +699,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [leagues]);
 
   function buildSeedLeaderboard(): LeaderboardEntry[] {
+    // Use the dynamic getCompletedRaceIds so newly-completed races are
+    // automatically included in seed-user scoring.
     const seedResults = MOCK_RACE_RESULTS;
     const entries: LeaderboardEntry[] = SEED_USERS.map((user) => ({
       rank: 0,
@@ -707,6 +709,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
       displayName: user.displayName,
       totalPoints: scoreSeededPredictions(user.userId, seedResults),
     }));
+
+    console.log(
+      '[GameProvider] Seed leaderboard computed using',
+      getCompletedRaceIds(seedResults).length,
+      'completed races:',
+      getCompletedRaceIds(seedResults).join(', ')
+    );
 
     entries.sort((a, b) => b.totalPoints - a.totalPoints);
     entries.forEach((entry, index) => {
