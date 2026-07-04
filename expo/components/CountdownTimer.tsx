@@ -1,10 +1,13 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, StyleSheet, Animated } from 'react-native';
+
 import Colors from '@/constants/colors';
 
 interface CountdownTimerProps {
-  targetDate: string;
-  targetTime: string;
+  targetDate?: string;
+  targetTime?: string;
+  raceDate?: string;
+  raceTime?: string;
   compact?: boolean;
 }
 
@@ -15,71 +18,181 @@ interface TimeLeft {
   seconds: number;
 }
 
-const LOCK_MINUTES = 5;
+const LOCK_BEFORE_START_MINUTES = 0;
 
-function getTimeLeft(targetDate: string, targetTime: string): TimeLeft {
-  const target = new Date(`${targetDate}T${targetTime}:00Z`);
-  const lockTime = new Date(target.getTime() - LOCK_MINUTES * 60 * 1000);
+function buildTargetDate(targetDate?: string, targetTime?: string): Date | null {
+  if (!targetDate || !targetTime) return null;
+
+  const cleanDate = String(targetDate).trim();
+  const cleanTime = String(targetTime).trim();
+
+  if (!cleanDate || !cleanTime) return null;
+
+  const timeWithSeconds =
+    cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime;
+
+  const hasTimezone =
+    timeWithSeconds.endsWith('Z') ||
+    /[+-]\d{2}:?\d{2}$/.test(timeWithSeconds);
+
+  const isoString = hasTimezone
+    ? `${cleanDate}T${timeWithSeconds}`
+    : `${cleanDate}T${timeWithSeconds}Z`;
+
+  const parsed = new Date(isoString);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function getLockTime(targetDate?: string, targetTime?: string): Date | null {
+  const target = buildTargetDate(targetDate, targetTime);
+
+  if (!target) return null;
+
+  return new Date(
+    target.getTime() - LOCK_BEFORE_START_MINUTES * 60 * 1000
+  );
+}
+
+function getTimeLeft(targetDate?: string, targetTime?: string): TimeLeft {
+  const lockTime = getLockTime(targetDate, targetTime);
+
+  if (!lockTime) {
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+    };
+  }
+
   const now = new Date();
   const diff = lockTime.getTime() - now.getTime();
 
   if (diff <= 0) {
-    return { days: 0, hours: 0, minutes: 0, seconds: 0 };
+    return {
+      days: 0,
+      hours: 0,
+      minutes: 0,
+      seconds: 0,
+    };
   }
 
   return {
     days: Math.floor(diff / (1000 * 60 * 60 * 24)),
-    hours: Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)),
+    hours: Math.floor(
+      (diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60)
+    ),
     minutes: Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60)),
     seconds: Math.floor((diff % (1000 * 60)) / 1000),
   };
 }
 
-function isLocked(targetDate: string, targetTime: string): boolean {
-  const target = new Date(`${targetDate}T${targetTime}:00Z`);
-  const lockTime = new Date(target.getTime() - LOCK_MINUTES * 60 * 1000);
+export function isLocked(targetDate?: string, targetTime?: string): boolean {
+  const lockTime = getLockTime(targetDate, targetTime);
+
+  if (!lockTime) return false;
+
   return new Date() >= lockTime;
 }
 
-export { isLocked };
+export default function CountdownTimer({
+  targetDate,
+  targetTime,
+  raceDate,
+  raceTime,
+  compact,
+}: CountdownTimerProps) {
+  const finalDate = targetDate ?? raceDate;
+  const finalTime = targetTime ?? raceTime;
 
-export default function CountdownTimer({ targetDate, targetTime, compact }: CountdownTimerProps) {
-  const [timeLeft, setTimeLeft] = useState<TimeLeft>(getTimeLeft(targetDate, targetTime));
+  const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
+    getTimeLeft(finalDate, finalTime)
+  );
+
   const pulseAnim = useRef(new Animated.Value(1)).current;
 
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTimeLeft(getTimeLeft(targetDate, targetTime));
-    }, 1000);
-    return () => clearInterval(interval);
-  }, [targetDate, targetTime]);
+  const locked = useMemo(
+    () => isLocked(finalDate, finalTime),
+    [finalDate, finalTime, timeLeft]
+  );
 
   useEffect(() => {
-    if (timeLeft.days === 0 && timeLeft.hours === 0 && timeLeft.minutes < 15) {
+    setTimeLeft(getTimeLeft(finalDate, finalTime));
+
+    const interval = setInterval(() => {
+      setTimeLeft(getTimeLeft(finalDate, finalTime));
+    }, 1000);
+
+    return () => clearInterval(interval);
+  }, [finalDate, finalTime]);
+
+  useEffect(() => {
+    if (
+      timeLeft.days === 0 &&
+      timeLeft.hours === 0 &&
+      timeLeft.minutes < 15 &&
+      !locked
+    ) {
       const pulse = Animated.loop(
         Animated.sequence([
-          Animated.timing(pulseAnim, { toValue: 0.6, duration: 800, useNativeDriver: true }),
-          Animated.timing(pulseAnim, { toValue: 1, duration: 800, useNativeDriver: true }),
+          Animated.timing(pulseAnim, {
+            toValue: 0.6,
+            duration: 800,
+            useNativeDriver: true,
+          }),
+          Animated.timing(pulseAnim, {
+            toValue: 1,
+            duration: 800,
+            useNativeDriver: true,
+          }),
         ])
       );
+
       pulse.start();
+
       return () => pulse.stop();
     }
-  }, [timeLeft.days, timeLeft.hours, pulseAnim]);
 
-  const locked = isLocked(targetDate, targetTime);
+    pulseAnim.setValue(1);
+  }, [
+    timeLeft.days,
+    timeLeft.hours,
+    timeLeft.minutes,
+    locked,
+    pulseAnim,
+  ]);
+
+  if (!finalDate || !finalTime) {
+    return (
+      <View style={[styles.container, compact && styles.containerCompact]}>
+        <Text style={styles.errorText}>Race time unavailable</Text>
+      </View>
+    );
+  }
 
   if (locked) {
     return (
-      <View style={[styles.container, compact && styles.containerCompact, styles.lockedContainer]}>
-        <Text style={styles.lockedText}>PREDICTIONS LOCKED</Text>
+      <View style={[styles.container, compact && styles.containerCompact]}>
+        <View style={styles.lockedContainer}>
+          <Text style={styles.lockedText}>PREDICTIONS LOCKED</Text>
+        </View>
       </View>
     );
   }
 
   if (compact) {
     return (
-      <Animated.View style={[styles.container, styles.containerCompact, { opacity: pulseAnim }]}>
+      <Animated.View
+        style={[
+          styles.containerCompact,
+          {
+            opacity: pulseAnim,
+          },
+        ]}
+      >
         <Text style={styles.compactText}>
           {timeLeft.days > 0 ? `${timeLeft.days}d ` : ''}
           {String(timeLeft.hours).padStart(2, '0')}:
@@ -91,9 +204,17 @@ export default function CountdownTimer({ targetDate, targetTime, compact }: Coun
   }
 
   return (
-    <Animated.View style={[styles.container, { opacity: pulseAnim }]}>
+    <View style={styles.container}>
       <Text style={styles.label}>PREDICTIONS LOCK IN</Text>
-      <View style={styles.timerRow}>
+
+      <Animated.View
+        style={[
+          styles.timerRow,
+          {
+            opacity: pulseAnim,
+          },
+        ]}
+      >
         <TimeBlock value={timeLeft.days} unit="DAYS" />
         <Text style={styles.separator}>:</Text>
         <TimeBlock value={timeLeft.hours} unit="HRS" />
@@ -101,8 +222,8 @@ export default function CountdownTimer({ targetDate, targetTime, compact }: Coun
         <TimeBlock value={timeLeft.minutes} unit="MIN" />
         <Text style={styles.separator}>:</Text>
         <TimeBlock value={timeLeft.seconds} unit="SEC" />
-      </View>
-    </Animated.View>
+      </Animated.View>
+    </View>
   );
 }
 
@@ -132,13 +253,18 @@ const styles = StyleSheet.create({
   lockedText: {
     color: Colors.f1Red,
     fontSize: 13,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     letterSpacing: 2,
+  },
+  errorText: {
+    color: Colors.textMuted,
+    fontSize: 12,
+    fontWeight: '600',
   },
   label: {
     color: Colors.textSecondary,
     fontSize: 11,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     letterSpacing: 2,
     marginBottom: 12,
   },
@@ -153,27 +279,27 @@ const styles = StyleSheet.create({
   timeValue: {
     color: Colors.text,
     fontSize: 28,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     fontVariant: ['tabular-nums'],
   },
   timeUnit: {
     color: Colors.textMuted,
     fontSize: 10,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     letterSpacing: 1,
     marginTop: 2,
   },
   separator: {
     color: Colors.f1Red,
     fontSize: 24,
-    fontWeight: '700' as const,
+    fontWeight: '700',
     marginHorizontal: 4,
     marginBottom: 14,
   },
   compactText: {
     color: Colors.text,
     fontSize: 14,
-    fontWeight: '600' as const,
+    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
 });
