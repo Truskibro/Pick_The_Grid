@@ -125,10 +125,17 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   } = useGame();
 
   const { raceResults = [], races = [] } = useF1Data();
-  const { profile } = useUser();
+  const { profile, isGuest } = useUser();
 
   const stateRef = useRef<AchievementState>(state);
   stateRef.current = state;
+
+  // Auth gate: only evaluate/unlock when the user is signed in. Guest mode
+  // and the pre-login boot window must never queue celebration animations,
+  // otherwise the overlay fires before the user exists or with stale state.
+  const isAuthenticated = !isGuest && !!profile && profile.id !== 'guest';
+  const authRef = useRef(isAuthenticated);
+  authRef.current = isAuthenticated;
 
   // Stable refs for callbacks to avoid context value recreation
   const evaluateRef = useRef<() => EvaluationResult>(() => ({ state: createEmptyAchievementState(), newlyUnlocked: [] }));
@@ -375,6 +382,11 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       stateRef.current = nextState;
     }
 
+    // Auth gate: never queue celebration animations before the user is signed
+    // in. State still updates silently so progress isn't lost, but the overlay
+    // is reserved for authenticated sessions only.
+    if (!authRef.current) return;
+
     const newlyUnlocked = result.newlyUnlocked ?? [];
 
     if (newlyUnlocked.length === 0) return;
@@ -403,6 +415,25 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     leagues,
     checkUnlocks,
   ]);
+
+  // Reset the celebration queue whenever the auth state changes. This clears
+  // any unlock that was staged before login (e.g. a backfilled prediction
+  // created while signed out) so the overlay never fires for a stale event,
+  // and gives the authenticated session a clean starting queue.
+  useEffect(() => {
+    if (!isAuthenticated) {
+      setUnlockQueue([]);
+    }
+  }, [isAuthenticated]);
+
+  // One-time flush of any stale unlock queued during the previous session
+  // (e.g. a backfilled prediction that fired checkUnlocks before the auth
+  // gate existed). Runs once on mount so legitimate unlocks discovered
+  // after this point still celebrate normally.
+  useEffect(() => {
+    setUnlockQueue([]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const dismissUnlock = useCallback(() => {
     setUnlockQueue((prev) => {

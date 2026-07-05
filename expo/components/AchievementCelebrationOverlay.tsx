@@ -12,6 +12,7 @@ import {
   type AchievementTier,
 } from '@/constants/achievements';
 import { useAchievements } from '@/providers/AchievementProvider';
+import { useUser } from '@/providers/UserProvider';
 
 /* ------------------------------------------------------------------ */
 /*  Confetti particle system                                           */
@@ -199,9 +200,18 @@ const DISPLAY_MS = 5200;
 
 export default function AchievementCelebrationOverlay() {
   const { unlockQueue, dismissUnlock } = useAchievements();
+  const { isGuest, profile } = useUser();
+
+  // Hard gate: never render the celebration before the user is signed in.
+  // The provider also blocks queueing, but this prevents any stale event
+  // that slipped through (e.g. from a previous session) from flashing on
+  // the auth screen or causing an error before profile data exists.
+  const isAuthenticated = !isGuest && !!profile && profile.id !== 'guest';
 
   const current =
-    unlockQueue.length > 0 && !unlockQueue[0].dismissed ? unlockQueue[0] : null;
+    isAuthenticated && unlockQueue.length > 0 && !unlockQueue[0].dismissed
+      ? unlockQueue[0]
+      : null;
 
   const def = current?.def;
   const tier = current?.tier ?? 'bronze';
