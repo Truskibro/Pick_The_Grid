@@ -385,6 +385,66 @@ export default function SettingsScreen() {
         <View style={styles.divider} />
 
         <View style={styles.toggleRow}>
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,159,10,0.12)' }]}>
+            <Flag size={18} color={Colors.warning} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Sprint Start</Text>
+            <Text style={styles.rowValue}>Before a sprint race begins (sprint weekends)</Text>
+          </View>
+
+          <Switch
+            value={notifications.sprintStartReminder}
+            onValueChange={(val) => updateNotifications({ sprintStartReminder: val })}
+            trackColor={{ false: Colors.surfaceHighlight, true: Colors.f1Red }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.toggleRow}>
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,159,10,0.12)' }]}>
+            <Flag size={18} color={Colors.warning} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Sprint Finished</Text>
+            <Text style={styles.rowValue}>When the sprint ends and picks are scored</Text>
+          </View>
+
+          <Switch
+            value={notifications.sprintEndReminder}
+            onValueChange={(val) => updateNotifications({ sprintEndReminder: val })}
+            trackColor={{ false: Colors.surfaceHighlight, true: Colors.f1Red }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.toggleRow}>
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(48,209,88,0.12)' }]}>
+            <Flag size={18} color={Colors.success} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Race Finished</Text>
+            <Text style={styles.rowValue}>When the race ends and picks are scored</Text>
+          </View>
+
+          <Switch
+            value={notifications.raceEndReminder}
+            onValueChange={(val) => updateNotifications({ raceEndReminder: val })}
+            trackColor={{ false: Colors.surfaceHighlight, true: Colors.f1Red }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.toggleRow}>
           <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,214,10,0.12)' }]}>
             <Trophy size={18} color={Colors.warning} />
           </View>

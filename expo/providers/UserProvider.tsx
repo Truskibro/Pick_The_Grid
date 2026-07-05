@@ -28,6 +28,9 @@ const DEFAULT_NOTIFICATIONS: NotificationSettings = {
   lockReminder: true,
   raceStartReminder: true,
   resultsPosted: true,
+  sprintStartReminder: true,
+  sprintEndReminder: true,
+  raceEndReminder: true,
 };
 
 export const [UserProvider, useUser] = createContextHook(() => {

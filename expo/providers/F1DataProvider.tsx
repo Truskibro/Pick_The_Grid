@@ -11,7 +11,8 @@ import {
   MOCK_RACE_RESULTS as FALLBACK_RESULTS,
 } from '@/constants/f1-data';
 import { fetchLiveDriverStandings, fetchLiveRaceResults } from '@/lib/f1-api';
-import { registerForPushNotifications, scheduleRaceReminders } from '@/lib/notifications';
+import { registerForPushNotifications, scheduleRaceReminders, DEFAULT_NOTIFICATION_SETTINGS } from '@/lib/notifications';
+import { useUser } from '@/providers/UserProvider';
 
 const POLL_INTERVAL = 60_000;
 
@@ -230,6 +231,7 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
 
 export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const queryClient = useQueryClient();
+  const { notifications } = useUser();
 
   // ---- polling gate -------------------------------------------------------
   // Only poll when today IS a race day AND we are at least 1 hour past the
@@ -296,11 +298,14 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     void registerForPushNotifications();
   }, []);
 
-  // Schedule race reminder notifications whenever race data changes.
+  // Schedule race & sprint reminder notifications whenever race data
+  // or the user's notification settings change. Each event type is
+  // gated by its own toggle and scheduled independently.
   useEffect(() => {
     if (races.length === 0) return;
-    void scheduleRaceReminders(races);
-  }, [races]);
+    const settings = notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
+    void scheduleRaceReminders(races, settings);
+  }, [races, notifications]);
 
   const nextRace = useMemo(() => {
     const live = races.filter(r => r.status === 'live');

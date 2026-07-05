@@ -24,20 +24,27 @@ function NotificationTapHandler() {
     if (Platform.OS === 'web') return;
 
     // Handle notifications that were tapped while the app was closed/backgrounded.
+    // End-of-event notifications (sprint_end / race_end) deep-link to the
+    // race-results screen so users see their score; start reminders route to
+    // the predict screen so they can finalise their picks.
     void Notifications.getLastNotificationResponseAsync().then((response) => {
-      if (response?.notification.request.content.data?.raceId) {
-        const raceId = response.notification.request.content.data.raceId as string;
-        router.push(`/predict-race/${raceId}`);
-      }
+      const data = response?.notification.request.content.data;
+      const raceId = data?.raceId as string | undefined;
+      const event = data?.event as string | undefined;
+      if (!raceId) return;
+      const isEndEvent = event === 'sprint_end' || event === 'race_end';
+      router.push(isEndEvent ? `/race-results/${raceId}` : `/predict-race/${raceId}`);
     });
 
     // Handle future notification taps while the app is in the foreground.
     const sub = Notifications.addNotificationResponseReceivedListener(
       (response) => {
-        const raceId = response.notification.request.content.data?.raceId as string | undefined;
-        if (raceId) {
-          router.push(`/predict-race/${raceId}`);
-        }
+        const data = response.notification.request.content.data;
+        const raceId = data?.raceId as string | undefined;
+        const event = data?.event as string | undefined;
+        if (!raceId) return;
+        const isEndEvent = event === 'sprint_end' || event === 'race_end';
+        router.push(isEndEvent ? `/race-results/${raceId}` : `/predict-race/${raceId}`);
       }
     );
     responseListener.current = sub;

@@ -126,6 +126,12 @@ export interface NotificationSettings {
   lockReminder: boolean;
   raceStartReminder: boolean;
   resultsPosted: boolean;
+  /** Notify when a sprint race is about to start (sprint weekends only). */
+  sprintStartReminder: boolean;
+  /** Notify when a sprint race ends and predictions are being scored. */
+  sprintEndReminder: boolean;
+  /** Notify when the main race ends and final results are being scored. */
+  raceEndReminder: boolean;
 }
 
 export const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;
