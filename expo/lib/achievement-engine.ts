@@ -144,8 +144,17 @@ function computeUnlockedTiers(
   }
 
   const unlocked = new Set(alreadyUnlocked);
+  const lowerIsBetter = def.lowerIsBetter ?? false;
   for (const tierDef of def.tiers) {
-    if (currentValue >= tierDef.value) {
+    // Rank achievements (lowerIsBetter) unlock when currentValue <= tier value.
+    // Points/count achievements unlock when currentValue >= tier value.
+    // The 999 "no data" sentinel therefore satisfies no rank tier (999 <= 1
+    // is false), which prevents premature unlocks before a season ends or
+    // before per-race league placement data exists.
+    const met = lowerIsBetter
+      ? currentValue <= tierDef.value && currentValue > 0
+      : currentValue >= tierDef.value;
+    if (met) {
       unlocked.add(tierDef.tier);
     }
   }

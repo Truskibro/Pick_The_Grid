@@ -32,6 +32,12 @@ export interface AchievementDefinition {
   unlockConditionKey: string;
   /** Shown as the requirement text on locked hidden badges. */
   unlockHint?: string;
+  /**
+   * Rank-style achievements are lower-is-better (rank 1 = best).
+   * The engine compares currentValue <= tier.value instead of >=.
+   * Defaults to false (higher-is-better, e.g. points).
+   */
+  lowerIsBetter?: boolean;
 }
 
 /** Per-player progress snapshot persisted to AsyncStorage. */
@@ -245,6 +251,7 @@ const RACE_WEEK_RIVAL: AchievementDefinition = {
     { tier: 'platinum', label: 'Platinum', requirement: 'Win your league for a single race', value: 1 },
   ],
   unlockConditionKey: 'league_race_week_rank',
+  lowerIsBetter: true,
 };
 
 const SEASON_CHAMPION: AchievementDefinition = {
@@ -261,6 +268,7 @@ const SEASON_CHAMPION: AchievementDefinition = {
     { tier: 'platinum', label: 'Platinum', requirement: 'Finish 1st in a league season', value: 1 },
   ],
   unlockConditionKey: 'league_season_rank',
+  lowerIsBetter: true,
 };
 
 /* ------------------------------------------------------------------ */

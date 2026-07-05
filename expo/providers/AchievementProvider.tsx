@@ -21,15 +21,16 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v3 — Supabase user_achievements was wiped and the local cache held
-// stale badges from the buggy v2 engine (race-week-rival / season-champion
-// unlocked prematurely). v3 discards all prior local + remote progress so every
-// user starts fresh under the corrected rules.
-const STORAGE_KEY = 'apex_draft_achievements_v3';
+// Bumped to v4 — the engine previously treated rank-based achievements
+// (race-week-rival, season-champion) as higher-is-better, so the 999 "no rank"
+// sentinel unlocked every tier mid-season. v4 purges that bad local state.
+// v3 also wiped stale v2 state; both are listed as legacy for safety.
+const STORAGE_KEY = 'apex_draft_achievements_v4';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
   'apex_draft_achievements_v2',
+  'apex_draft_achievements_v3',
 ];
 
 /** Returns true only when every non-cancelled race is completed. */
