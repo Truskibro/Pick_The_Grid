@@ -36,7 +36,17 @@ import {
   TIER_COLORS,
   TIER_LABELS,
   type AchievementTier,
+  type AchievementDefinition,
 } from '@/constants/achievements';
+import * as lucideIcons from 'lucide-react-native';
+
+function resolveAchievementIcon(iconName: string): React.ComponentType<any> {
+  const pascal = iconName
+    .split('-')
+    .map((s) => s.charAt(0).toUpperCase() + s.slice(1))
+    .join('');
+  return (lucideIcons as any)[pascal] || (lucideIcons as any).Trophy;
+}
 
 interface ProfileData {
   id: string;
@@ -500,25 +510,12 @@ const ProfileAchievements = React.memo(function ProfileAchievements({ isOwnProfi
               const highestTier = tiers.length > 0 ? tiers[tiers.length - 1] : 'bronze';
               const tierColors = TIER_COLORS[highestTier as AchievementTier];
               return (
-                <View
+                <ProfileBadgeIcon
                   key={def.id}
-                  style={[paStyles.badgeChip, { borderColor: tierColors.primary + '40' }]}
-                >
-                  <View
-                    style={[
-                      paStyles.badgeChipDot,
-                      { backgroundColor: tierColors.primary },
-                    ]}
-                  />
-                  <Text style={paStyles.badgeChipName} numberOfLines={1}>
-                    {def.name}
-                  </Text>
-                  <Text
-                    style={[paStyles.badgeChipTier, { color: tierColors.primary }]}
-                  >
-                    {TIER_LABELS[highestTier as AchievementTier]}
-                  </Text>
-                </View>
+                  def={def}
+                  color={tierColors.primary}
+                  tierLabel={TIER_LABELS[highestTier as AchievementTier]}
+                />
               );
             })}
           </View>
@@ -531,12 +528,12 @@ const ProfileAchievements = React.memo(function ProfileAchievements({ isOwnProfi
           <Text style={paStyles.sectionLabel}>Secret Badges</Text>
           <View style={paStyles.badgeRow}>
             {unlockedHidden.map((def) => (
-              <View key={def.id} style={paStyles.hiddenBadgeChip}>
-                <EyeOff size={12} color={Colors.warning} />
-                <Text style={paStyles.hiddenBadgeName} numberOfLines={1}>
-                  {def.name}
-                </Text>
-              </View>
+              <ProfileBadgeIcon
+                key={def.id}
+                def={def}
+                color={Colors.warning}
+                isHidden
+              />
             ))}
           </View>
         </View>
@@ -617,48 +614,55 @@ const paStyles = StyleSheet.create({
     flexWrap: 'wrap' as const,
     gap: 6,
   },
-  badgeChip: {
-    flexDirection: 'row' as const,
+  badgeIconChip: {
+    flexDirection: 'column' as const,
     alignItems: 'center' as const,
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 100,
-    backgroundColor: Colors.surface,
-    borderWidth: 1,
+    justifyContent: 'center' as const,
+    width: 52,
+    height: 52,
+    borderRadius: 14,
+    gap: 2,
   },
-  badgeChipDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
+  badgeIconTierLabel: {
+    fontSize: 8,
+    fontWeight: '800' as const,
+    letterSpacing: 0.4,
+    textTransform: 'uppercase' as const,
   },
-  badgeChipName: {
-    color: Colors.text,
-    fontSize: 11,
-    fontWeight: '600' as const,
-    maxWidth: 110,
-  },
-  badgeChipTier: {
-    fontSize: 10,
-    fontWeight: '700' as const,
-    letterSpacing: 0.3,
-  },
-  hiddenBadgeChip: {
-    flexDirection: 'row' as const,
-    alignItems: 'center' as const,
-    gap: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 100,
-    backgroundColor: 'rgba(255,214,10,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,214,10,0.2)',
-  },
-  hiddenBadgeName: {
-    color: Colors.warning,
-    fontSize: 11,
-    fontWeight: '600' as const,
-  },
+});
+
+/* Icon-based badge chip used on the profile screen */
+const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
+  def,
+  color,
+  tierLabel,
+  isHidden = false,
+}: {
+  def: AchievementDefinition;
+  color: string;
+  tierLabel?: string;
+  isHidden?: boolean;
+}) {
+  const Icon = resolveAchievementIcon(def.icon);
+  return (
+    <View
+      style={[
+        paStyles.badgeIconChip,
+        {
+          backgroundColor: isHidden ? 'rgba(255,214,10,0.08)' : `${color}18`,
+          borderColor: isHidden ? 'rgba(255,214,10,0.25)' : `${color}55`,
+          borderWidth: 1,
+        },
+      ]}
+    >
+      <Icon size={20} color={color} />
+      {tierLabel ? (
+        <Text style={[paStyles.badgeIconTierLabel, { color }]} numberOfLines={1}>
+          {tierLabel}
+        </Text>
+      ) : null}
+    </View>
+  );
 });
 
 const styles = StyleSheet.create({
