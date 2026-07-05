@@ -489,13 +489,15 @@ export default function AchievementCelebrationOverlay() {
           },
         ]}
       >
-        <View
+        <Animated.View
+          pointerEvents="none"
           style={[
             styles.glowAura,
             {
+              opacity: glowOpacity,
               shadowColor: accent,
-              shadowOpacity: glowOpacity,
-              shadowRadius: glowShadow,
+              shadowOpacity: 0.6,
+              shadowRadius: 22,
             },
           ]}
         />
