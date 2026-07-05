@@ -27,6 +27,10 @@ import type { Race } from '@/types';
 // manual reset) that would survive the union merge with Supabase. v8 purges
 // the local cache so every device re-syncs the correct state from Supabase.
 const STORAGE_KEY = 'apex_draft_achievements_v8';
+// Persisted set of "achievementId:tier" keys that have already had their
+// celebration animation play. This guarantees the overlay only fires ONCE
+// per tier per device, even across reloads, remounts, or re-evaluations.
+const CELEBRATED_KEY = 'apex_draft_celebrated_v1';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
@@ -120,6 +124,8 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const [state, setState] = useState<AchievementState>(() => createEmptyAchievementState());
   const [isLoaded, setIsLoaded] = useState(false);
   const [unlockQueue, setUnlockQueue] = useState<AchievementUnlockEvent[]>([]);
+  // Set of "achievementId:tier" keys already celebrated on this device.
+  const celebratedRef = useRef<Set<string>>(new Set());
 
   const {
     predictions = [],
@@ -161,6 +167,18 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       await Promise.all(
         LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key).catch(() => {})),
       );
+
+      // Load the persisted celebrated set first so checkUnlocks (which may
+      // run shortly after isLoaded flips true) can skip already-shown tiers.
+      try {
+        const rawCelebrated = await AsyncStorage.getItem(CELEBRATED_KEY);
+        if (rawCelebrated) {
+          const parsed = JSON.parse(rawCelebrated) as string[];
+          celebratedRef.current = new Set(Array.isArray(parsed) ? parsed : []);
+        }
+      } catch (e) {
+        console.log('Failed to load celebrated set:', e);
+      }
 
       let localState: AchievementState = createEmptyAchievementState();
 
@@ -406,9 +424,29 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
     if (newlyUnlocked.length === 0) return;
 
+    // Filter out any tier that has already had its celebration play on this
+    // device. This is the single source of truth for "show once" — even if
+    // the engine re-detects the same unlock on a subsequent reload/remount,
+    // the overlay will not fire again.
+    const freshUnlocks = newlyUnlocked.filter((u) => {
+      const key = `${u.achievementId}:${u.tier}`;
+      return !celebratedRef.current.has(key);
+    });
+
+    if (freshUnlocks.length === 0) return;
+
+    // Mark them as celebrated immediately and persist so a reload before the
+    // animation finishes still won't re-fire.
+    const newKeys = freshUnlocks.map((u) => `${u.achievementId}:${u.tier}`);
+    for (const k of newKeys) celebratedRef.current.add(k);
+    AsyncStorage.setItem(
+      CELEBRATED_KEY,
+      JSON.stringify(Array.from(celebratedRef.current)),
+    ).catch(() => {});
+
     setUnlockQueue((prev) => [
       ...prev,
-      ...newlyUnlocked.map((u) => ({
+      ...freshUnlocks.map((u) => ({
         achievementId: u.achievementId,
         tier: u.tier,
         def: u.def,
@@ -577,6 +615,22 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     setUnlockQueue([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Expose a way to reset the celebrated set (used when switching accounts
+  // so a different user's unlocks can still celebrate on this device).
+  // The reset effect below clears the in-memory + persisted set whenever
+  // the authenticated user identity changes.
+  const prevProfileIdRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentId = profile?.id;
+    if (prevProfileIdRef.current !== currentId) {
+      // Identity changed (login/logout/account switch): clear celebrated
+      // memory so the new session's legitimate unlocks can celebrate once.
+      celebratedRef.current = new Set();
+      AsyncStorage.removeItem(CELEBRATED_KEY).catch(() => {});
+      prevProfileIdRef.current = currentId;
+    }
+  }, [profile?.id]);
 
   const dismissUnlock = useCallback(() => {
     setUnlockQueue((prev) => {
