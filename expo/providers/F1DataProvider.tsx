@@ -128,21 +128,27 @@ async function fetchRaces(): Promise<Race[]> {
     }
 
     console.log('Races: loaded', data.length, 'from Supabase');
-    const races: Race[] = data.map((r: any) => ({
-      id: r.id,
-      round: r.round || 0,
-      name: r.name,
-      location: r.location || '',
-      country: r.country || '',
-      countryFlag: r.country_flag || '🏁',
-      raceDate: r.race_date,
-      raceTime: r.race_time || '14:00',
-      status: r.status || 'upcoming',
-      hasSprint: r.has_sprint || false,
-      winner: r.winner || undefined,
-      currentLap: r.current_lap || undefined,
-      totalLaps: r.total_laps || undefined,
-    }));
+    const races: Race[] = data.map((r: any) => {
+      const fallback = FALLBACK_RACES.find((fr) => fr.id === r.id);
+      return {
+        id: r.id,
+        round: r.round || 0,
+        name: r.name,
+        location: r.location || '',
+        country: r.country || '',
+        countryFlag: r.country_flag || '🏁',
+        raceDate: r.race_date,
+        raceTime: r.race_time || '14:00',
+        status: r.status || 'upcoming',
+        hasSprint: r.has_sprint || false,
+        // Prefer DB-stored sprint schedule; fall back to the curated calendar.
+        sprintDate: r.sprint_date || fallback?.sprintDate,
+        sprintTime: r.sprint_time || fallback?.sprintTime,
+        winner: r.winner || undefined,
+        currentLap: r.current_lap || undefined,
+        totalLaps: r.total_laps || undefined,
+      };
+    });
 
     return updateRaceStatuses(races);
   } catch (e) {

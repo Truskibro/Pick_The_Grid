@@ -862,19 +862,31 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
     const scoredPredictions = predictionsRef.current.map((prediction) => {
       const result = resultByRaceId.get(prediction.raceId);
-      if (!result || result.classification.length === 0 || prediction.top10.length === 0) {
-        return prediction;
-      }
+      if (!result) return prediction;
 
-      const mainBreakdown = calculatePoints(prediction, result);
-      const sprintBreakdown = result.sprintClassification && prediction.sprintTop8.length > 0
-        ? calculateSprintPoints(prediction.sprintTop8, result.sprintClassification)
-        : null;
+      const hasRaceResults = result.classification && result.classification.length > 0;
+      const hasSprintResults =
+        !!result.sprintClassification && result.sprintClassification.length > 0;
+
+      // No results at all yet — keep the prediction as-is.
+      if (!hasRaceResults && !hasSprintResults) return prediction;
+
+      // Race points only update when we actually have race results.
+      // Sprint points update independently as soon as sprint results land.
+      const mainBreakdown =
+        hasRaceResults && prediction.top10.length > 0
+          ? calculatePoints(prediction, result)
+          : null;
+
+      const sprintBreakdown =
+        hasSprintResults && prediction.sprintTop8.length > 0
+          ? calculateSprintPoints(prediction.sprintTop8, result.sprintClassification!)
+          : null;
 
       const nextPrediction = normalizePrediction({
         ...prediction,
-        pointsEarned: mainBreakdown.totalPoints,
-        sprintPointsEarned: sprintBreakdown?.totalPoints ?? 0,
+        pointsEarned: mainBreakdown?.totalPoints ?? prediction.pointsEarned ?? 0,
+        sprintPointsEarned: sprintBreakdown?.totalPoints ?? prediction.sprintPointsEarned ?? 0,
         username: names.username ?? prediction.username,
         displayName: names.displayName ?? prediction.displayName,
         updatedAt: prediction.updatedAt,

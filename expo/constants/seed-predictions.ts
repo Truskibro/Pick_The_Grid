@@ -369,11 +369,18 @@ export function scoreSeededPredictions(
       updatedAt: '2026-01-01T00:00:00Z',
     };
 
-    if (pred.top10.length > 0 && result.classification.length > 0) {
+    // Race points: only when we have actual race results.
+    if (
+      pred.top10.length > 0 &&
+      result.classification &&
+      result.classification.length > 0
+    ) {
       const breakdown = calculatePoints(fullPred, result);
       total += breakdown.totalPoints;
     }
 
+    // Sprint points: scored independently as soon as sprint results exist,
+    // even if the main race has not finished yet.
     if (
       pred.sprintTop8.length > 0 &&
       result.sprintClassification &&

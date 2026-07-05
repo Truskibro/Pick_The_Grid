@@ -25,6 +25,10 @@ export interface Race {
   raceTime: string;
   status: 'upcoming' | 'live' | 'completed' | 'cancelled';
   hasSprint: boolean;
+  /** Sprint race date (Saturday) for sprint weekends, independent of the main race. */
+  sprintDate?: string;
+  /** Sprint race local time (HH:MM, 24h, UTC). */
+  sprintTime?: string;
   winner?: string;
   currentLap?: number;
   totalLaps?: number;

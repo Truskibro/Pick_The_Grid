@@ -109,6 +109,25 @@ function isRaceLockedExactlyAtStart(
   return Date.now() >= raceStart.getTime();
 }
 
+/**
+ * Sprint picks lock independently at the sprint start time (Saturday),
+ * not at the main race start (Sunday). Falls back to the race start
+ * time when no separate sprint time is configured.
+ */
+function isSprintLockedExactlyAtStart(
+  raceDate?: string,
+  raceTime?: string,
+  sprintDate?: string,
+  sprintTime?: string
+): boolean {
+  const sprintStart = buildRaceStartDate(sprintDate, sprintTime);
+
+  // No dedicated sprint schedule → fall back to main race lock.
+  if (!sprintStart) return isRaceLockedExactlyAtStart(raceDate, raceTime);
+
+  return Date.now() >= sprintStart.getTime();
+}
+
 function cleanPickList(
   picks: string[],
   maxLength: number,
@@ -203,6 +222,15 @@ export default function PredictScreen() {
 
   const locked = nextRace
     ? isRaceLockedExactlyAtStart(nextRace.raceDate, nextRace.raceTime)
+    : true;
+
+  const sprintLocked = nextRace
+    ? isSprintLockedExactlyAtStart(
+        nextRace.raceDate,
+        nextRace.raceTime,
+        nextRace.sprintDate,
+        nextRace.sprintTime
+      )
     : true;
 
   const cleanedSelectedDrivers = useMemo(
@@ -337,14 +365,19 @@ export default function PredictScreen() {
 
   const openPicker = useCallback(
     (mode: PickerMode) => {
-      if (locked) return;
+      // Sprint picks have their own independent lock.
+      if (mode?.type === 'sprint') {
+        if (sprintLocked) return;
+      } else if (locked) {
+        return;
+      }
 
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
       setSearch('');
       setPicker(mode);
     },
-    [locked]
+    [locked, sprintLocked]
   );
 
   const closePicker = useCallback(() => {
@@ -354,7 +387,13 @@ export default function PredictScreen() {
 
   const handlePickerSelect = useCallback(
     (driverId: string) => {
-      if (!picker || locked) return;
+      if (!picker) return;
+      // Sprint picks have their own independent lock.
+      if (picker.type === 'sprint') {
+        if (sprintLocked) return;
+      } else if (locked) {
+        return;
+      }
 
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
 
@@ -393,7 +432,7 @@ export default function PredictScreen() {
       setSaved(false);
       closePicker();
     },
-    [picker, locked, validDriverIds, closePicker]
+    [picker, locked, sprintLocked, validDriverIds, closePicker]
   );
 
   const addRaceDriver = useCallback(
@@ -432,7 +471,7 @@ export default function PredictScreen() {
 
   const addSprintDriver = useCallback(
     (driverId: string) => {
-      if (locked) return;
+      if (sprintLocked) return;
 
       setSprintTop8((prev) => {
         const cleaned = cleanPickList(prev, 8, validDriverIds);
@@ -461,7 +500,7 @@ export default function PredictScreen() {
         return [...cleaned, driverId];
       });
     },
-    [locked, validDriverIds]
+    [sprintLocked, validDriverIds]
   );
 
   const removeRaceDriver = useCallback(
@@ -484,7 +523,7 @@ export default function PredictScreen() {
 
   const removeSprintDriver = useCallback(
     (driverId: string) => {
-      if (locked) return;
+      if (sprintLocked) return;
 
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
@@ -494,7 +533,7 @@ export default function PredictScreen() {
 
       setSaved(false);
     },
-    [locked, validDriverIds]
+    [sprintLocked, validDriverIds]
   );
 
   const moveRaceDriver = useCallback(
@@ -522,7 +561,7 @@ export default function PredictScreen() {
 
   const moveSprintDriver = useCallback(
     (index: number, direction: 'up' | 'down') => {
-      if (locked) return;
+      if (sprintLocked) return;
 
       void Haptics.selectionAsync();
 
@@ -540,7 +579,7 @@ export default function PredictScreen() {
 
       setSaved(false);
     },
-    [locked, validDriverIds]
+    [sprintLocked, validDriverIds]
   );
 
   const clearRace = useCallback(() => {
@@ -565,7 +604,7 @@ export default function PredictScreen() {
   }, [locked]);
 
   const clearSprint = useCallback(() => {
-    if (locked) return;
+    if (sprintLocked) return;
 
     Alert.alert('Clear Sprint Picks', 'Remove all sprint picks?', [
       { text: 'Cancel', style: 'cancel' },
@@ -581,7 +620,7 @@ export default function PredictScreen() {
         },
       },
     ]);
-  }, [locked]);
+  }, [sprintLocked]);
 
   const clearFastestLap = useCallback(() => {
     if (locked) return;
@@ -611,7 +650,8 @@ export default function PredictScreen() {
 
     const finalDnf = dnf && validDriverIds.has(dnf) ? dnf : null;
 
-    if (finalTop10.length !== 10) {
+    // Race picks required only if race picks are still editable.
+    if (!locked && finalTop10.length !== 10) {
       setActiveTab('race');
       Alert.alert(
         'Cannot Save',
@@ -620,7 +660,12 @@ export default function PredictScreen() {
       return;
     }
 
-    if (nextRace.hasSprint && finalSprintTop8.length !== 8) {
+    // Sprint picks required only if sprint picks are still editable.
+    if (
+      nextRace.hasSprint &&
+      !sprintLocked &&
+      finalSprintTop8.length !== 8
+    ) {
       setActiveTab('sprint');
       Alert.alert(
         'Cannot Save',
@@ -629,23 +674,37 @@ export default function PredictScreen() {
       return;
     }
 
-    setSelectedDrivers(finalTop10);
-    setSprintTop8(nextRace.hasSprint ? finalSprintTop8 : []);
-    setFastestLap(finalFastestLap);
-    setDnf(finalDnf);
+    // If both race and sprint are locked, nothing left to save.
+    if (locked && sprintLocked) {
+      Alert.alert('Predictions Locked', 'Both race and sprint picks are locked.');
+      return;
+    }
 
+    // Preserve locked-side picks from the existing prediction.
     const existing = getPrediction(nextRace.id);
+    const persistedTop10 = locked ? (existing?.top10 ?? []) : finalTop10;
+    const persistedFastestLap = locked ? (existing?.fastestLap ?? null) : finalFastestLap;
+    const persistedDnf = locked ? (existing?.dnf ?? null) : finalDnf;
+    const persistedSprintTop8 =
+      sprintLocked || !nextRace.hasSprint
+        ? (existing?.sprintTop8 ?? [])
+        : finalSprintTop8;
+
+    setSelectedDrivers(persistedTop10);
+    setSprintTop8(nextRace.hasSprint ? persistedSprintTop8 : []);
+    setFastestLap(persistedFastestLap);
+    setDnf(persistedDnf);
 
     void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
 
     try {
       const result = await savePrediction({
         raceId: nextRace.id,
-        top10: finalTop10,
-        fastestLap: finalFastestLap,
-        dnf: finalDnf,
+        top10: persistedTop10,
+        fastestLap: persistedFastestLap,
+        dnf: persistedDnf,
         pointsEarned: existing?.pointsEarned ?? 0,
-        sprintTop8: nextRace.hasSprint ? finalSprintTop8 : [],
+        sprintTop8: nextRace.hasSprint ? persistedSprintTop8 : [],
         sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
         username: profile.username,
         displayName: profile.displayName,
@@ -686,6 +745,8 @@ export default function PredictScreen() {
     profile.username,
     profile.displayName,
     isGuest,
+    locked,
+    sprintLocked,
   ]);
 
   if (!nextRace) {
@@ -743,7 +804,20 @@ export default function PredictScreen() {
             <View style={styles.lockedBanner}>
               <Lock color={Colors.f1Red} size={16} />
               <Text style={styles.lockedText}>
-                Predictions locked because the race has started
+                {locked && sprintLocked
+                  ? 'Race & sprint predictions locked'
+                  : locked
+                    ? 'Race predictions locked because the race has started'
+                    : 'Sprint predictions locked because the sprint has started'}
+              </Text>
+            </View>
+          )}
+
+          {!locked && sprintLocked && nextRace.hasSprint && (
+            <View style={styles.lockedBanner}>
+              <Lock color={Colors.info} size={16} />
+              <Text style={styles.lockedText}>
+                Sprint predictions locked — race picks still open
               </Text>
             </View>
           )}
@@ -1009,7 +1083,7 @@ export default function PredictScreen() {
                       driver={driver}
                       teamColor={team?.color}
                       teamName={team?.shortName}
-                      locked={locked}
+                      locked={sprintLocked}
                       isFirst={index === 0}
                       isLast={index === cleanedSprintTop8.length - 1}
                       onPress={() =>
@@ -1024,7 +1098,7 @@ export default function PredictScreen() {
               </View>
             </View>
 
-            {!locked && (
+            {!sprintLocked && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Available Sprint Drivers</Text>
                 <Text style={styles.sectionSubtitle}>
@@ -1053,7 +1127,7 @@ export default function PredictScreen() {
         )}
       </Animated.ScrollView>
 
-      {!locked && (
+      {(!locked || (nextRace.hasSprint && !sprintLocked)) && (
         <View style={styles.saveBar}>
           <View style={styles.saveBarInfo}>
             <Text style={styles.saveBarLabel}>POTENTIAL</Text>
