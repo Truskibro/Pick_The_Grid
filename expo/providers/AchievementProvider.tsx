@@ -21,7 +21,14 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-const STORAGE_KEY = 'apex_draft_achievements';
+// Bumped to v2 — the achievement engine was rewritten to prevent premature
+// unlocks (season-end, league-rank, comeback-platinum). All prior progress is
+// discarded so every user starts fresh under the corrected rules.
+const STORAGE_KEY = 'apex_draft_achievements_v2';
+const LEGACY_STORAGE_KEYS = [
+  'apex_draft_achievements',
+  'apex_draft_achievements_v1',
+];
 
 /** Returns true only when every non-cancelled race is completed. */
 function isSeasonOver(races: Race[] | undefined | null): boolean {
@@ -127,6 +134,12 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
   useEffect(() => {
     const load = async () => {
+      // Purge legacy achievement storage from the previous (buggy) engine.
+      // This guarantees a clean slate for every user on first load.
+      await Promise.all(
+        LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key).catch(() => {})),
+      );
+
       let localState: AchievementState = createEmptyAchievementState();
 
       try {
@@ -296,8 +309,9 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       leagueMemberships.push({
         leagueId: league.id,
         rank,
-        // Only include seasonRank when the season has concluded.
-        // Otherwise the engine would award Season Champion mid-season.
+        // seasonRank is intentionally left undefined here — the engine gates
+        // season-rank achievements on isSeasonComplete instead of relying on
+        // the caller to withhold the value.
         seasonRank: seasonOver ? rank : undefined,
       });
     }
@@ -309,6 +323,11 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       leagueMemberships,
       editCounts,
       lockTimes,
+      // No per-race league placement data exists yet, so race-week-rival
+      // cannot be legitimately unlocked. The engine treats undefined as a
+      // sentinel that satisfies no tier.
+      raceWeekRanks: undefined,
+      isSeasonComplete: seasonOver,
     };
   }, [
     predictions,

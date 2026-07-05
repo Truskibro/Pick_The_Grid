@@ -34,6 +34,10 @@ export interface AchievementInput {
   editCounts: Record<string, { count: number; lastEditAt: string }>;
   /** Per-race lock times (ISO strings) for Box Box Box. */
   lockTimes: Record<string, string>;
+  /** Per-race league placements (leagueId:raceId -> rank). Lower = better. */
+  raceWeekRanks?: Record<string, number>;
+  /** Whether the season has concluded (gates season-end achievements). */
+  isSeasonComplete?: boolean;
 }
 
 /* ------------------------------------------------------------------ */
@@ -79,7 +83,11 @@ function computeValue(def: AchievementDefinition, input: AchievementInput): numb
       return maxPerfectWeekendLevel(input.predictions, input.raceResults);
 
     case 'comeback_improvement':
-      return maxComebackImprovement(input.predictions);
+      // Cap at the highest non-platinum threshold. The platinum tier in the
+      // definition (100) requires a 100+ point race-over-race improvement,
+      // which is achievable but should never be triggered by a 0 → 100 first
+      // race (no previous race to compare against).
+      return Math.min(maxComebackImprovement(input.predictions), 100);
 
     /* --- Season-based --- */
     case 'season_total_points':
@@ -90,9 +98,12 @@ function computeValue(def: AchievementDefinition, input: AchievementInput): numb
 
     /* --- League-based --- */
     case 'league_race_week_rank':
-      return bestLeagueRaceWeekRank(input.leagueMemberships);
+      return bestRaceWeekRank(input.raceWeekRanks, input.leagueMemberships);
 
     case 'league_season_rank':
+      // Season-rank achievements only evaluate once the season is officially over.
+      // Without this guard, mid-season standings would prematurely unlock tiers.
+      if (!input.isSeasonComplete) return 999;
       return bestLeagueSeasonRank(input.leagueMemberships);
 
     /* --- Hidden --- */
@@ -301,8 +312,13 @@ function maxPerfectWeekendLevel(
 }
 
 function maxComebackImprovement(predictions: Prediction[]): number {
-  // Sort predictions by updatedAt to order races chronologically.
-  const sorted = [...predictions].sort(
+  // Only consider races that actually have a result — without a result,
+  // pointsEarned is 0 by default and would fabricate a 0 → big swing.
+  const scored = predictions.filter(
+    (p) => (p.pointsEarned ?? 0) > 0 || (p.sprintPointsEarned ?? 0) > 0,
+  );
+  // Sort by updatedAt to establish chronological order of race weekends.
+  const sorted = [...scored].sort(
     (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
   );
   let best = 0;
@@ -314,8 +330,6 @@ function maxComebackImprovement(predictions: Prediction[]): number {
     const improvement = currPts - prevPts;
     if (improvement > best) best = improvement;
   }
-  // Platinum is league-rank based, returned as 100 if any league comeback exists
-  // TODO: wire real league rank data to check bottom-half → top-3
   return best;
 }
 
@@ -339,12 +353,21 @@ function countCorrectWinners(
   return count;
 }
 
-function bestLeagueRaceWeekRank(
+function bestRaceWeekRank(
+  raceWeekRanks: Record<string, number> | undefined,
   memberships: AchievementInput['leagueMemberships'],
 ): number {
-  // Lower rank = better. Return the lowest rank achieved (1 = best).
+  // Prefer real per-race league placements when provided.
+  if (raceWeekRanks && Object.keys(raceWeekRanks).length > 0) {
+    const ranks = Object.values(raceWeekRanks).filter((r) => typeof r === 'number' && r > 0);
+    if (ranks.length > 0) return Math.min(...ranks);
+  }
+  // Without per-race data we cannot legitimately claim a "race week" placement.
+  // Fall back to a sentinel that satisfies no tier (lowest tier requires top 5).
   if (memberships.length === 0) return 999;
-  return Math.min(...memberships.map((m) => m.rank));
+  // Note: overall league rank is NOT a valid proxy for a single race week,
+  // so we deliberately do NOT use it here.
+  return 999;
 }
 
 function bestLeagueSeasonRank(
@@ -529,6 +552,8 @@ export function buildMockInput(overrides: Partial<AchievementInput> = {}): Achie
     leagueMemberships: [],
     editCounts: {},
     lockTimes: {},
+    raceWeekRanks: {},
+    isSeasonComplete: false,
     ...overrides,
   };
 }

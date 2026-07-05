@@ -218,7 +218,7 @@ const PERFECT_WEEKEND: AchievementDefinition = {
 const COMEBACK_DRIVE: AchievementDefinition = {
   id: 'comeback-drive',
   name: 'Comeback Drive',
-  description: 'Improve dramatically after a previous race.',
+  description: 'Improve your race score after a previous race weekend.',
   category: 'race',
   isHidden: false,
   icon: 'trending-up',
@@ -226,7 +226,7 @@ const COMEBACK_DRIVE: AchievementDefinition = {
     { tier: 'bronze', label: 'Bronze', requirement: 'Improve your race score by 25+ points from the previous race', value: 25 },
     { tier: 'silver', label: 'Silver', requirement: 'Improve your race score by 50+ points from the previous race', value: 50 },
     { tier: 'gold', label: 'Gold', requirement: 'Improve your race score by 75+ points from the previous race', value: 75 },
-    { tier: 'platinum', label: 'Platinum', requirement: 'Move from the bottom half of a league race week to top 3 after one race', value: 100 },
+    { tier: 'platinum', label: 'Platinum', requirement: 'Improve your race score by 100+ points from the previous race', value: 100 },
   ],
   unlockConditionKey: 'comeback_improvement',
 };
@@ -234,15 +234,15 @@ const COMEBACK_DRIVE: AchievementDefinition = {
 const RACE_WEEK_RIVAL: AchievementDefinition = {
   id: 'race-week-rival',
   name: 'Race Week Rival',
-  description: 'Perform well inside a league during a single race week.',
+  description: 'Out-predict your league rivals during a single race week.',
   category: 'league',
   isHidden: false,
   icon: 'swords',
   tiers: [
-    { tier: 'bronze', label: 'Bronze', requirement: 'Finish top 5 in a league race week', value: 5 },
-    { tier: 'silver', label: 'Silver', requirement: 'Finish top 3 in a league race week', value: 3 },
-    { tier: 'gold', label: 'Gold', requirement: 'Finish 2nd in a league race week', value: 2 },
-    { tier: 'platinum', label: 'Platinum', requirement: 'Finish 1st in a league race week', value: 1 },
+    { tier: 'bronze', label: 'Bronze', requirement: 'Place top 5 in your league for a single race', value: 5 },
+    { tier: 'silver', label: 'Silver', requirement: 'Place top 3 in your league for a single race', value: 3 },
+    { tier: 'gold', label: 'Gold', requirement: 'Place 2nd in your league for a single race', value: 2 },
+    { tier: 'platinum', label: 'Platinum', requirement: 'Win your league for a single race', value: 1 },
   ],
   unlockConditionKey: 'league_race_week_rank',
 };
