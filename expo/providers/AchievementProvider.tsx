@@ -21,13 +21,15 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v2 — the achievement engine was rewritten to prevent premature
-// unlocks (season-end, league-rank, comeback-platinum). All prior progress is
-// discarded so every user starts fresh under the corrected rules.
-const STORAGE_KEY = 'apex_draft_achievements_v2';
+// Bumped to v3 — Supabase user_achievements was wiped and the local cache held
+// stale badges from the buggy v2 engine (race-week-rival / season-champion
+// unlocked prematurely). v3 discards all prior local + remote progress so every
+// user starts fresh under the corrected rules.
+const STORAGE_KEY = 'apex_draft_achievements_v3';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
+  'apex_draft_achievements_v2',
 ];
 
 /** Returns true only when every non-cancelled race is completed. */
