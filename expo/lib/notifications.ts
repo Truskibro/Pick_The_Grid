@@ -5,7 +5,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import type { Race, NotificationSettings } from '@/types';
 
 const STORAGE_KEY = 'apex_draft_scheduled_notifications';
-const REMINDER_MINUTES = 5;
+const REMINDER_MINUTES = 10;
 /** A main race is ~2 hours; a sprint race is ~45 minutes. */
 const RACE_DURATION_MINUTES = 120;
 const SPRINT_DURATION_MINUTES = 45;
