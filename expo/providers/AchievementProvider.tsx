@@ -21,17 +21,19 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v5 — purges stale v4 local state that was computed against
-// bogus r09 points (the race was upcoming with no result, but points were
-// backfilled). Supabase now holds the authoritative corrected state, and
-// v5 forces the device to reload from Supabase instead of trusting cache.
-const STORAGE_KEY = 'apex_draft_achievements_v5';
+// Bumped to v6 — the British GP (r09) actually happened on 2026-07-05
+// (verified via the live F1 API). The previous v5 reset wrongly zeroed
+// r09 points based only on Supabase's stale `races.status='upcoming'`.
+// Supabase now holds the correct achievements including r09, and v6
+// forces the device to reload from Supabase instead of trusting cache.
+const STORAGE_KEY = 'apex_draft_achievements_v6';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
   'apex_draft_achievements_v2',
   'apex_draft_achievements_v3',
   'apex_draft_achievements_v4',
+  'apex_draft_achievements_v5',
 ];
 
 /** Returns true only when every non-cancelled race is completed. */
