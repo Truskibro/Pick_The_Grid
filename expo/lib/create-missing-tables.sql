@@ -207,19 +207,22 @@ create table if not exists public.user_achievements (
 alter table public.user_achievements enable row level security;
 
 drop policy if exists achievements_select_own on public.user_achievements;
+drop policy if exists achievements_select_all on public.user_achievements;
 drop policy if exists achievements_insert_own on public.user_achievements;
 drop policy if exists achievements_update_own on public.user_achievements;
 drop policy if exists achievements_delete_own on public.user_achievements;
 
-create policy achievements_select_own
+-- Achievements are public (shown on profiles). Only the owner can modify.
+create policy achievements_select_all
   on public.user_achievements for select
-  using (auth.uid() = user_id);
+  using (true);
 create policy achievements_insert_own
   on public.user_achievements for insert
   with check (auth.uid() = user_id);
 create policy achievements_update_own
   on public.user_achievements for update
-  using (auth.uid() = user_id);
+  using (auth.uid() = user_id)
+  with check (auth.uid() = user_id);
 create policy achievements_delete_own
   on public.user_achievements for delete
   using (auth.uid() = user_id);

@@ -38,11 +38,14 @@ import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 import {
   VISIBLE_ACHIEVEMENTS,
   HIDDEN_ACHIEVEMENTS,
+  ALL_ACHIEVEMENTS,
   TIER_COLORS,
   TIER_LABELS,
+  createEmptyProgress,
   type AchievementTier,
   type AchievementDefinition,
   type AchievementProgress,
+  type AchievementState,
 } from '@/constants/achievements';
 import * as lucideIcons from 'lucide-react-native';
 
@@ -437,6 +440,7 @@ export default function ProfileScreen() {
             </View>
 
             <ProfileAchievements
+              userId={userId}
               isOwnProfile={!!currentUserProfile && currentUserProfile.id === userId}
               key={userId}
             />
@@ -466,9 +470,95 @@ const HIDDEN_COLORS = {
   redBorderStrong: 'rgba(225, 6, 0, 0.88)',
 };
 
-const ProfileAchievements = React.memo(function ProfileAchievements({ isOwnProfile }: { isOwnProfile: boolean }) {
-  const { state, unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
+/** Build an AchievementState for an arbitrary user from Supabase rows. */
+function buildRemoteState(rows: any[]): AchievementState {
+  const state: AchievementState = {};
+  for (const def of ALL_ACHIEVEMENTS) {
+    state[def.id] = createEmptyProgress(def.id);
+  }
+  for (const row of rows) {
+    const id: string = row.achievement_id;
+    if (!id || !state[id]) continue;
+    const tiers: AchievementTier[] = Array.isArray(row.unlocked_tiers)
+      ? row.unlocked_tiers.filter((t: string) =>
+          ['bronze', 'silver', 'gold', 'platinum'].includes(t)
+        )
+      : [];
+    state[id] = {
+      achievementId: id,
+      unlockedTiers: tiers,
+      currentValue: row.current_value ?? 0,
+      unlockedAt:
+        typeof row.unlocked_at === 'object' && row.unlocked_at !== null
+          ? row.unlocked_at
+          : {},
+    };
+  }
+  return state;
+}
+
+const ProfileAchievements = React.memo(function ProfileAchievements({
+  userId,
+  isOwnProfile,
+}: {
+  userId: string;
+  isOwnProfile: boolean;
+}) {
+  const localAchievements = useAchievements();
   const [selectedDef, setSelectedDef] = useState<AchievementDefinition | null>(null);
+
+  // For other users' profiles, fetch their achievement rows from Supabase.
+  // user_achievements has a public SELECT policy (achievements_select_all)
+  // so any authenticated client can read another user's badges — this is
+  // what makes them visible on a profile plaque.
+  const [remoteState, setRemoteState] = useState<AchievementState | null>(null);
+
+  useEffect(() => {
+    if (isOwnProfile || !userId) return;
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('user_achievements')
+          .select('achievement_id, unlocked_tiers, current_value, unlocked_at')
+          .eq('user_id', userId);
+        if (cancelled) return;
+        if (error) {
+          console.log('[Profile] remote achievements load failed:', error.message);
+          setRemoteState({});
+          return;
+        }
+        setRemoteState(buildRemoteState(data ?? []));
+      } catch (e) {
+        if (!cancelled) setRemoteState({});
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+  }, [userId, isOwnProfile]);
+
+  // Choose the source of truth: local for own profile, remote for others.
+  const state: AchievementState = isOwnProfile
+    ? localAchievements.state
+    : (remoteState ?? {});
+
+  const { unlockedCount, unlockedTiersCount, totalTiersCount } = useMemo(() => {
+    let unlocked = 0;
+    let unlockedTiers = 0;
+    let totalTiers = 0;
+    for (const def of ALL_ACHIEVEMENTS) {
+      if (def.isHidden) continue;
+      if (def.tiers) totalTiers += def.tiers.length;
+      const prog = state[def.id];
+      if (prog && (prog.unlockedTiers ?? []).length > 0) {
+        unlocked++;
+        unlockedTiers += (prog.unlockedTiers ?? []).length;
+      }
+    }
+    return { unlockedCount: unlocked, unlockedTiersCount: unlockedTiers, totalTiersCount: totalTiers };
+  }, [state]);
 
   // Memoize filtered achievement lists to avoid recomputation on re-renders
   const unlockedVisible = useMemo(() => {
@@ -486,6 +576,16 @@ const ProfileAchievements = React.memo(function ProfileAchievements({ isOwnProfi
   }, [state]);
 
   const hasAnyUnlocked = unlockedVisible.length > 0 || unlockedHidden.length > 0;
+
+  // While loading another user's badges, show a subtle placeholder.
+  if (!isOwnProfile && remoteState === null) {
+    return (
+      <View style={paStyles.emptyState}>
+        <ActivityIndicator size="small" color={Colors.textMuted} />
+        <Text style={paStyles.emptyBody}>Loading badges…</Text>
+      </View>
+    );
+  }
 
   if (!hasAnyUnlocked) {
     return (
