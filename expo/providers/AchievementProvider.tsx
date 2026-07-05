@@ -21,12 +21,11 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v6 — the British GP (r09) actually happened on 2026-07-05
-// (verified via the live F1 API). The previous v5 reset wrongly zeroed
-// r09 points based only on Supabase's stale `races.status='upcoming'`.
-// Supabase now holds the correct achievements including r09, and v6
-// forces the device to reload from Supabase instead of trusting cache.
-const STORAGE_KEY = 'apex_draft_achievements_v6';
+// Bumped to v7 — race-week-rival is now driven by real per-race league
+// placements computed from Supabase (raceWeekRanks). Previously it was
+// hardcoded to undefined and could never legitimately unlock. v7 forces
+// the device to recompute against the new per-race rankings.
+const STORAGE_KEY = 'apex_draft_achievements_v7';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
@@ -34,7 +33,8 @@ const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements_v3',
   'apex_draft_achievements_v4',
   'apex_draft_achievements_v5',
-];
+  'apex_draft_achievements_v6',
+];;
 
 /** Returns true only when every non-cancelled race is completed. */
 function isSeasonOver(races: Race[] | undefined | null): boolean {
@@ -144,6 +144,13 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   // Stable refs for callbacks to avoid context value recreation
   const evaluateRef = useRef<() => EvaluationResult>(() => ({ state: createEmptyAchievementState(), newlyUnlocked: [] }));
   const getProgressRef = useRef<(id: string) => AchievementProgress | undefined>(() => undefined);
+
+  // Per-race league placements (leagueId:raceId -> rank). Lower = better.
+  // Computed from Supabase by fetching every league member's predictions,
+  // grouping by race, and ranking the current user within each race. This
+  // is what unlocks the race-week-rival achievement — it is a per-race
+  // metric and is intentionally NOT gated by season completion.
+  const [raceWeekRanks, setRaceWeekRanks] = useState<Record<string, number>>({});
 
   useEffect(() => {
     const load = async () => {
@@ -336,10 +343,11 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       leagueMemberships,
       editCounts,
       lockTimes,
-      // No per-race league placement data exists yet, so race-week-rival
-      // cannot be legitimately unlocked. The engine treats undefined as a
-      // sentinel that satisfies no tier.
-      raceWeekRanks: undefined,
+      // Per-race league placements (lower = better). Only races that have a
+      // result are included, so upcoming/live races never count. This drives
+      // the race-week-rival achievement, which is per-race and is NOT gated
+      // by season completion.
+      raceWeekRanks,
       isSeasonComplete: seasonOver,
     };
   }, [
@@ -352,6 +360,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     lockTimes,
     getLeagueMembers,
     profile.id,
+    raceWeekRanks,
   ]);
 
   // Always-available evaluate that reads latest state via refs — avoids
@@ -406,6 +415,133 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     ]);
   }, [isLoaded]);
 
+  // Compute per-race league placements from Supabase. For each league the
+  // user belongs to, fetch every member's predictions, group by race, and
+  // rank the user's (pointsEarned + sprintPointsEarned) within each race.
+  // Only races that have a published result are scored. This is independent
+  // of season completion — race-week-rival is a per-race achievement.
+  useEffect(() => {
+    if (!isSupabaseConfigured || !profile?.id || profile.id === 'guest') {
+      setRaceWeekRanks({});
+      return;
+    }
+
+    let cancelled = false;
+
+    const compute = async () => {
+      try {
+        // Resolve the user's league memberships from Supabase.
+        const { data: membershipRows, error: mErr } = await supabase
+          .from('league_members')
+          .select('league_id, user_id')
+          .eq('user_id', profile.id);
+
+        if (mErr || !membershipRows || membershipRows.length === 0) {
+          if (!cancelled) setRaceWeekRanks({});
+          return;
+        }
+
+        const leagueIds = Array.from(
+          new Set(membershipRows.map((r: any) => r.league_id).filter(Boolean)),
+        ) as string[];
+        if (leagueIds.length === 0) {
+          if (!cancelled) setRaceWeekRanks({});
+          return;
+        }
+
+        // All members across the user's leagues.
+        const { data: allMembers, error: amErr } = await supabase
+          .from('league_members')
+          .select('league_id, user_id')
+          .in('league_id', leagueIds);
+        if (amErr || !allMembers) {
+          if (!cancelled) setRaceWeekRanks({});
+          return;
+        }
+
+        const memberUserIds = Array.from(
+          new Set(allMembers.map((m: any) => m.user_id).filter(Boolean)),
+        ) as string[];
+        if (memberUserIds.length === 0) {
+          if (!cancelled) setRaceWeekRanks({});
+          return;
+        }
+
+        // All predictions for those members.
+        const { data: allPreds, error: pErr } = await supabase
+          .from('user_predictions')
+          .select('user_id, race_id, points_earned, sprint_points_earned')
+          .in('user_id', memberUserIds);
+        if (pErr || !allPreds) {
+          if (!cancelled) setRaceWeekRanks({});
+          return;
+        }
+
+        // Completed race ids — only races with a result count.
+        const completedRaceIds = new Set(
+          (raceResults ?? []).map((r) => r?.raceId).filter(Boolean),
+        );
+
+        // Group members by league.
+        const leaguesToUserIds = new Map<string, Set<string>>();
+        for (const m of allMembers as any[]) {
+          if (!m.league_id || !m.user_id) continue;
+          let set = leaguesToUserIds.get(m.league_id);
+          if (!set) {
+            set = new Set();
+            leaguesToUserIds.set(m.league_id, set);
+          }
+          set.add(m.user_id);
+        }
+
+        // Group predictions by race -> userId -> points.
+        const raceToUserPoints = new Map<string, Map<string, number>>();
+        for (const p of allPreds as any[]) {
+          if (!p.race_id || !p.user_id) continue;
+          if (!completedRaceIds.has(p.race_id)) continue;
+          let userMap = raceToUserPoints.get(p.race_id);
+          if (!userMap) {
+            userMap = new Map();
+            raceToUserPoints.set(p.race_id, userMap);
+          }
+          const pts = (p.points_earned ?? 0) + (p.sprint_points_earned ?? 0);
+          // Keep the best row per user per race.
+          const prev = userMap.get(p.user_id) ?? -1;
+          if (pts > prev) userMap.set(p.user_id, pts);
+        }
+
+        // For each league + race, compute the user's rank.
+        const ranks: Record<string, number> = {};
+        for (const [leagueId, userIds] of leaguesToUserIds) {
+          for (const [raceId, userMap] of raceToUserPoints) {
+            // Only consider members of this league who have a prediction for this race.
+            const scored = [] as Array<{ userId: string; pts: number }>;
+            for (const uid of userIds) {
+              const pts = userMap.get(uid);
+              if (pts == null) continue;
+              scored.push({ userId: uid, pts });
+            }
+            if (scored.length === 0) continue;
+            scored.sort((a, b) => b.pts - a.pts);
+            const idx = scored.findIndex((s) => s.userId === profile.id);
+            if (idx === -1) continue;
+            ranks[`${leagueId}:${raceId}`] = idx + 1;
+          }
+        }
+
+        if (!cancelled) setRaceWeekRanks(ranks);
+      } catch (e) {
+        console.log('[Achievements] raceWeekRanks compute failed:', e);
+        if (!cancelled) setRaceWeekRanks({});
+      }
+    };
+
+    void compute();
+    return () => {
+      cancelled = true;
+    };
+  }, [profile?.id, leagues, raceResults]);
+
   useEffect(() => {
     if (!isLoaded) return;
 
@@ -417,6 +553,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     races,
     totalPoints,
     leagues,
+    raceWeekRanks,
     checkUnlocks,
   ]);
 
