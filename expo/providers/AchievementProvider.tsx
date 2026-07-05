@@ -21,16 +21,17 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v4 — the engine previously treated rank-based achievements
-// (race-week-rival, season-champion) as higher-is-better, so the 999 "no rank"
-// sentinel unlocked every tier mid-season. v4 purges that bad local state.
-// v3 also wiped stale v2 state; both are listed as legacy for safety.
-const STORAGE_KEY = 'apex_draft_achievements_v4';
+// Bumped to v5 — purges stale v4 local state that was computed against
+// bogus r09 points (the race was upcoming with no result, but points were
+// backfilled). Supabase now holds the authoritative corrected state, and
+// v5 forces the device to reload from Supabase instead of trusting cache.
+const STORAGE_KEY = 'apex_draft_achievements_v5';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
   'apex_draft_achievements_v2',
   'apex_draft_achievements_v3',
+  'apex_draft_achievements_v4',
 ];
 
 /** Returns true only when every non-cancelled race is completed. */
