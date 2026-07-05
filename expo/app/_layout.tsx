@@ -12,6 +12,7 @@ import { GameProvider } from "@/providers/GameProvider";
 import { F1DataProvider } from "@/providers/F1DataProvider";
 import { AchievementProvider } from "@/providers/AchievementProvider";
 import ScoringBridge from "@/components/ScoringBridge";
+import AchievementCelebrationOverlay from "@/components/AchievementCelebrationOverlay";
 
 void SplashScreen.preventAutoHideAsync();
 
@@ -164,6 +165,7 @@ export default function RootLayout() {
                 <NotificationTapHandler />
                 <StatusBar style="light" />
                 <RootLayoutNav />
+                <AchievementCelebrationOverlay />
               </AchievementProvider>
             </GameProvider>
           </F1DataProvider>

@@ -27,7 +27,6 @@ import {
 } from '@/constants/achievements';
 import { useAchievements } from '@/providers/AchievementProvider';
 import { useGame } from '@/providers/GameProvider';
-import AchievementUnlockToast from '@/components/AchievementUnlockToast';
 
 type FilterTab = 'all' | 'race' | 'season' | 'league' | 'hidden' | 'unlocked';
 
@@ -104,11 +103,9 @@ export default function AchievementsScreen() {
   const {
     state,
     isLoaded,
-    unlockQueue,
     unlockedCount,
     totalTiersCount,
     unlockedTiersCount,
-    dismissUnlock,
   } = useAchievements();
 
   const { totalPoints } = useGame();
@@ -154,7 +151,6 @@ export default function AchievementsScreen() {
   }, [activeFilter, state]);
 
   const selectedProgress = selectedDef ? state[selectedDef.id] : undefined;
-  const currentToast = unlockQueue.length > 0 && !unlockQueue[0].dismissed ? unlockQueue[0] : null;
 
   if (!isLoaded) {
     return (
@@ -286,12 +282,6 @@ export default function AchievementsScreen() {
         onClose={() => setSelectedDef(null)}
       />
 
-      <AchievementUnlockToast
-        def={currentToast?.def}
-        tier={currentToast?.tier}
-        visible={!!currentToast}
-        onDismiss={dismissUnlock}
-      />
     </View>
   );
 }
