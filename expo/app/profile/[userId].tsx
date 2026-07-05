@@ -646,7 +646,7 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
         </View>
       )}
 
-      {/* Unlocked hidden badges — non-interactive, styled like the achievements tab */}
+      {/* Unlocked hidden badges — tappable, styled like the achievements tab */}
       {unlockedHidden.length > 0 && (
         <View style={paStyles.section}>
           <Text style={paStyles.sectionLabel}>Secret Badges</Text>
@@ -657,6 +657,10 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
                 def={def}
                 color={HIDDEN_COLORS.red}
                 isHidden
+                onPress={() => {
+                  void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+                  setSelectedDef(def);
+                }}
               />
             ))}
           </View>
@@ -667,6 +671,7 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
         def={selectedDef}
         progress={selectedDef ? state[selectedDef.id] : undefined}
         visible={!!selectedDef}
+        hideDescription={selectedDef?.isHidden ?? false}
         onClose={() => setSelectedDef(null)}
       />
     </View>
@@ -907,9 +912,10 @@ const paStyles = StyleSheet.create({
   },
 });
 
-/* Icon-based badge chip used on the profile screen. Visible badges are
-   tappable buttons that open the detail modal; secret badges are
-   non-interactive and styled to match the achievements tab (black + F1 red). */
+/* Icon-based badge chip used on the profile screen. Both visible and secret
+   badges are tappable buttons that open the detail modal. Secret badges are
+   styled to match the achievements tab (black + F1 red), and their modal
+   shows only the badge name (no description). */
 const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
   def,
   progress,
@@ -927,10 +933,13 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
 }) {
   const Icon = resolveAchievementIcon(def.icon);
 
-  // Secret badges: static, styled like the achievements tab (black + F1 red)
+  // Secret badges: tappable, styled like the achievements tab (black + F1 red)
   if (isHidden) {
     return (
-      <View
+      <TouchableOpacity
+        activeOpacity={0.7}
+        onPress={onPress}
+        disabled={!onPress}
         style={[
           paStyles.badgeIconChip,
           {
@@ -946,7 +955,7 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
             {tierLabel}
           </Text>
         ) : null}
-      </View>
+      </TouchableOpacity>
     );
   }
 
@@ -979,11 +988,13 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
   def,
   progress,
   visible,
+  hideDescription = false,
   onClose,
 }: {
   def: AchievementDefinition | null;
   progress: AchievementProgress | undefined;
   visible: boolean;
+  hideDescription?: boolean;
   onClose: () => void;
 }) {
   if (!def) return null;
@@ -1018,7 +1029,13 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                 {def.category.charAt(0).toUpperCase() + def.category.slice(1)}
               </Text>
 
-              <Text style={paStyles.modalDesc}>{def.description}</Text>
+              {!hideDescription ? (
+                <Text style={paStyles.modalDesc}>{def.description}</Text>
+              ) : (
+                <Text style={paStyles.modalDesc}>
+                  A secret achievement. Keep playing to discover more!
+                </Text>
+              )}
             </View>
 
             {def.tiers && progress && (
