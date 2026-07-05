@@ -21,11 +21,12 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v7 — race-week-rival is now driven by real per-race league
-// placements computed from Supabase (raceWeekRanks). Previously it was
-// hardcoded to undefined and could never legitimately unlock. v7 forces
-// the device to recompute against the new per-race rankings.
-const STORAGE_KEY = 'apex_draft_achievements_v7';
+// Bumped to v8 — all users' achievements were recomputed server-side by the
+// real evaluation engine and written to Supabase. v7 local caches may hold
+// stale/incorrect tiers (e.g. Admin's grid-master bronze from an earlier
+// manual reset) that would survive the union merge with Supabase. v8 purges
+// the local cache so every device re-syncs the correct state from Supabase.
+const STORAGE_KEY = 'apex_draft_achievements_v8';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
@@ -34,6 +35,7 @@ const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements_v4',
   'apex_draft_achievements_v5',
   'apex_draft_achievements_v6',
+  'apex_draft_achievements_v7',
 ];;
 
 /** Returns true only when every non-cancelled race is completed. */
