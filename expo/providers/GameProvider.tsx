@@ -87,41 +87,31 @@ function mapPredictionRow(row: PredictionRow): Prediction {
   });
 }
 
-function predictionUpdatedAtMs(prediction: Prediction): number {
-  return Date.parse(prediction.updatedAt ?? '') || 0;
-}
-
-function shouldUseCandidatePrediction(
-  existing: Prediction | undefined,
-  candidate: Prediction,
-  preferCandidateOnTie: boolean,
-): boolean {
-  if (!existing) return true;
-
-  const candidateTime = predictionUpdatedAtMs(candidate);
-  const existingTime = predictionUpdatedAtMs(existing);
-
-  if (candidateTime === existingTime) return preferCandidateOnTie;
-  return candidateTime > existingTime;
-}
-
 function mergePredictions(localPredictions: Prediction[], cloudPredictions: Prediction[]): Prediction[] {
   const byRaceId = new Map<string, Prediction>();
 
+  // Seed with local predictions first (fallback only).
   for (const prediction of localPredictions) {
     const normalized = normalizePrediction(prediction);
-    const existing = byRaceId.get(normalized.raceId);
-    if (shouldUseCandidatePrediction(existing, normalized, false)) {
-      byRaceId.set(normalized.raceId, normalized);
-    }
+    byRaceId.set(normalized.raceId, normalized);
   }
 
+  // Cloud (Supabase) is the authoritative source of truth for logged-in users.
+  // When a cloud prediction has actual picks, it ALWAYS wins over local —
+  // regardless of timestamp. This prevents stale local AsyncStorage data from
+  // shadowing the correct picks that were saved to Supabase.
+  // Local is only kept when the cloud row has no picks (safety net).
   for (const prediction of cloudPredictions) {
     const normalized = normalizePrediction(prediction);
     const existing = byRaceId.get(normalized.raceId);
-    // Supabase is authoritative when timestamps match, but older duplicate rows
-    // must never overwrite a newer local or cloud save for the same race.
-    if (shouldUseCandidatePrediction(existing, normalized, true)) {
+
+    const cloudHasPicks =
+      normalized.top10.length > 0 ||
+      normalized.sprintTop8.length > 0 ||
+      normalized.fastestLap != null ||
+      normalized.dnf != null;
+
+    if (!existing || cloudHasPicks) {
       byRaceId.set(normalized.raceId, normalized);
     }
   }
