@@ -943,8 +943,8 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
         style={[
           paStyles.badgeIconChip,
           {
-            backgroundColor: HIDDEN_COLORS.blackRaised,
-            borderColor: HIDDEN_COLORS.redBorder,
+            backgroundColor: HIDDEN_COLORS.black,
+            borderColor: HIDDEN_COLORS.redBorderStrong,
             borderWidth: 1.5,
           },
         ]}
@@ -1002,37 +1002,88 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
   const Icon = resolveAchievementIcon(def.icon);
   const unlocked = (progress?.unlockedTiers?.length ?? 0) > 0;
   const highestTier = unlocked ? progress!.unlockedTiers[progress!.unlockedTiers.length - 1] : null;
-  const accentColor = highestTier ? TIER_COLORS[highestTier].primary : Colors.textMuted;
+  const isHidden = def.isHidden;
+  const accentColor = isHidden
+    ? HIDDEN_COLORS.red
+    : (highestTier ? TIER_COLORS[highestTier].primary : Colors.textMuted);
 
   return (
     <Modal transparent visible={visible} animationType="slide" onRequestClose={onClose}>
       <Pressable style={paStyles.modalBackdrop} onPress={onClose}>
-        <Pressable style={paStyles.modalSheet} onPress={() => {}}>
-          <View style={paStyles.modalHandle} />
+        <Pressable
+          style={[
+            paStyles.modalSheet,
+            isHidden && {
+              backgroundColor: HIDDEN_COLORS.black,
+              borderTopWidth: 1,
+              borderColor: HIDDEN_COLORS.redBorderStrong,
+            },
+          ]}
+          onPress={() => {}}
+        >
+          <View
+            style={[
+              paStyles.modalHandle,
+              isHidden && { backgroundColor: HIDDEN_COLORS.redBorder },
+            ]}
+          />
           <ScrollView contentContainerStyle={paStyles.modalScrollContent} showsVerticalScrollIndicator={false}>
             <View style={paStyles.modalHeader}>
               <View
                 style={[
                   paStyles.modalIconShell,
                   {
-                    backgroundColor: `${accentColor}22`,
-                    borderColor: `${accentColor}70`,
+                    backgroundColor: isHidden
+                      ? HIDDEN_COLORS.redSoft
+                      : `${accentColor}22`,
+                    borderColor: isHidden
+                      ? HIDDEN_COLORS.redBorder
+                      : `${accentColor}70`,
                   },
                 ]}
               >
-                <Icon size={32} color={accentColor} />
+                <Icon size={32} color={isHidden ? '#FFF' : accentColor} />
               </View>
 
-              <Text style={paStyles.modalName}>{def.name}</Text>
+              <Text
+                style={[
+                  paStyles.modalName,
+                  isHidden && { color: '#FFF' },
+                ]}
+              >
+                {def.name}
+              </Text>
 
-              <Text style={paStyles.modalCategoryBadge}>
-                {def.category.charAt(0).toUpperCase() + def.category.slice(1)}
+              <Text
+                style={[
+                  paStyles.modalCategoryBadge,
+                  isHidden && {
+                    color: HIDDEN_COLORS.red,
+                    backgroundColor: HIDDEN_COLORS.redSoft,
+                    borderColor: HIDDEN_COLORS.redBorder,
+                    borderWidth: 1,
+                  },
+                ]}
+              >
+                {isHidden ? 'Secret' : def.category.charAt(0).toUpperCase() + def.category.slice(1)}
               </Text>
 
               {!hideDescription ? (
-                <Text style={paStyles.modalDesc}>{def.description}</Text>
+                <Text
+                  style={[
+                    paStyles.modalDesc,
+                    isHidden && { color: '#D8D8D8' },
+                  ]}
+                >
+                  {def.description}
+                </Text>
               ) : (
-                <Text style={paStyles.modalDesc}>
+                <Text
+                  style={[
+                    paStyles.modalDesc,
+                    isHidden && { color: HIDDEN_COLORS.red },
+                  ]}
+                >
                   A secret achievement. Keep playing to discover more!
                 </Text>
               )}
@@ -1067,7 +1118,14 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                 </Text>
 
                 <View style={paStyles.tiersSection}>
-                  <Text style={paStyles.tiersSectionTitle}>TIER REQUIREMENTS</Text>
+                  <Text
+                    style={[
+                      paStyles.tiersSectionTitle,
+                      isHidden && { color: HIDDEN_COLORS.red },
+                    ]}
+                  >
+                    TIER REQUIREMENTS
+                  </Text>
 
                   {def.tiers.map((tierDef, idx) => {
                     const tierUnlocked = progress?.unlockedTiers?.includes(tierDef.tier) ?? false;
@@ -1076,15 +1134,20 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                       idx === 0 ||
                       (progress?.unlockedTiers?.includes(def.tiers![idx - 1].tier) ?? false);
                     const nextTier = !tierUnlocked && previousUnlocked;
+                    const tierAccent = isHidden ? HIDDEN_COLORS.red : tierColors.primary;
 
                     return (
                       <View
                         key={tierDef.tier}
                         style={[
                           paStyles.tierCard,
+                          isHidden && {
+                            backgroundColor: HIDDEN_COLORS.blackRaised,
+                            borderColor: HIDDEN_COLORS.redBorder,
+                          },
                           tierUnlocked && {
-                            borderColor: `${tierColors.primary}70`,
-                            backgroundColor: `${tierColors.primary}10`,
+                            borderColor: `${tierAccent}70`,
+                            backgroundColor: `${tierAccent}10`,
                           },
                         ]}
                       >
@@ -1094,28 +1157,29 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                               paStyles.tierBadge,
                               {
                                 backgroundColor: tierUnlocked
-                                  ? `${tierColors.primary}24`
-                                  : Colors.surfaceHighlight,
-                                borderColor: tierUnlocked ? `${tierColors.primary}80` : Colors.border,
+                                  ? `${tierAccent}24`
+                                  : (isHidden ? HIDDEN_COLORS.blackSoft : Colors.surfaceHighlight),
+                                borderColor: tierUnlocked ? `${tierAccent}80` : (isHidden ? HIDDEN_COLORS.redBorder : Colors.border),
                               },
                             ]}
                           >
                             {tierUnlocked ? (
-                              <Check size={15} color={tierColors.primary} />
+                              <Check size={15} color={tierAccent} />
                             ) : (
-                              <Text style={paStyles.tierBadgeText}>{idx + 1}</Text>
+                              <Text style={[paStyles.tierBadgeText, isHidden && { color: HIDDEN_COLORS.red }]}>{idx + 1}</Text>
                             )}
                           </View>
 
                           <View style={paStyles.tierCardTitleBlock}>
-                            <Text style={paStyles.tierCardLabel}>{TIER_LABELS[tierDef.tier]}</Text>
-                            <Text style={paStyles.tierCardReq}>{tierDef.requirement}</Text>
+                            <Text style={[paStyles.tierCardLabel, isHidden && { color: '#FFF' }]}>{TIER_LABELS[tierDef.tier]}</Text>
+                            <Text style={[paStyles.tierCardReq, isHidden && { color: '#C8C8C8' }]}>{tierDef.requirement}</Text>
                           </View>
 
                           <Text
                             style={[
                               paStyles.tierStatusText,
-                              tierUnlocked && { color: tierColors.primary },
+                              tierUnlocked && { color: tierAccent },
+                              isHidden && !tierUnlocked && { color: HIDDEN_COLORS.red },
                             ]}
                           >
                             {tierUnlocked
