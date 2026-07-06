@@ -200,6 +200,7 @@ create table if not exists public.user_achievements (
   unlocked_tiers text[] default '{}',
   current_value integer default 0,
   unlocked_at jsonb default '{}',
+  season_instances jsonb default null,
   updated_at timestamptz default now(),
   primary key (user_id, achievement_id)
 );

@@ -16,6 +16,8 @@ interface AchievementUnlockToastProps {
   tier?: AchievementTier;
   visible: boolean;
   onDismiss: () => void;
+  /** Season label for season-based achievements, e.g. "2026". */
+  season?: string;
 }
 
 const HIDDEN_UNLOCK_COLORS = {
@@ -39,6 +41,7 @@ export default function AchievementUnlockToast({
   tier = 'bronze',
   visible,
   onDismiss,
+  season,
 }: AchievementUnlockToastProps) {
   const opacity = useRef(new Animated.Value(0)).current;
   const scale = useRef(new Animated.Value(0.85)).current;
@@ -155,7 +158,7 @@ export default function AchievementUnlockToast({
               hiddenUnlocked && styles.hiddenBadgeName,
             ]}
           >
-            {def.name}
+            {season ? `${def.name} — ${season}` : def.name}
           </Text>
 
           <Text
@@ -170,6 +173,12 @@ export default function AchievementUnlockToast({
           {def.tiers && !hiddenUnlocked && (
             <Text style={styles.tierReq}>
               {def.tiers.find((t) => t.tier === tier)?.requirement}
+            </Text>
+          )}
+
+          {def.isSpecial && !hiddenUnlocked && (
+            <Text style={styles.tierReq}>
+              {season ? `Achieved in ${season}` : def.description}
             </Text>
           )}
 

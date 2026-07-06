@@ -20,6 +20,9 @@ import {
   HIDDEN_ACHIEVEMENTS,
   TIER_COLORS,
   TIER_LABELS,
+  isPlatinumUnlocked,
+  getDisplayTiers,
+  getProgressDenominator,
   type AchievementCategory,
   type AchievementDefinition,
   type AchievementProgress,
@@ -72,7 +75,18 @@ function getHighestTier(progress?: AchievementProgress): AchievementTier | null 
 }
 
 function isUnlocked(progress?: AchievementProgress): boolean {
+  // Special achievements use bronze tier as the binary unlock flag.
   return (progress?.unlockedTiers?.length ?? 0) > 0;
+}
+
+/** Display name for an achievement, with the season suffix when applicable. */
+function getDisplayName(def: AchievementDefinition, progress?: AchievementProgress): string {
+  if (def.isSeasonBased && progress?.seasonInstances && progress.seasonInstances.length > 0) {
+    // Show the most recent (current) season instance.
+    const latest = progress.seasonInstances[progress.seasonInstances.length - 1];
+    if (latest?.season) return `${def.name} — ${latest.season}`;
+  }
+  return def.name;
 }
 
 function getAccentColor(def: AchievementDefinition, progress?: AchievementProgress): string {
@@ -357,7 +371,7 @@ function AchievementCard({
             ]}
             numberOfLines={1}
           >
-            {hiddenLocked ? 'Hidden Badge' : def.name}
+            {hiddenLocked ? 'Hidden Badge' : getDisplayName(def, progress)}
           </Text>
 
           <Text style={[styles.cardCategory, hidden && styles.hiddenCardCategory]}>
@@ -417,7 +431,7 @@ function AchievementCard({
       {!def.isHidden && def.tiers && (
         <View style={styles.tierFooter}>
           <View style={styles.tierRow}>
-            {def.tiers.map((tierDef) => {
+            {getDisplayTiers(def, progress).map((tierDef) => {
               const tierUnlocked = progress?.unlockedTiers?.includes(tierDef.tier) ?? false;
               const tierColors = TIER_COLORS[tierDef.tier];
 
@@ -440,7 +454,7 @@ function AchievementCard({
 
           <Text style={styles.tierProgressText}>
             {progress?.currentValue ?? 0}
-            {def.tiers.length > 0 ? ` / ${def.tiers[def.tiers.length - 1].value}` : ''}
+            {def.tiers.length > 0 ? ` / ${getProgressDenominator(def, progress)}` : ''}
           </Text>
         </View>
       )}
@@ -501,7 +515,7 @@ function AchievementDetailModal({
               </View>
 
               <Text style={[styles.modalName, hidden && styles.hiddenModalName]}>
-                {hiddenLocked ? 'Hidden Badge' : def.name}
+                {hiddenLocked ? 'Hidden Badge' : getDisplayName(def, progress)}
               </Text>
 
               <Text style={[styles.modalCategoryBadge, hidden && styles.hiddenModalCategoryBadge]}>
@@ -520,23 +534,22 @@ function AchievementDetailModal({
                     style={[
                       styles.modalProgressFill,
                       {
-                        width:
-                          def.tiers.length > 0
+                        width: (() => {
+                          const denom = getProgressDenominator(def, progress);
+                          return denom > 0
                             ? `${Math.min(
                                 100,
-                                Math.round(
-                                  (progress.currentValue / def.tiers[def.tiers.length - 1].value) *
-                                    100
-                                )
+                                Math.round((progress.currentValue / denom) * 100)
                               )}%`
-                            : '0%',
+                            : '0%';
+                        })(),
                       },
                     ]}
                   />
                 </View>
 
                 <Text style={styles.modalProgressLabel}>
-                  Progress: {progress.currentValue} / {def.tiers[def.tiers.length - 1].value}
+                  Progress: {progress.currentValue} / {getProgressDenominator(def, progress)}
                 </Text>
               </>
             )}
@@ -545,12 +558,13 @@ function AchievementDetailModal({
               <View style={styles.tiersSection}>
                 <Text style={styles.tiersSectionTitle}>TIER REQUIREMENTS</Text>
 
-                {def.tiers.map((tierDef, idx) => {
+                {getDisplayTiers(def, progress).map((tierDef, idx) => {
                   const tierUnlocked = progress?.unlockedTiers?.includes(tierDef.tier) ?? false;
                   const tierColors = TIER_COLORS[tierDef.tier];
+                  const displayTiers = getDisplayTiers(def, progress);
                   const previousUnlocked =
                     idx === 0 ||
-                    (progress?.unlockedTiers?.includes(def.tiers![idx - 1].tier) ?? false);
+                    (progress?.unlockedTiers?.includes(displayTiers[idx - 1].tier) ?? false);
                   const nextTier = !tierUnlocked && previousUnlocked;
 
                   return (

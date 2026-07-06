@@ -215,6 +215,7 @@ export default function AchievementCelebrationOverlay() {
 
   const def = current?.def;
   const tier = current?.tier ?? 'bronze';
+  const season = current?.season;
   const visible = !!current && !!def;
 
   // Animation values
@@ -412,7 +413,7 @@ export default function AchievementCelebrationOverlay() {
 
     return () => clearTimeout(timer);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, def?.id, tier]);
+  }, [visible, def?.id, tier, season]);
 
   if (!visible || !def) return null;
 
@@ -636,7 +637,7 @@ export default function AchievementCelebrationOverlay() {
                 hiddenUnlocked && styles.hiddenBadgeName,
               ]}
             >
-              {def.name}
+              {season ? `${def.name} — ${season}` : def.name}
             </Text>
             <Text
               style={[
@@ -650,6 +651,12 @@ export default function AchievementCelebrationOverlay() {
             {def.tiers && !hiddenUnlocked && (
               <Text style={styles.tierReq}>
                 {def.tiers.find((t) => t.tier === tier)?.requirement}
+              </Text>
+            )}
+
+            {def.isSpecial && !hiddenUnlocked && (
+              <Text style={styles.tierReq}>
+                {season ? `Achieved in ${season}` : def.description}
               </Text>
             )}
 

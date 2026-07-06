@@ -1,9 +1,15 @@
 /**
  * Achievement evaluation engine.
  *
- * Evaluates all achievement definitions against the current user state
- * and returns newly unlocked tiers.  Scoring data is currently mockable;
- * TODO comments mark where real Supabase / GameProvider data should be wired.
+ * Evaluates all achievement definitions against the current user state and
+ * returns newly unlocked tiers (and, for season-based achievements, newly
+ * earned per-season instances). Platinum tiers are evaluated internally but
+ * the display layer is responsible for hiding them until unlocked.
+ *
+ * Season-based repeatable achievements keep a per-season instance. Earning a
+ * new season never overwrites a previous season's instance — previous seasons
+ * are frozen in `seasonInstances` and only the current season's flat fields
+ * are mutated.
  */
 
 import {
@@ -14,30 +20,57 @@ import {
   ALL_ACHIEVEMENTS,
   createEmptyProgress,
   type AchievementState,
+  type SeasonInstance,
 } from '@/constants/achievements';
-import type { Prediction, RaceResult, LeagueMember } from '@/types';
+import type { Prediction, RaceResult, Race } from '@/types';
 
 /* ------------------------------------------------------------------ */
 /*  Input shape — the data the engine needs to evaluate achievements   */
 /* ------------------------------------------------------------------ */
+
+export interface LeagueMembership {
+  leagueId: string;
+  rank: number;
+  seasonRank?: number;
+  /** Total active members in the league (for comeback-drive eligibility). */
+  memberCount?: number;
+}
+
+export interface RaceWeekRankEntry {
+  leagueId: string;
+  raceId: string;
+  rank: number;
+  /** The user's league rank immediately before this race weekend (lower = better). */
+  preWeekendRank?: number;
+  /** Total active members in the league (for comeback eligibility). */
+  memberCount?: number;
+}
 
 export interface AchievementInput {
   /** All predictions the user has made (current + previous races). */
   predictions: Prediction[];
   /** Race results keyed by raceId. */
   raceResults: Record<string, RaceResult>;
-  /** The user's current total points. */
+  /** Races keyed by raceId (used to detect sprint weekends & season). */
+  racesById: Record<string, Race>;
+  /** The user's current total points (race + sprint, all-time). */
   totalPoints: number;
-  /** The user's league memberships (for league-rank achievements). */
-  leagueMemberships: { leagueId: string; rank: number; seasonRank?: number }[];
+  /** The user's league memberships. */
+  leagueMemberships: LeagueMembership[];
   /** Per-race edit counts (for Ferrari Strategy Dept., Box Box Box). */
   editCounts: Record<string, { count: number; lastEditAt: string }>;
   /** Per-race lock times (ISO strings) for Box Box Box. */
   lockTimes: Record<string, string>;
-  /** Per-race league placements (leagueId:raceId -> rank). Lower = better. */
-  raceWeekRanks?: Record<string, number>;
+  /** Per-race league placements + pre-weekend rank for comeback tracking. */
+  raceWeekRanks?: RaceWeekRankEntry[];
+  /** Global leaderboard entries for season-end achievements. */
+  globalLeaderboard?: { userId: string; totalPoints: number }[];
+  /** Current season label, e.g. "2026". Derived from race dates when available. */
+  currentSeason?: string;
   /** Whether the season has concluded (gates season-end achievements). */
   isSeasonComplete?: boolean;
+  /** The user's id (for leaderboard lookups). */
+  userId?: string;
 }
 
 /* ------------------------------------------------------------------ */
@@ -46,8 +79,8 @@ export interface AchievementInput {
 
 /**
  * Evaluate a single achievement against current state.
- * Returns the highest tier index (0-3) unlocked and the current numeric value.
- * For hidden achievements, returns { tier: 0|1, value }.
+ * Returns the highest tier set unlocked and the current numeric value.
+ * For hidden/special achievements, returns a binary unlock via bronze tier.
  */
 export function evaluateAchievement(
   def: AchievementDefinition,
@@ -64,8 +97,8 @@ export function evaluateAchievement(
 function computeValue(def: AchievementDefinition, input: AchievementInput): number {
   switch (def.unlockConditionKey) {
     /* --- Race-based --- */
-    case 'single_race_points':
-      return maxRacePoints(input.predictions);
+    case 'race_day_points':
+      return maxRaceDayPoints(input.predictions);
 
     case 'podium_accuracy':
       return maxPodiumAccuracy(input.predictions, input.raceResults);
@@ -76,37 +109,43 @@ function computeValue(def: AchievementDefinition, input: AchievementInput): numb
     case 'weekend_total_points':
       return maxWeekendPoints(input.predictions);
 
-    case 'chaos_events':
-      return maxChaosLevel(input.predictions, input.raceResults);
-
     case 'perfect_weekend':
-      return maxPerfectWeekendLevel(input.predictions, input.raceResults);
+      return maxPerfectWeekendLevel(input.predictions, input.raceResults, input.racesById);
 
-    case 'comeback_improvement':
-      // Cap at the highest non-platinum threshold. The platinum tier in the
-      // definition (100) requires a 100+ point race-over-race improvement,
-      // which is achievable but should never be triggered by a 0 → 100 first
-      // race (no previous race to compare against).
-      return Math.min(maxComebackImprovement(input.predictions), 100);
+    case 'sprint_points_single':
+      return maxSprintPoints(input.predictions);
+
+    case 'sprint_exact_positions':
+      return maxSprintExactPositions(input.predictions, input.raceResults);
 
     /* --- Season-based --- */
     case 'season_total_points':
       return input.totalPoints;
 
     case 'correct_winners_count':
-      return countCorrectWinners(input.predictions, input.raceResults);
+      return countCorrectWinnersForSeason(input.predictions, input.raceResults, input.racesById, input.currentSeason);
+
+    case 'season_bonus_picks':
+      return countSeasonBonusPicks(input.predictions, input.raceResults, input.racesById, input.currentSeason);
 
     /* --- League-based --- */
-    case 'league_race_week_rank':
-      return bestRaceWeekRank(input.raceWeekRanks, input.leagueMemberships);
+    case 'comeback_gain':
+      return maxComebackGain(input.raceWeekRanks);
 
-    case 'league_season_rank':
-      // Season-rank achievements only evaluate once the season is officially over.
-      // Without this guard, mid-season standings would prematurely unlock tiers.
-      if (!input.isSeasonComplete) return 999;
-      return bestLeagueSeasonRank(input.leagueMemberships);
+    /* --- Season global (percentile / rank / #1) --- */
+    case 'season_global_percentile':
+      if (!input.isSeasonComplete) return 0;
+      return seasonGlobalPercentile(input.globalLeaderboard, input.userId);
 
-    /* --- Hidden --- */
+    case 'season_global_rank':
+      if (!input.isSeasonComplete) return 9999;
+      return seasonGlobalRank(input.globalLeaderboard, input.userId);
+
+    case 'season_global_number_one':
+      if (!input.isSeasonComplete) return 0;
+      return isSeasonGlobalNumberOne(input.globalLeaderboard, input.userId) ? 1 : 0;
+
+    /* --- Hidden (unchanged) --- */
     case 'last_minute_edit':
       return hasLastMinuteEdit(input.editCounts, input.lockTimes) ? 1 : 0;
 
@@ -139,18 +178,13 @@ function computeUnlockedTiers(
   alreadyUnlocked: AchievementTier[],
 ): AchievementTier[] {
   if (!def.tiers) {
-    // Hidden achievement — binary unlock
+    // Hidden / special achievement — binary unlock via bronze tier.
     return currentValue >= 1 ? ['bronze' as AchievementTier] : [];
   }
 
   const unlocked = new Set(alreadyUnlocked);
   const lowerIsBetter = def.lowerIsBetter ?? false;
   for (const tierDef of def.tiers) {
-    // Rank achievements (lowerIsBetter) unlock when currentValue <= tier value.
-    // Points/count achievements unlock when currentValue >= tier value.
-    // The 999 "no data" sentinel therefore satisfies no rank tier (999 <= 1
-    // is false), which prevents premature unlocks before a season ends or
-    // before per-race league placement data exists.
     const met = lowerIsBetter
       ? currentValue <= tierDef.value && currentValue > 0
       : currentValue >= tierDef.value;
@@ -165,9 +199,15 @@ function computeUnlockedTiers(
 /*  Specific value computers                                           */
 /* ------------------------------------------------------------------ */
 
-function maxRacePoints(predictions: Prediction[]): number {
+/**
+ * Race Day Haul — only Grand Prix race points. Excludes sprint points.
+ * Counts race top-10 points, fastest lap points, and DNF points only.
+ * `pointsEarned` already encapsulates top-10 + fastest lap + DNF scoring
+ * (see scoring lib), so we use it directly and ignore sprint points.
+ */
+function maxRaceDayPoints(predictions: Prediction[]): number {
   return predictions.reduce((max, p) => {
-    const pts = (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0);
+    const pts = p.pointsEarned ?? 0;
     return pts > max ? pts : max;
   }, 0);
 }
@@ -189,24 +229,36 @@ function maxPodiumAccuracy(
     const predPodium = pred.top10.slice(0, 3);
     if (predPodium.length < 3) continue;
 
-    // Check exact match (platinum level)
     const exactMatch =
       predPodium[0] === resultPodium[0] &&
       predPodium[1] === resultPodium[1] &&
       predPodium[2] === resultPodium[2];
 
-    // Check all 3 in any order (gold level)
     const allThreeAnyOrder =
       predPodium.every((d) => resultPodium.includes(d)) &&
       resultPodium.every((d) => predPodium.includes(d));
 
-    // Count correct position matches
     let correctPositions = 0;
     for (let i = 0; i < 3; i++) {
       if (predPodium[i] === resultPodium[i]) correctPositions++;
     }
 
-    const level = exactMatch ? 4 : allThreeAnyOrder ? 3 : correctPositions;
+    // Bronze: 2 of 3 podium drivers (any order) — value 1
+    // Silver: 2 in exact positions — value 2
+    // Gold: all 3 in exact positions — value 3
+    // Platinum: exact podium + fastest lap + DNF — value 4
+    let level = 0;
+    const driversCorrectAnyOrder = predPodium.filter((d) => resultPodium.includes(d)).length;
+    if (driversCorrectAnyOrder >= 2) level = Math.max(level, 1); // Bronze
+    if (correctPositions >= 2) level = Math.max(level, 2); // Silver
+    if (exactMatch) level = Math.max(level, 3); // Gold
+
+    if (exactMatch) {
+      const flCorrect = !!pred.fastestLap && pred.fastestLap === result.fastestLapDriverId;
+      const dnfCorrect = !!pred.dnf && result.dnfDriverIds.includes(pred.dnf);
+      if (flCorrect && dnfCorrect) level = Math.max(level, 4); // Platinum
+    }
+
     if (level > best) best = level;
   }
   return best;
@@ -235,64 +287,38 @@ function maxExactPositions(
   return best;
 }
 
+/**
+ * Weekend Warrior — race + sprint points combined for a single weekend.
+ * Each race is treated as its own weekend (race + sprint share the raceId).
+ */
 function maxWeekendPoints(predictions: Prediction[]): number {
-  // TODO: Group predictions by weekend (raceId prefix) when real weekend data exists.
-  // For now, each race is treated as its own weekend.
-  return maxRacePoints(predictions);
+  return predictions.reduce((max, p) => {
+    const pts = (p.pointsEarned ?? 0) + (p.sprintPointsEarned ?? 0);
+    return pts > max ? pts : max;
+  }, 0);
 }
 
-function maxChaosLevel(
-  predictions: Prediction[],
-  raceResults: Record<string, RaceResult>,
-): number {
-  let bestLevel = 0;
-
-  for (const pred of predictions) {
-    const result = raceResults[pred.raceId];
-    if (!result || result.classification.length === 0) continue;
-
-    const flCorrect = !!pred.fastestLap && pred.fastestLap === result.fastestLapDriverId;
-    const dnfCorrect = !!pred.dnf && result.dnfDriverIds.includes(pred.dnf);
-    const winnerCorrect =
-      pred.top10.length > 0 &&
-      result.classification.some(
-        (c) => c.position === 1 && c.driverId === pred.top10[0],
-      );
-
-    // Level tracking across races
-    const hasEverFL = predictions.some((p) => {
-      const r = raceResults[p.raceId];
-      return r && !!p.fastestLap && p.fastestLap === r.fastestLapDriverId;
-    });
-    const hasEverDNF = predictions.some((p) => {
-      const r = raceResults[p.raceId];
-      return r && !!p.dnf && r.dnfDriverIds.includes(p.dnf);
-    });
-
-    if (flCorrect || dnfCorrect) bestLevel = Math.max(bestLevel, 1); // Bronze
-    if (hasEverFL && hasEverDNF) bestLevel = Math.max(bestLevel, 2); // Silver
-    if (flCorrect && dnfCorrect) bestLevel = Math.max(bestLevel, 3); // Gold
-    if (winnerCorrect && flCorrect && dnfCorrect) bestLevel = Math.max(bestLevel, 4); // Platinum
-  }
-
-  return bestLevel;
-}
-
+/**
+ * Perfect Weekend — requires a sprint weekend.
+ * Levels map to the tier values 1–4.
+ */
 function maxPerfectWeekendLevel(
   predictions: Prediction[],
   raceResults: Record<string, RaceResult>,
+  racesById: Record<string, Race>,
 ): number {
   let best = 0;
   for (const pred of predictions) {
     const result = raceResults[pred.raceId];
     if (!result || result.classification.length === 0) continue;
+    const race = racesById[pred.raceId];
+    if (!race?.hasSprint) continue; // must be a sprint weekend
 
     const winnerCorrect =
       pred.top10.length > 0 &&
-      result.classification.some(
-        (c) => c.position === 1 && c.driverId === pred.top10[0],
-      );
-    const racePts = (pred.pointsEarned ?? 0) + (pred.sprintPointsEarned ?? 0);
+      result.classification.some((c) => c.position === 1 && c.driverId === pred.top10[0]);
+
+    const sprintPts = pred.sprintPointsEarned ?? 0;
 
     const resultPodium = result.classification
       .filter((c) => c.position <= 3)
@@ -308,53 +334,95 @@ function maxPerfectWeekendLevel(
       predPodium[0] === resultPodium[0] &&
       predPodium[1] === resultPodium[1] &&
       predPodium[2] === resultPodium[2];
-    const flOrDnf =
-      (!!pred.fastestLap && pred.fastestLap === result.fastestLapDriverId) ||
-      (!!pred.dnf && result.dnfDriverIds.includes(pred.dnf));
+    const flCorrect = !!pred.fastestLap && pred.fastestLap === result.fastestLapDriverId;
+    const dnfCorrect = !!pred.dnf && result.dnfDriverIds.includes(pred.dnf);
 
-    if (winnerCorrect && exactPodium && flOrDnf) best = Math.max(best, 4);
-    else if (winnerCorrect && exactPodium) best = Math.max(best, 3);
-    else if (winnerCorrect && allThreeAnyOrder) best = Math.max(best, 2);
-    else if (winnerCorrect && racePts >= 50) best = Math.max(best, 1);
+    // Bronze: winner + 12+ sprint pts
+    if (winnerCorrect && sprintPts >= 12) best = Math.max(best, 1);
+    // Silver: exact race podium + 18+ sprint pts
+    if (exactPodium && sprintPts >= 18) best = Math.max(best, 2);
+    // Gold: exact race podium + fastest lap + 24+ sprint pts
+    if (exactPodium && flCorrect && sprintPts >= 24) best = Math.max(best, 3);
+    // Platinum: exact race top 10 + fastest lap + DNF + exact sprint top 8
+    if (exactRaceTop10(pred, result) && flCorrect && dnfCorrect && exactSprintTop8(pred, result)) {
+      best = Math.max(best, 4);
+    }
   }
   return best;
 }
 
-function maxComebackImprovement(predictions: Prediction[]): number {
-  // Only consider races that actually have a result — without a result,
-  // pointsEarned is 0 by default and would fabricate a 0 → big swing.
-  const scored = predictions.filter(
-    (p) => (p.pointsEarned ?? 0) > 0 || (p.sprintPointsEarned ?? 0) > 0,
-  );
-  // Sort by updatedAt to establish chronological order of race weekends.
-  const sorted = [...scored].sort(
-    (a, b) => new Date(a.updatedAt).getTime() - new Date(b.updatedAt).getTime(),
-  );
-  let best = 0;
-  for (let i = 1; i < sorted.length; i++) {
-    const prevPts =
-      (sorted[i - 1].pointsEarned ?? 0) + (sorted[i - 1].sprintPointsEarned ?? 0);
-    const currPts =
-      (sorted[i].pointsEarned ?? 0) + (sorted[i].sprintPointsEarned ?? 0);
-    const improvement = currPts - prevPts;
-    if (improvement > best) best = improvement;
+function exactRaceTop10(pred: Prediction, result: RaceResult): boolean {
+  const resultTop10 = result.classification
+    .filter((c) => c.position <= 10)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => c.driverId);
+  if (pred.top10.length < 10 || resultTop10.length < 10) return false;
+  for (let i = 0; i < 10; i++) {
+    if (pred.top10[i] !== resultTop10[i]) return false;
   }
-  return best;
+  return true;
 }
 
-function countCorrectWinners(
+function exactSprintTop8(pred: Prediction, result: RaceResult): boolean {
+  if (!result.sprintClassification || result.sprintClassification.length === 0) return false;
+  const resultTop8 = result.sprintClassification
+    .filter((c) => c.position <= 8)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => c.driverId);
+  if (pred.sprintTop8.length < 8 || resultTop8.length < 8) return false;
+  for (let i = 0; i < 8; i++) {
+    if (pred.sprintTop8[i] !== resultTop8[i]) return false;
+  }
+  return true;
+}
+
+/** Saturday Specialist — max sprint points in a single sprint. */
+function maxSprintPoints(predictions: Prediction[]): number {
+  return predictions.reduce((max, p) => {
+    const pts = p.sprintPointsEarned ?? 0;
+    return pts > max ? pts : max;
+  }, 0);
+}
+
+/** Sprint Surgeon — max exact sprint positions in a single sprint. */
+function maxSprintExactPositions(
   predictions: Prediction[],
   raceResults: Record<string, RaceResult>,
+): number {
+  let best = 0;
+  for (const pred of predictions) {
+    const result = raceResults[pred.raceId];
+    if (!result?.sprintClassification || result.sprintClassification.length === 0) continue;
+
+    const resultTop8 = result.sprintClassification
+      .filter((c) => c.position <= 8)
+      .sort((a, b) => a.position - b.position)
+      .map((c) => c.driverId);
+
+    let exact = 0;
+    for (let i = 0; i < Math.min(pred.sprintTop8.length, resultTop8.length); i++) {
+      if (pred.sprintTop8[i] === resultTop8[i]) exact++;
+    }
+    if (exact > best) best = exact;
+  }
+  return best;
+}
+
+/** Race Winner — correct race winners in the current season. */
+function countCorrectWinnersForSeason(
+  predictions: Prediction[],
+  raceResults: Record<string, RaceResult>,
+  racesById: Record<string, Race>,
+  currentSeason?: string,
 ): number {
   let count = 0;
   for (const pred of predictions) {
     const result = raceResults[pred.raceId];
     if (!result || result.classification.length === 0) continue;
+    if (currentSeason && !raceInSeason(racesById[pred.raceId], currentSeason)) continue;
     if (
       pred.top10.length > 0 &&
-      result.classification.some(
-        (c) => c.position === 1 && c.driverId === pred.top10[0],
-      )
+      result.classification.some((c) => c.position === 1 && c.driverId === pred.top10[0])
     ) {
       count++;
     }
@@ -362,35 +430,94 @@ function countCorrectWinners(
   return count;
 }
 
-function bestRaceWeekRank(
-  raceWeekRanks: Record<string, number> | undefined,
-  memberships: AchievementInput['leagueMemberships'],
+/**
+ * Chaos Caller — total correct bonus picks (fastest lap + DNF) in the season.
+ * DNS does not count as a correct DNF.
+ */
+function countSeasonBonusPicks(
+  predictions: Prediction[],
+  raceResults: Record<string, RaceResult>,
+  racesById: Record<string, Race>,
+  currentSeason?: string,
 ): number {
-  // Prefer real per-race league placements when provided.
-  if (raceWeekRanks && Object.keys(raceWeekRanks).length > 0) {
-    const ranks = Object.values(raceWeekRanks).filter((r) => typeof r === 'number' && r > 0);
-    if (ranks.length > 0) return Math.min(...ranks);
+  let count = 0;
+  for (const pred of predictions) {
+    const result = raceResults[pred.raceId];
+    if (!result || result.classification.length === 0) continue;
+    if (currentSeason && !raceInSeason(racesById[pred.raceId], currentSeason)) continue;
+
+    if (!!pred.fastestLap && pred.fastestLap === result.fastestLapDriverId) {
+      count++;
+    }
+    // DNF correct only if the predicted driver is in dnfDriverIds (not dnsDriverIds).
+    if (!!pred.dnf && result.dnfDriverIds.includes(pred.dnf)) {
+      count++;
+    }
   }
-  // Without per-race data we cannot legitimately claim a "race week" placement.
-  // Fall back to a sentinel that satisfies no tier (lowest tier requires top 5).
-  if (memberships.length === 0) return 999;
-  // Note: overall league rank is NOT a valid proxy for a single race week,
-  // so we deliberately do NOT use it here.
-  return 999;
+  return count;
 }
 
-function bestLeagueSeasonRank(
-  memberships: AchievementInput['leagueMemberships'],
+/**
+ * Comeback Drive — max league positions gained in a single race weekend
+ * while ranked in the bottom 50% of a league (≥6 members) before the weekend.
+ */
+function maxComebackGain(raceWeekRanks?: RaceWeekRankEntry[]): number {
+  if (!raceWeekRanks || raceWeekRanks.length === 0) return 0;
+  let best = 0;
+  for (const entry of raceWeekRanks) {
+    const memberCount = entry.memberCount ?? 0;
+    if (memberCount < 6) continue;
+    if (entry.preWeekendRank == null) continue;
+    const bottomHalfThreshold = Math.ceil(memberCount / 2);
+    if (entry.preWeekendRank > bottomHalfThreshold) {
+      // User was in the bottom 50% before the weekend.
+      const gain = entry.preWeekendRank - entry.rank;
+      if (gain > best) best = gain;
+    }
+  }
+  return best;
+}
+
+/* --- Season global helpers --- */
+
+/** Season Champion — returns the percentile floor (e.g. 95 = top 5%). 0 = no data. */
+function seasonGlobalPercentile(
+  leaderboard: { userId: string; totalPoints: number }[] | undefined,
+  userId?: string,
 ): number {
-  if (memberships.length === 0) return 999;
-  const seasonRanks = memberships
-    .map((m) => m.seasonRank)
-    .filter((r): r is number => r != null);
-  if (seasonRanks.length === 0) return 999;
-  return Math.min(...seasonRanks);
+  if (!leaderboard || leaderboard.length === 0 || !userId) return 0;
+  const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+  const idx = sorted.findIndex((e) => e.userId === userId);
+  if (idx === -1) return 0;
+  const rank = idx + 1;
+  const total = sorted.length;
+  if (total === 0) return 0;
+  // percentile floor = 100 - (rank-1)/total*100. Higher = better (top 1% = 99).
+  return Math.round(100 - ((rank - 1) / total) * 100);
 }
 
-/* --- Hidden achievements --- */
+/** Global Podium — returns the user's global rank. Lower = better. 9999 = no data. */
+function seasonGlobalRank(
+  leaderboard: { userId: string; totalPoints: number }[] | undefined,
+  userId?: string,
+): number {
+  if (!leaderboard || leaderboard.length === 0 || !userId) return 9999;
+  const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+  const idx = sorted.findIndex((e) => e.userId === userId);
+  if (idx === -1) return 9999;
+  return idx + 1;
+}
+
+function isSeasonGlobalNumberOne(
+  leaderboard: { userId: string; totalPoints: number }[] | undefined,
+  userId?: string,
+): boolean {
+  if (!leaderboard || leaderboard.length === 0 || !userId) return false;
+  const sorted = [...leaderboard].sort((a, b) => b.totalPoints - a.totalPoints);
+  return sorted[0]?.userId === userId;
+}
+
+/* --- Hidden achievements (unchanged) --- */
 
 function hasLastMinuteEdit(
   editCounts: Record<string, { count: number; lastEditAt: string }>,
@@ -414,7 +541,6 @@ function hasNoEditsFullGrid(
   for (const pred of predictions) {
     if (pred.top10.length < 10) continue;
     const meta = editCounts[pred.raceId];
-    // If no edits recorded at all OR count is 1 (initial submit only)
     if (!meta || meta.count <= 1) return true;
   }
   return false;
@@ -443,9 +569,7 @@ function hasPredictedWinnerDNF(
     const result = raceResults[pred.raceId];
     if (!result || result.classification.length === 0) continue;
     const predictedWinner = pred.top10[0];
-    // Check if predicted winner is in DNF list
     if (result.dnfDriverIds.includes(predictedWinner)) return true;
-    // Also check classification for 'retired' or 'dnf' status
     const entry = result.classification.find((c) => c.driverId === predictedWinner);
     if (entry && (entry.status === 'retired' || entry.status === 'dnf')) return true;
   }
@@ -477,7 +601,6 @@ function hasCorrectPodiumWrongOrder(
       predPodium[1] === resultPodium[1] &&
       predPodium[2] === resultPodium[2];
 
-    // All correct drivers but wrong order
     if (allThreeAnyOrder && !exactMatch) return true;
   }
   return false;
@@ -503,13 +626,30 @@ function hasChaosMerchant(
   return false;
 }
 
+/* --- Season helpers --- */
+
+/** True when the race belongs to the given season label (by race year). */
+function raceInSeason(race: Race | undefined, season: string): boolean {
+  if (!race) return false;
+  const year = race.raceDate?.slice(0, 4);
+  return year === season;
+}
+
 /* ------------------------------------------------------------------ */
 /*  Batch evaluation — run all achievements and return newly unlocked  */
 /* ------------------------------------------------------------------ */
 
+export interface NewlyUnlockedEntry {
+  achievementId: string;
+  tier: AchievementTier;
+  def: AchievementDefinition;
+  /** For season-based achievements, the season label of the instance. */
+  season?: string;
+}
+
 export interface EvaluationResult {
   state: AchievementState;
-  newlyUnlocked: { achievementId: string; tier: AchievementTier; def: AchievementDefinition }[];
+  newlyUnlocked: NewlyUnlockedEntry[];
 }
 
 export function evaluateAll(
@@ -517,33 +657,89 @@ export function evaluateAll(
   existingState: AchievementState,
 ): EvaluationResult {
   const state: AchievementState = { ...existingState };
-  const newlyUnlocked: EvaluationResult['newlyUnlocked'] = [];
+  const newlyUnlocked: NewlyUnlockedEntry[] = [];
+  const currentSeason = input.currentSeason ?? '';
 
   for (const def of ALL_ACHIEVEMENTS) {
     const existing = existingState[def.id];
     const { unlockedTiers, currentValue } = evaluateAchievement(def, input, existing);
 
-    // Determine newly unlocked tiers
     const prevUnlocked = new Set(existing?.unlockedTiers ?? []);
-    for (const tier of unlockedTiers) {
-      if (!prevUnlocked.has(tier)) {
-        newlyUnlocked.push({ achievementId: def.id, tier, def });
-      }
-    }
 
-    state[def.id] = {
-      achievementId: def.id,
-      unlockedTiers,
-      currentValue,
-      unlockedAt: {
+    if (def.isSeasonBased && currentSeason) {
+      // --- Season-based: store per-season instance, freeze previous seasons ---
+      const prevInstances: SeasonInstance[] = Array.isArray(existing?.seasonInstances)
+        ? existing!.seasonInstances!
+        : [];
+      const prevCurrent = prevInstances.find((i) => i.season === currentSeason);
+      const prevCurrentTiers = new Set(prevCurrent?.unlockedTiers ?? []);
+
+      // Merge current-season instance.
+      const mergedTiers = [...new Set([...(prevCurrent?.unlockedTiers ?? []), ...unlockedTiers])];
+      const mergedValue = Math.max(prevCurrent?.currentValue ?? 0, currentValue);
+      const mergedUnlockedAt: Partial<Record<AchievementTier, string>> = {
+        ...(prevCurrent?.unlockedAt ?? {}),
+        ...Object.fromEntries(
+          unlockedTiers
+            .filter((t) => !prevCurrentTiers.has(t))
+            .map((t) => [t, new Date().toISOString()]),
+        ),
+      };
+
+      const currentInstance: SeasonInstance = {
+        season: currentSeason,
+        unlockedTiers: mergedTiers,
+        currentValue: mergedValue,
+        unlockedAt: mergedUnlockedAt,
+      };
+
+      // Freeze previous seasons — keep them unchanged.
+      const otherInstances = prevInstances.filter((i) => i.season !== currentSeason);
+      const seasonInstances = [...otherInstances, currentInstance].sort((a, b) =>
+        a.season.localeCompare(b.season),
+      );
+
+      // Flat fields mirror the current-season instance for backward compat.
+      state[def.id] = {
+        achievementId: def.id,
+        unlockedTiers: mergedTiers,
+        currentValue: mergedValue,
+        unlockedAt: mergedUnlockedAt,
+        seasonInstances,
+      };
+
+      // Newly unlocked this evaluation (current season only).
+      for (const tier of unlockedTiers) {
+        if (!prevCurrentTiers.has(tier)) {
+          newlyUnlocked.push({ achievementId: def.id, tier, def, season: currentSeason });
+        }
+      }
+    } else {
+      // --- Non-season achievement: standard union merge ---
+      const mergedTiers = [...new Set([...(existing?.unlockedTiers ?? []), ...unlockedTiers])];
+      const mergedValue = Math.max(existing?.currentValue ?? 0, currentValue);
+      const mergedUnlockedAt: Partial<Record<AchievementTier, string>> = {
         ...(existing?.unlockedAt ?? {}),
         ...Object.fromEntries(
           unlockedTiers
             .filter((t) => !prevUnlocked.has(t))
             .map((t) => [t, new Date().toISOString()]),
         ),
-      },
-    };
+      };
+
+      state[def.id] = {
+        achievementId: def.id,
+        unlockedTiers: mergedTiers,
+        currentValue: mergedValue,
+        unlockedAt: mergedUnlockedAt,
+      };
+
+      for (const tier of unlockedTiers) {
+        if (!prevUnlocked.has(tier)) {
+          newlyUnlocked.push({ achievementId: def.id, tier, def });
+        }
+      }
+    }
   }
 
   return { state, newlyUnlocked };
@@ -551,17 +747,19 @@ export function evaluateAll(
 
 /**
  * Build a minimal mock input for testing / guest mode.
- * TODO: Replace with real data from GameProvider + F1DataProvider.
  */
 export function buildMockInput(overrides: Partial<AchievementInput> = {}): AchievementInput {
   return {
     predictions: [],
     raceResults: {},
+    racesById: {},
     totalPoints: 0,
     leagueMemberships: [],
     editCounts: {},
     lockTimes: {},
-    raceWeekRanks: {},
+    raceWeekRanks: [],
+    globalLeaderboard: [],
+    currentSeason: '',
     isSeasonComplete: false,
     ...overrides,
   };

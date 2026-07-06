@@ -14,6 +14,7 @@ import {
   evaluateAll,
   type AchievementInput,
   type EvaluationResult,
+  type RaceWeekRankEntry,
 } from '@/lib/achievement-engine';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useGame } from '@/providers/GameProvider';
@@ -21,16 +22,13 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v8 — all users' achievements were recomputed server-side by the
-// real evaluation engine and written to Supabase. v7 local caches may hold
-// stale/incorrect tiers (e.g. Admin's grid-master bronze from an earlier
-// manual reset) that would survive the union merge with Supabase. v8 purges
-// the local cache so every device re-syncs the correct state from Supabase.
-const STORAGE_KEY = 'apex_draft_achievements_v8';
-// Persisted set of "achievementId:tier" keys that have already had their
-// celebration animation play. This guarantees the overlay only fires ONCE
-// per tier per device, even across reloads, remounts, or re-evaluations.
-const CELEBRATED_KEY = 'apex_draft_celebrated_v1';
+// Bumped to v9 — achievement definitions, engine, and season-based instances
+// were rewritten. v8 caches may hold stale tiers / missing seasonInstances.
+const STORAGE_KEY = 'apex_draft_achievements_v9';
+// Persisted set of "achievementId:tier[:season]" keys that have already had
+// their celebration animation play. This guarantees the overlay only fires
+// ONCE per tier per device, even across reloads, remounts, or re-evaluations.
+const CELEBRATED_KEY = 'apex_draft_celebrated_v2';
 const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements',
   'apex_draft_achievements_v1',
@@ -40,7 +38,8 @@ const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements_v5',
   'apex_draft_achievements_v6',
   'apex_draft_achievements_v7',
-];;
+  'apex_draft_achievements_v8',
+];
 
 /** Returns true only when every non-cancelled race is completed. */
 function isSeasonOver(races: Race[] | undefined | null): boolean {
@@ -48,11 +47,23 @@ function isSeasonOver(races: Race[] | undefined | null): boolean {
   return races.every((r) => r.status === 'completed' || r.status === 'cancelled');
 }
 
+/** Derive the current season label (e.g. "2026") from the race calendar. */
+function deriveCurrentSeason(races: Race[] | undefined | null): string {
+  if (!races || races.length === 0) return '';
+  // Use the most recent completed race's year; fall back to the latest race year.
+  const sorted = [...races].sort((a, b) => a.raceDate.localeCompare(b.raceDate));
+  const completed = sorted.filter((r) => r.status === 'completed');
+  const ref = completed.length > 0 ? completed[completed.length - 1] : sorted[sorted.length - 1];
+  return ref?.raceDate?.slice(0, 4) ?? '';
+}
+
 export interface AchievementUnlockEvent {
   achievementId: string;
   tier: AchievementTier;
   def: AchievementDefinition;
   dismissed: boolean;
+  /** Season label for season-based achievements, e.g. "2026". */
+  season?: string;
 }
 
 function createEmptyAchievementState(): AchievementState {
@@ -73,12 +84,14 @@ function fillMissingAchievements(parsed: AchievementState | null | undefined): A
     const existing = safeParsed[def.id];
 
     if (existing && Array.isArray(existing.unlockedTiers)) {
-      // Normalise fields that may be missing from older persisted data.
       filled[def.id] = {
         achievementId: existing.achievementId ?? def.id,
         unlockedTiers: existing.unlockedTiers,
         currentValue: existing.currentValue ?? 0,
         unlockedAt: existing.unlockedAt ?? {},
+        seasonInstances: Array.isArray(existing.seasonInstances)
+          ? existing.seasonInstances
+          : undefined,
       };
     } else {
       filled[def.id] = createEmptyProgress(def.id);
@@ -115,6 +128,17 @@ function areAchievementStatesEqual(
     for (let i = 0; i < aTiers.length; i++) {
       if (aTiers[i] !== bTiers[i]) return false;
     }
+
+    // Compare season instances for season-based achievements.
+    const aInst = aProg.seasonInstances ?? [];
+    const bInst = bProg.seasonInstances ?? [];
+    if (aInst.length !== bInst.length) return false;
+    for (let i = 0; i < aInst.length; i++) {
+      if (aInst[i].season !== bInst[i].season) return false;
+      if (aInst[i].currentValue !== bInst[i].currentValue) return false;
+      if ((aInst[i].unlockedTiers ?? []).length !== (bInst[i].unlockedTiers ?? []).length)
+        return false;
+    }
   }
 
   return true;
@@ -124,7 +148,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const [state, setState] = useState<AchievementState>(() => createEmptyAchievementState());
   const [isLoaded, setIsLoaded] = useState(false);
   const [unlockQueue, setUnlockQueue] = useState<AchievementUnlockEvent[]>([]);
-  // Set of "achievementId:tier" keys already celebrated on this device.
+  // Set of "achievementId:tier[:season]" keys already celebrated on this device.
   const celebratedRef = useRef<Set<string>>(new Set());
 
   const {
@@ -134,6 +158,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     editCounts = {},
     lockTimes = {},
     getLeagueMembers,
+    fetchGlobalLeaderboard,
   } = useGame();
 
   const { raceResults = [], races = [] } = useF1Data();
@@ -142,34 +167,23 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const stateRef = useRef<AchievementState>(state);
   stateRef.current = state;
 
-  // Auth gate: only evaluate/unlock when the user is signed in. Guest mode
-  // and the pre-login boot window must never queue celebration animations,
-  // otherwise the overlay fires before the user exists or with stale state.
+  // Auth gate: only evaluate/unlock when the user is signed in.
   const isAuthenticated = !isGuest && !!profile && profile.id !== 'guest';
   const authRef = useRef(isAuthenticated);
   authRef.current = isAuthenticated;
 
-  // Stable refs for callbacks to avoid context value recreation
   const evaluateRef = useRef<() => EvaluationResult>(() => ({ state: createEmptyAchievementState(), newlyUnlocked: [] }));
   const getProgressRef = useRef<(id: string) => AchievementProgress | undefined>(() => undefined);
 
-  // Per-race league placements (leagueId:raceId -> rank). Lower = better.
-  // Computed from Supabase by fetching every league member's predictions,
-  // grouping by race, and ranking the current user within each race. This
-  // is what unlocks the race-week-rival achievement — it is a per-race
-  // metric and is intentionally NOT gated by season completion.
-  const [raceWeekRanks, setRaceWeekRanks] = useState<Record<string, number>>({});
+  // Per-race league placements + pre-weekend rank for comeback tracking.
+  const [raceWeekRanks, setRaceWeekRanks] = useState<RaceWeekRankEntry[]>([]);
 
   useEffect(() => {
     const load = async () => {
-      // Purge legacy achievement storage from the previous (buggy) engine.
-      // This guarantees a clean slate for every user on first load.
       await Promise.all(
         LEGACY_STORAGE_KEYS.map((key) => AsyncStorage.removeItem(key).catch(() => {})),
       );
 
-      // Load the persisted celebrated set first so checkUnlocks (which may
-      // run shortly after isLoaded flips true) can skip already-shown tiers.
       try {
         const rawCelebrated = await AsyncStorage.getItem(CELEBRATED_KEY);
         if (rawCelebrated) {
@@ -193,8 +207,8 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         console.log('Failed to load achievements from AsyncStorage:', e);
       }
 
-      // Merge Supabase achievements (if authenticated) — take union of unlocked tiers
-      // and max of current values so cross-device progress is never lost.
+      // Merge Supabase achievements (if authenticated) — take union of unlocked
+      // tiers, max of current values, and union of season instances.
       if (isSupabaseConfigured && profile?.id) {
         try {
           const { data: remoteRows, error } = await supabase
@@ -215,20 +229,51 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
                 typeof row.unlocked_at === 'object' && row.unlocked_at !== null
                   ? row.unlocked_at
                   : {};
+              const remoteSeasonInstances = Array.isArray(row.season_instances)
+                ? row.season_instances
+                : undefined;
 
               const local = localState[achievementId];
 
               if (local) {
-                // Merge: union of tiers, max of current_value, latest unlocked_at
                 const mergedTiers = [...new Set([...local.unlockedTiers, ...remoteTiers])];
                 const mergedValue = Math.max(local.currentValue, remoteValue);
                 const mergedUnlockedAt = { ...remoteUnlockedAt, ...local.unlockedAt };
+
+                // Merge season instances by season label.
+                let mergedInstances = local.seasonInstances;
+                if (remoteSeasonInstances || local.seasonInstances) {
+                  const bySeason = new Map<string, any>();
+                  for (const inst of local.seasonInstances ?? []) bySeason.set(inst.season, inst);
+                  for (const inst of remoteSeasonInstances ?? []) {
+                    const existing = bySeason.get(inst.season);
+                    if (!existing) {
+                      bySeason.set(inst.season, inst);
+                    } else {
+                      bySeason.set(inst.season, {
+                        season: inst.season,
+                        unlockedTiers: [
+                          ...new Set([
+                            ...(existing.unlockedTiers ?? []),
+                            ...(inst.unlockedTiers ?? []),
+                          ]),
+                        ],
+                        currentValue: Math.max(existing.currentValue ?? 0, inst.currentValue ?? 0),
+                        unlockedAt: { ...(existing.unlockedAt ?? {}), ...(inst.unlockedAt ?? {}) },
+                      });
+                    }
+                  }
+                  mergedInstances = Array.from(bySeason.values()).sort((a, b) =>
+                    a.season.localeCompare(b.season),
+                  );
+                }
 
                 localState[achievementId] = {
                   ...local,
                   unlockedTiers: mergedTiers,
                   currentValue: mergedValue,
                   unlockedAt: mergedUnlockedAt,
+                  seasonInstances: mergedInstances,
                 };
               } else {
                 localState[achievementId] = {
@@ -236,6 +281,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
                   unlockedTiers: remoteTiers,
                   currentValue: remoteValue,
                   unlockedAt: remoteUnlockedAt,
+                  seasonInstances: remoteSeasonInstances,
                 };
               }
             }
@@ -265,14 +311,11 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
     AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(stateRef.current)).catch(() => {});
 
-    // Upsert to Supabase so achievements sync across devices.
-    // Guard: only upsert if we have a valid session (skip guest/token-expired).
     if (!isSupabaseConfigured || !profile?.id || profile.id === 'guest') return;
 
     const currentState = stateRef.current;
 
     const upsertAll = async () => {
-      // Check session validity before firing any requests.
       try {
         const { data: sessionData } = await supabase.auth.getSession();
         if (!sessionData?.session?.user) {
@@ -284,33 +327,60 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         return;
       }
 
+      // If the live table doesn't yet have the season_instances column, the
+      // first upsert including it will fail. We detect that and retry once
+      // without the column so achievements still sync.
+      let includeSeasonInstances = true;
+
       for (const [achievementId, progress] of Object.entries(currentState)) {
         if (!progress) continue;
 
-        try {
-          const { error } = await supabase.from('user_achievements').upsert(
-            {
-              user_id: profile.id,
-              achievement_id: achievementId,
-              unlocked_tiers: progress.unlockedTiers ?? [],
-              current_value: progress.currentValue ?? 0,
-              unlocked_at: progress.unlockedAt ?? {},
-              updated_at: new Date().toISOString(),
-            },
-            { onConflict: 'user_id,achievement_id' }
-          );
+        const basePayload = {
+          user_id: profile.id,
+          achievement_id: achievementId,
+          unlocked_tiers: progress.unlockedTiers ?? [],
+          current_value: progress.currentValue ?? 0,
+          unlocked_at: progress.unlockedAt ?? {},
+          updated_at: new Date().toISOString(),
+        };
 
-          // Stop on auth errors — don't hammer the API.
-          if (error && (error.code === '401' || error.message?.includes('JWT') || error.message?.includes('expired'))) {
-            console.log('[Achievements] Auth error, stopping sync:', error.message);
-            return;
+        try {
+          const payload = includeSeasonInstances
+            ? { ...basePayload, season_instances: progress.seasonInstances ?? null }
+            : basePayload;
+          const { error } = await supabase.from('user_achievements').upsert(payload, {
+            onConflict: 'user_id,achievement_id',
+          });
+
+          if (error) {
+            // If the error is about the season_instances column, retry without it.
+            const msg = error.message ?? '';
+            if (
+              includeSeasonInstances &&
+              (msg.includes('season_instances') ||
+                error.code === '42703' ||
+                msg.includes('column'))
+            ) {
+              includeSeasonInstances = false;
+              const { error: retryError } = await supabase
+                .from('user_achievements')
+                .upsert(basePayload, { onConflict: 'user_id,achievement_id' });
+              if (retryError && (retryError.code === '401' || retryError.message?.includes('JWT') || retryError.message?.includes('expired'))) {
+                console.log('[Achievements] Auth error, stopping sync:', retryError.message);
+                return;
+              }
+              continue;
+            }
+            if (error.code === '401' || msg.includes('JWT') || msg.includes('expired')) {
+              console.log('[Achievements] Auth error, stopping sync:', msg);
+              return;
+            }
           }
         } catch (e: any) {
           if (e?.message?.includes('JWT') || e?.message?.includes('expired') || e?.status === 401) {
             console.log('[Achievements] Auth error, stopping sync');
             return;
           }
-          // Other errors: continue with next achievement
         }
       }
     };
@@ -320,55 +390,52 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
   const buildInput = useCallback((): AchievementInput => {
     const raceResultsById: AchievementInput['raceResults'] = {};
-
     for (const result of raceResults ?? []) {
       if (!result?.raceId) continue;
-
       raceResultsById[result.raceId] = result;
     }
 
-    /** Season is over only when every non-cancelled race is completed. */
+    const racesById: AchievementInput['racesById'] = {};
+    for (const race of races ?? []) {
+      if (!race?.id) continue;
+      racesById[race.id] = race;
+    }
+
     const seasonOver = isSeasonOver(races);
+    const currentSeason = deriveCurrentSeason(races);
 
     const leagueMemberships: AchievementInput['leagueMemberships'] = [];
-
     for (const league of leagues ?? []) {
       if (!league?.id) continue;
-
       const members = getLeagueMembers?.(league.id) ?? [];
-
       if (!Array.isArray(members) || members.length === 0) continue;
 
       const sortedMembers = [...members].sort((a, b) => (b.points ?? 0) - (a.points ?? 0));
       const currentIndex = sortedMembers.findIndex((member) => member.userId === profile.id);
-
       if (currentIndex === -1) continue;
 
       const rank = currentIndex + 1;
-
       leagueMemberships.push({
         leagueId: league.id,
         rank,
-        // seasonRank is intentionally left undefined here — the engine gates
-        // season-rank achievements on isSeasonComplete instead of relying on
-        // the caller to withhold the value.
         seasonRank: seasonOver ? rank : undefined,
+        memberCount: members.length,
       });
     }
 
     return {
       predictions: predictions ?? [],
       raceResults: raceResultsById,
+      racesById,
       totalPoints: totalPoints ?? 0,
       leagueMemberships,
       editCounts,
       lockTimes,
-      // Per-race league placements (lower = better). Only races that have a
-      // result are included, so upcoming/live races never count. This drives
-      // the race-week-rival achievement, which is per-race and is NOT gated
-      // by season completion.
       raceWeekRanks,
+      globalLeaderboard: [], // populated lazily below when season is over
+      currentSeason,
       isSeasonComplete: seasonOver,
+      userId: profile.id,
     };
   }, [
     predictions,
@@ -383,21 +450,55 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     raceWeekRanks,
   ]);
 
-  // Always-available evaluate that reads latest state via refs — avoids
-  // being a dependency for the context value useMemo.
+  // Lazily fetch the global leaderboard when the season is over so that
+  // season-end achievements can be evaluated. This is fetched once and cached.
+  const [globalLeaderboard, setGlobalLeaderboard] = useState<
+    { userId: string; totalPoints: number }[]
+  >([]);
+
+  useEffect(() => {
+    if (!isLoaded) return;
+    const seasonOver = isSeasonOver(races);
+    if (!seasonOver) {
+      if (globalLeaderboard.length > 0) setGlobalLeaderboard([]);
+      return;
+    }
+    if (!fetchGlobalLeaderboard) return;
+
+    let cancelled = false;
+    const load = async () => {
+      try {
+        const lb = await fetchGlobalLeaderboard();
+        if (cancelled) return;
+        setGlobalLeaderboard(
+          (lb ?? []).map((e) => ({ userId: e.userId, totalPoints: e.totalPoints })),
+        );
+      } catch (e) {
+        console.log('[Achievements] global leaderboard load failed:', e);
+      }
+    };
+    void load();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoaded, races, fetchGlobalLeaderboard]);
+
+  // Inject the global leaderboard into the built input.
+  const buildInputWithLeaderboard = useCallback((): AchievementInput => {
+    const base = buildInput();
+    return { ...base, globalLeaderboard };
+  }, [buildInput, globalLeaderboard]);
+
   evaluateRef.current = (): EvaluationResult => {
-    const input = buildInput();
+    const input = buildInputWithLeaderboard();
     const safeExistingState = fillMissingAchievements(stateRef.current);
 
     try {
       return evaluateAll(input, safeExistingState);
     } catch (e) {
       console.log('Achievement evaluation failed:', e);
-
-      return {
-        state: safeExistingState,
-        newlyUnlocked: [],
-      };
+      return { state: safeExistingState, newlyUnlocked: [] };
     }
   };
 
@@ -415,29 +516,28 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
       stateRef.current = nextState;
     }
 
-    // Auth gate: never queue celebration animations before the user is signed
-    // in. State still updates silently so progress isn't lost, but the overlay
-    // is reserved for authenticated sessions only.
     if (!authRef.current) return;
 
     const newlyUnlocked = result.newlyUnlocked ?? [];
-
     if (newlyUnlocked.length === 0) return;
 
     // Filter out any tier that has already had its celebration play on this
-    // device. This is the single source of truth for "show once" — even if
-    // the engine re-detects the same unlock on a subsequent reload/remount,
-    // the overlay will not fire again.
+    // device. Season-based achievements include the season in the key so the
+    // same tier in a different season still celebrates.
     const freshUnlocks = newlyUnlocked.filter((u) => {
-      const key = `${u.achievementId}:${u.tier}`;
+      const key = u.season
+        ? `${u.achievementId}:${u.tier}:${u.season}`
+        : `${u.achievementId}:${u.tier}`;
       return !celebratedRef.current.has(key);
     });
 
     if (freshUnlocks.length === 0) return;
 
-    // Mark them as celebrated immediately and persist so a reload before the
-    // animation finishes still won't re-fire.
-    const newKeys = freshUnlocks.map((u) => `${u.achievementId}:${u.tier}`);
+    const newKeys = freshUnlocks.map((u) =>
+      u.season
+        ? `${u.achievementId}:${u.tier}:${u.season}`
+        : `${u.achievementId}:${u.tier}`,
+    );
     for (const k of newKeys) celebratedRef.current.add(k);
     AsyncStorage.setItem(
       CELEBRATED_KEY,
@@ -451,18 +551,16 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
         tier: u.tier,
         def: u.def,
         dismissed: false,
+        season: u.season,
       })),
     ]);
   }, [isLoaded]);
 
-  // Compute per-race league placements from Supabase. For each league the
-  // user belongs to, fetch every member's predictions, group by race, and
-  // rank the user's (pointsEarned + sprintPointsEarned) within each race.
-  // Only races that have a published result are scored. This is independent
-  // of season completion — race-week-rival is a per-race achievement.
+  // Compute per-race league placements from Supabase for comeback-drive.
+  // This is independent of season completion — comeback is a per-race metric.
   useEffect(() => {
     if (!isSupabaseConfigured || !profile?.id || profile.id === 'guest') {
-      setRaceWeekRanks({});
+      setRaceWeekRanks([]);
       return;
     }
 
@@ -470,14 +568,13 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
     const compute = async () => {
       try {
-        // Resolve the user's league memberships from Supabase.
         const { data: membershipRows, error: mErr } = await supabase
           .from('league_members')
           .select('league_id, user_id')
           .eq('user_id', profile.id);
 
         if (mErr || !membershipRows || membershipRows.length === 0) {
-          if (!cancelled) setRaceWeekRanks({});
+          if (!cancelled) setRaceWeekRanks([]);
           return;
         }
 
@@ -485,17 +582,16 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
           new Set(membershipRows.map((r: any) => r.league_id).filter(Boolean)),
         ) as string[];
         if (leagueIds.length === 0) {
-          if (!cancelled) setRaceWeekRanks({});
+          if (!cancelled) setRaceWeekRanks([]);
           return;
         }
 
-        // All members across the user's leagues.
         const { data: allMembers, error: amErr } = await supabase
           .from('league_members')
           .select('league_id, user_id')
           .in('league_id', leagueIds);
         if (amErr || !allMembers) {
-          if (!cancelled) setRaceWeekRanks({});
+          if (!cancelled) setRaceWeekRanks([]);
           return;
         }
 
@@ -503,21 +599,19 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
           new Set(allMembers.map((m: any) => m.user_id).filter(Boolean)),
         ) as string[];
         if (memberUserIds.length === 0) {
-          if (!cancelled) setRaceWeekRanks({});
+          if (!cancelled) setRaceWeekRanks([]);
           return;
         }
 
-        // All predictions for those members.
         const { data: allPreds, error: pErr } = await supabase
           .from('user_predictions')
-          .select('user_id, race_id, points_earned, sprint_points_earned')
+          .select('user_id, race_id, points_earned, sprint_points_earned, updated_at')
           .in('user_id', memberUserIds);
         if (pErr || !allPreds) {
-          if (!cancelled) setRaceWeekRanks({});
+          if (!cancelled) setRaceWeekRanks([]);
           return;
         }
 
-        // Completed race ids — only races with a result count.
         const completedRaceIds = new Set(
           (raceResults ?? []).map((r) => r?.raceId).filter(Boolean),
         );
@@ -545,16 +639,36 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
             raceToUserPoints.set(p.race_id, userMap);
           }
           const pts = (p.points_earned ?? 0) + (p.sprint_points_earned ?? 0);
-          // Keep the best row per user per race.
           const prev = userMap.get(p.user_id) ?? -1;
           if (pts > prev) userMap.set(p.user_id, pts);
         }
 
-        // For each league + race, compute the user's rank.
-        const ranks: Record<string, number> = {};
+        // Sort completed races chronologically for pre-weekend rank computation.
+        const sortedRaces = (races ?? [])
+          .filter((r) => completedRaceIds.has(r.id))
+          .sort((a, b) => a.raceDate.localeCompare(b.raceDate));
+
+        // For each league + race, compute the user's rank and pre-weekend rank.
+        const entries: RaceWeekRankEntry[] = [];
         for (const [leagueId, userIds] of leaguesToUserIds) {
-          for (const [raceId, userMap] of raceToUserPoints) {
-            // Only consider members of this league who have a prediction for this race.
+          // Track running cumulative points per user (for pre-weekend rank).
+          const cumulativePoints = new Map<string, number>();
+          for (const uid of userIds) cumulativePoints.set(uid, 0);
+
+          for (const race of sortedRaces) {
+            const userMap = raceToUserPoints.get(race.id);
+            if (!userMap) continue;
+
+            // Pre-weekend rank = rank by cumulative points BEFORE this race.
+            const preScored = [] as Array<{ userId: string; pts: number }>;
+            for (const uid of userIds) {
+              preScored.push({ userId: uid, pts: cumulativePoints.get(uid) ?? 0 });
+            }
+            preScored.sort((a, b) => b.pts - a.pts);
+            const preIdx = preScored.findIndex((s) => s.userId === profile.id);
+            const preWeekendRank = preIdx >= 0 ? preIdx + 1 : undefined;
+
+            // Post-race rank = rank by points earned in THIS race.
             const scored = [] as Array<{ userId: string; pts: number }>;
             for (const uid of userIds) {
               const pts = userMap.get(uid);
@@ -565,14 +679,26 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
             scored.sort((a, b) => b.pts - a.pts);
             const idx = scored.findIndex((s) => s.userId === profile.id);
             if (idx === -1) continue;
-            ranks[`${leagueId}:${raceId}`] = idx + 1;
+
+            entries.push({
+              leagueId,
+              raceId: race.id,
+              rank: idx + 1,
+              preWeekendRank,
+              memberCount: userIds.size,
+            });
+
+            // Update cumulative points for the next race's pre-weekend rank.
+            for (const s of scored) {
+              cumulativePoints.set(s.userId, (cumulativePoints.get(s.userId) ?? 0) + s.pts);
+            }
           }
         }
 
-        if (!cancelled) setRaceWeekRanks(ranks);
+        if (!cancelled) setRaceWeekRanks(entries);
       } catch (e) {
         console.log('[Achievements] raceWeekRanks compute failed:', e);
-        if (!cancelled) setRaceWeekRanks({});
+        if (!cancelled) setRaceWeekRanks([]);
       }
     };
 
@@ -580,11 +706,10 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     return () => {
       cancelled = true;
     };
-  }, [profile?.id, leagues, raceResults]);
+  }, [profile?.id, leagues, raceResults, races]);
 
   useEffect(() => {
     if (!isLoaded) return;
-
     checkUnlocks();
   }, [
     isLoaded,
@@ -594,38 +719,26 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     totalPoints,
     leagues,
     raceWeekRanks,
+    globalLeaderboard,
     checkUnlocks,
   ]);
 
-  // Reset the celebration queue whenever the auth state changes. This clears
-  // any unlock that was staged before login (e.g. a backfilled prediction
-  // created while signed out) so the overlay never fires for a stale event,
-  // and gives the authenticated session a clean starting queue.
   useEffect(() => {
     if (!isAuthenticated) {
       setUnlockQueue([]);
     }
   }, [isAuthenticated]);
 
-  // One-time flush of any stale unlock queued during the previous session
-  // (e.g. a backfilled prediction that fired checkUnlocks before the auth
-  // gate existed). Runs once on mount so legitimate unlocks discovered
-  // after this point still celebrate normally.
   useEffect(() => {
     setUnlockQueue([]);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Expose a way to reset the celebrated set (used when switching accounts
-  // so a different user's unlocks can still celebrate on this device).
-  // The reset effect below clears the in-memory + persisted set whenever
-  // the authenticated user identity changes.
+  // Reset the celebrated set when the authenticated user identity changes.
   const prevProfileIdRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentId = profile?.id;
     if (prevProfileIdRef.current !== currentId) {
-      // Identity changed (login/logout/account switch): clear celebrated
-      // memory so the new session's legitimate unlocks can celebrate once.
       celebratedRef.current = new Set();
       AsyncStorage.removeItem(CELEBRATED_KEY).catch(() => {});
       prevProfileIdRef.current = currentId;
@@ -635,9 +748,7 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
   const dismissUnlock = useCallback(() => {
     setUnlockQueue((prev) => {
       if (prev.length === 0) return prev;
-
       const [head, ...rest] = prev;
-
       return [{ ...head, dismissed: true }, ...rest];
     });
 
@@ -659,45 +770,38 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
 
   const unlockedCount = useMemo(() => {
     let count = 0;
-
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden) continue;
-
       const progress = state[def.id];
-
       if (progress && (progress.unlockedTiers ?? []).length > 0) {
         count++;
       }
     }
-
     return count;
   }, [state]);
 
   const totalTiersCount = useMemo(() => {
+    // Only count Bronze/Silver/Gold for the total until Platinum is revealed.
+    // This keeps the progress bar denominator consistent with what's shown.
     let count = 0;
-
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden || !def.tiers) continue;
-
-      count += def.tiers.length;
+      const progress = state[def.id];
+      const platinumUnlocked = progress?.unlockedTiers?.includes('platinum');
+      count += platinumUnlocked ? def.tiers.length : 3;
     }
-
     return count;
-  }, []);
+  }, [state]);
 
   const unlockedTiersCount = useMemo(() => {
     let count = 0;
-
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden) continue;
-
       const progress = state[def.id];
-
       if (progress) {
         count += (progress.unlockedTiers ?? []).length;
       }
     }
-
     return count;
   }, [state]);
 

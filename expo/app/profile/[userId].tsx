@@ -41,11 +41,15 @@ import {
   ALL_ACHIEVEMENTS,
   TIER_COLORS,
   TIER_LABELS,
+  isPlatinumUnlocked,
+  getDisplayTiers,
+  getProgressDenominator,
   createEmptyProgress,
   type AchievementTier,
   type AchievementDefinition,
   type AchievementProgress,
   type AchievementState,
+  type SeasonInstance,
 } from '@/constants/achievements';
 import * as lucideIcons from 'lucide-react-native';
 
@@ -484,6 +488,20 @@ function buildRemoteState(rows: any[]): AchievementState {
           ['bronze', 'silver', 'gold', 'platinum'].includes(t)
         )
       : [];
+    const seasonInstances: SeasonInstance[] | undefined = Array.isArray(row.season_instances)
+      ? row.season_instances.map((inst: any) => ({
+          season: String(inst.season ?? ''),
+          unlockedTiers: Array.isArray(inst.unlockedTiers)
+            ? inst.unlockedTiers.filter((t: string) =>
+                ['bronze', 'silver', 'gold', 'platinum'].includes(t)
+              )
+            : [],
+          currentValue: Number(inst.currentValue ?? 0),
+          unlockedAt: typeof inst.unlockedAt === 'object' && inst.unlockedAt !== null
+            ? inst.unlockedAt
+            : {},
+        })).filter((inst: SeasonInstance) => inst.season.length > 0)
+      : undefined;
     state[id] = {
       achievementId: id,
       unlockedTiers: tiers,
@@ -492,6 +510,7 @@ function buildRemoteState(rows: any[]): AchievementState {
         typeof row.unlocked_at === 'object' && row.unlocked_at !== null
           ? row.unlocked_at
           : {},
+      seasonInstances,
     };
   }
   return state;
@@ -520,7 +539,7 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
       try {
         const { data, error } = await supabase
           .from('user_achievements')
-          .select('achievement_id, unlocked_tiers, current_value, unlocked_at')
+          .select('achievement_id, unlocked_tiers, current_value, unlocked_at, season_instances')
           .eq('user_id', userId);
         if (cancelled) return;
         if (error) {
@@ -550,7 +569,11 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
     let totalTiers = 0;
     for (const def of ALL_ACHIEVEMENTS) {
       if (def.isHidden) continue;
-      if (def.tiers) totalTiers += def.tiers.length;
+      if (def.tiers) {
+        const prog = state[def.id];
+        const platinumUnlocked = prog?.unlockedTiers?.includes('platinum');
+        totalTiers += platinumUnlocked ? def.tiers.length : 3;
+      }
       const prog = state[def.id];
       if (prog && (prog.unlockedTiers ?? []).length > 0) {
         unlocked++;
@@ -561,11 +584,23 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
   }, [state]);
 
   // Memoize filtered achievement lists to avoid recomputation on re-renders
+  // For season-based achievements, expand each earned season instance into its
+  // own badge tile (e.g. "Season Campaign — 2026", "Season Campaign — 2027").
   const unlockedVisible = useMemo(() => {
-    return VISIBLE_ACHIEVEMENTS.filter((def) => {
+    const out: Array<{ def: AchievementDefinition; progress?: AchievementProgress; season?: string }> = [];
+    for (const def of VISIBLE_ACHIEVEMENTS) {
       const prog = state[def.id];
-      return (prog?.unlockedTiers?.length ?? 0) > 0;
-    });
+      if (!prog || (prog.unlockedTiers ?? []).length === 0) continue;
+      if (def.isSeasonBased && prog.seasonInstances && prog.seasonInstances.length > 0) {
+        for (const inst of prog.seasonInstances) {
+          if ((inst.unlockedTiers ?? []).length === 0) continue;
+          out.push({ def, progress: prog, season: inst.season });
+        }
+      } else {
+        out.push({ def, progress: prog });
+      }
+    }
+    return out;
   }, [state]);
 
   const unlockedHidden = useMemo(() => {
@@ -623,18 +658,30 @@ const ProfileAchievements = React.memo(function ProfileAchievements({
         <View style={paStyles.section}>
           <Text style={paStyles.sectionLabel}>Earned Badges</Text>
           <View style={paStyles.badgeRow}>
-            {unlockedVisible.map((def) => {
-              const prog = state[def.id];
-              const tiers = prog?.unlockedTiers ?? [];
+            {unlockedVisible.map(({ def, progress, season }) => {
+              // For season-based, derive the highest tier from the instance.
+              let tiers = progress?.unlockedTiers ?? [];
+              let tierLabel: string | undefined;
+              if (def.isSeasonBased && season && progress?.seasonInstances) {
+                const inst = progress.seasonInstances.find((i) => i.season === season);
+                if (inst) {
+                  tiers = inst.unlockedTiers ?? [];
+                }
+              }
               const highestTier = tiers.length > 0 ? tiers[tiers.length - 1] : 'bronze';
               const tierColors = TIER_COLORS[highestTier as AchievementTier];
+              // Special (non-tiered) achievements show no tier label.
+              if (def.isSpecial) tierLabel = undefined;
+              else tierLabel = TIER_LABELS[highestTier as AchievementTier];
+              const displayName = season ? `${def.name} — ${season}` : def.name;
               return (
                 <ProfileBadgeIcon
-                  key={def.id}
+                  key={def.id + (season ? `:${season}` : '')}
                   def={def}
-                  progress={prog}
+                  progress={progress}
                   color={tierColors.primary}
-                  tierLabel={TIER_LABELS[highestTier as AchievementTier]}
+                  tierLabel={tierLabel}
+                  displayName={displayName}
                   onPress={() => {
                     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
                     setSelectedDef(def);
@@ -921,6 +968,7 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
   progress,
   color,
   tierLabel,
+  displayName,
   isHidden = false,
   onPress,
 }: {
@@ -928,10 +976,13 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
   progress?: AchievementProgress;
   color: string;
   tierLabel?: string;
+  displayName?: string;
   isHidden?: boolean;
   onPress?: () => void;
 }) {
   const Icon = resolveAchievementIcon(def.icon);
+  // Use the season-suffixed name when provided, otherwise the def name.
+  const label = displayName ?? def.name;
 
   // Secret badges: tappable, styled like the achievements tab (black + F1 red)
   if (isHidden) {
@@ -954,7 +1005,11 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
           <Text style={[paStyles.badgeIconTierLabel, { color: HIDDEN_COLORS.red }]} numberOfLines={1}>
             {tierLabel}
           </Text>
-        ) : null}
+        ) : (
+          <Text style={[paStyles.badgeIconTierLabel, { color: HIDDEN_COLORS.red }]} numberOfLines={1}>
+            {label}
+          </Text>
+        )}
       </TouchableOpacity>
     );
   }
@@ -978,7 +1033,11 @@ const ProfileBadgeIcon = React.memo(function ProfileBadgeIcon({
         <Text style={[paStyles.badgeIconTierLabel, { color }]} numberOfLines={1}>
           {tierLabel}
         </Text>
-      ) : null}
+      ) : (
+        <Text style={[paStyles.badgeIconTierLabel, { color }]} numberOfLines={2}>
+          {label}
+        </Text>
+      )}
     </TouchableOpacity>
   );
 });
@@ -1051,7 +1110,9 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                   isHidden && { color: '#FFF' },
                 ]}
               >
-                {def.name}
+                {def.isSeasonBased && progress?.seasonInstances && progress.seasonInstances.length > 0
+                  ? `${def.name} — ${progress.seasonInstances[progress.seasonInstances.length - 1].season}`
+                  : def.name}
               </Text>
 
               <Text
@@ -1096,17 +1157,12 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                     style={[
                       paStyles.modalProgressFill,
                       {
-                        width:
-                          def.tiers.length > 0
-                            ? `${Math.min(
-                                100,
-                                Math.round(
-                                  (progress.currentValue /
-                                    def.tiers[def.tiers.length - 1].value) *
-                                    100
-                                )
-                              )}%`
-                            : '0%',
+                        width: (() => {
+                          const denom = getProgressDenominator(def, progress);
+                          return denom > 0
+                            ? `${Math.min(100, Math.round((progress.currentValue / denom) * 100))}%`
+                            : '0%';
+                        })(),
                         backgroundColor: accentColor,
                       },
                     ]}
@@ -1114,7 +1170,7 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                 </View>
 
                 <Text style={paStyles.modalProgressLabel}>
-                  Progress: {progress.currentValue} / {def.tiers[def.tiers.length - 1].value}
+                  Progress: {progress.currentValue} / {getProgressDenominator(def, progress)}
                 </Text>
 
                 <View style={paStyles.tiersSection}>
@@ -1127,12 +1183,13 @@ const ProfileAchievementDetailModal = React.memo(function ProfileAchievementDeta
                     TIER REQUIREMENTS
                   </Text>
 
-                  {def.tiers.map((tierDef, idx) => {
+                  {getDisplayTiers(def, progress).map((tierDef, idx) => {
                     const tierUnlocked = progress?.unlockedTiers?.includes(tierDef.tier) ?? false;
                     const tierColors = TIER_COLORS[tierDef.tier];
+                    const displayTiers = getDisplayTiers(def, progress);
                     const previousUnlocked =
                       idx === 0 ||
-                      (progress?.unlockedTiers?.includes(def.tiers![idx - 1].tier) ?? false);
+                      (progress?.unlockedTiers?.includes(displayTiers[idx - 1].tier) ?? false);
                     const nextTier = !tierUnlocked && previousUnlocked;
                     const tierAccent = isHidden ? HIDDEN_COLORS.red : tierColors.primary;
 
