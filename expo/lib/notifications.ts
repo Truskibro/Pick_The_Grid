@@ -76,12 +76,27 @@ export async function registerForPushNotifications(): Promise<string | null> {
     });
   }
 
-  const { data: token } = await Notifications.getExpoPushTokenAsync({
-    projectId: process.env.EXPO_PUBLIC_PROJECT_ID,
-  });
+  const projectId = process.env.EXPO_PUBLIC_PROJECT_ID;
 
-  console.log('[Notifications] Push token obtained:', token);
-  return token;
+  if (!projectId) {
+    console.log('[Notifications] No EXPO_PUBLIC_PROJECT_ID set — skipping token registration');
+    return null;
+  }
+
+  try {
+    const { data: token } = await Notifications.getExpoPushTokenAsync({
+      projectId,
+    });
+
+    console.log('[Notifications] Push token obtained:', token);
+    return token;
+  } catch (e: any) {
+    console.log(
+      '[Notifications] Failed to fetch Expo push token:',
+      e?.message || e,
+    );
+    return null;
+  }
 }
 
 interface EventSpec {
