@@ -164,7 +164,11 @@ export default function LeaderboardsScreen() {
 
     return (
       <AnimatedPressable
-        style={[styles.rankRow, accentColor && styles.rankRowTop]}
+        style={[
+          styles.rankRow,
+          { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+          accentColor && styles.rankRowTop,
+        ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
         {accentColor && (
@@ -184,6 +188,7 @@ export default function LeaderboardsScreen() {
           <View
             style={[
               styles.rankBadge,
+              { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border },
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -248,7 +253,11 @@ export default function LeaderboardsScreen() {
 
     return (
       <AnimatedPressable
-        style={[styles.rankRow, accentColor && styles.rankRowTop]}
+        style={[
+          styles.rankRow,
+          { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+          accentColor && styles.rankRowTop,
+        ]}
         onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
       >
         {accentColor && (
@@ -268,6 +277,7 @@ export default function LeaderboardsScreen() {
           <View
             style={[
               styles.rankBadge,
+              { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border },
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -376,6 +386,7 @@ export default function LeaderboardsScreen() {
                   width: size,
                   height: size,
                   borderColor: color,
+                  backgroundColor: seriesColors.surfaceHighlight,
                 },
               ]}
             >
@@ -417,7 +428,7 @@ export default function LeaderboardsScreen() {
     if (loadingLeaderboard) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={Colors.f1Red} />
+          <ActivityIndicator color={seriesColors.primary} />
           <Text style={styles.loadingText}>Loading leaderboard...</Text>
         </View>
       );
@@ -529,10 +540,14 @@ export default function LeaderboardsScreen() {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim }]}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim, backgroundColor: seriesColors.background }]}>
       <View style={styles.tabRow}>
         <AnimatedPressable
-          style={[styles.tab, activeTab === 'global' && styles.tabActive]}
+          style={[
+            styles.tab,
+            { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+            activeTab === 'global' && { backgroundColor: seriesColors.primary, borderColor: seriesColors.primary },
+          ]}
           onPress={() => setActiveTab('global')}
         >
           <Text style={[styles.tabText, activeTab === 'global' && styles.tabTextActive]}>
@@ -541,7 +556,11 @@ export default function LeaderboardsScreen() {
         </AnimatedPressable>
 
         <AnimatedPressable
-          style={[styles.tab, activeTab === 'league' && styles.tabActive]}
+          style={[
+            styles.tab,
+            { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+            activeTab === 'league' && { backgroundColor: seriesColors.primary, borderColor: seriesColors.primary },
+          ]}
           onPress={() => setActiveTab('league')}
         >
           <Text style={[styles.tabText, activeTab === 'league' && styles.tabTextActive]}>
@@ -794,7 +813,6 @@ const styles = StyleSheet.create({
 
   rankRowTop: {
     borderColor: 'rgba(255,214,10,0.16)',
-    backgroundColor: '#12161D',
   },
 
   accentStrip: {
