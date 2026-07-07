@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
+import React, { useRef, useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -26,6 +26,7 @@ import {
   Swords,
 } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import AnimatedPressable from '@/components/AnimatedPressable';
@@ -35,8 +36,16 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 
 export default function LeaguesScreen() {
   const router = useRouter();
-  const { leagues, getLeagueMembers, refreshLeagues, fetchPublicLeagues, joinLeague } = useGame();
+  const { config, currentSeries } = useSeries();
+  const { leagues: allLeagues, getLeagueMembers, refreshLeagues, fetchPublicLeagues, joinLeague } = useGame();
   const { profile, isGuest } = useUser();
+
+  // Filter leagues by the current series. Existing leagues without a
+  // series_id default to 'f1' so they remain visible in F1 mode.
+  const leagues = useMemo(() =>
+    allLeagues.filter((l) => (l.seriesId ?? 'f1') === currentSeries),
+    [allLeagues, currentSeries],
+  );
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(20)).current;
   const [refreshing, setRefreshing] = useState<boolean>(false);

@@ -32,6 +32,8 @@ export interface Race {
   winner?: string;
   currentLap?: number;
   totalLaps?: number;
+  /** Which racing series this race belongs to ('f1' | 'motogp'). Defaults to 'f1'. */
+  seriesId?: string;
 }
 
 export type ClassificationStatus =
@@ -79,6 +81,8 @@ export interface Prediction {
   updatedAt: string;
   username: string | null;
   displayName: string | null;
+  /** Which racing series this prediction belongs to ('f1' | 'motogp'). Defaults to 'f1'. */
+  seriesId?: string;
 }
 
 export interface League {
@@ -90,6 +94,8 @@ export interface League {
   ownerId: string;
   memberCount: number;
   createdAt: string;
+  /** Which racing series this league belongs to ('f1' | 'motogp'). Defaults to 'f1'. */
+  seriesId?: string;
 }
 
 export interface LeagueMember {
@@ -120,6 +126,8 @@ export interface LeaderboardEntry {
   displayName: string;
   totalPoints: number;
   previousRank?: number;
+  /** Which series these points belong to ('f1' | 'motogp'). */
+  seriesId?: string;
 }
 
 export interface NotificationSettings {
@@ -138,3 +146,11 @@ export const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;
 export const SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1] as const;
 export const FASTEST_LAP_BONUS = 1;
 export const DNF_BONUS = 10;
+
+// ── MotoGP scoring ─────────────────────────────────────────────────────────
+/** MotoGP Sunday race points: 1st–15th */
+export const MOTOGP_RACE_POINTS = [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1] as const;
+/** MotoGP sprint points: 1st–9th */
+export const MOTOGP_SPRINT_POINTS = [12, 9, 7, 6, 5, 4, 3, 2, 1] as const;
+export const MOTOGP_FASTEST_LAP_BONUS = 1;
+export const MOTOGP_DNF_BONUS = 10;

@@ -2,6 +2,7 @@ import React, { useCallback } from 'react';
 import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
 import { MapPin, Clock, Trophy, Zap, PlayCircle, Flame, CheckCircle, AlertTriangle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
+import { getSeriesConfig } from '@/constants/series';
 import { Race } from '@/types';
 import AnimatedPressable from './AnimatedPressable';
 
@@ -52,7 +53,8 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
   const shouldShowPredictionSaved = hasPrediction && !shouldShowPoints && !shouldShowPicks;
 
   const handleWatchLive = useCallback(async () => {
-    const url = 'https://f1tv.formula1.com/';
+    const seriesConfig = getSeriesConfig((race.seriesId as 'f1' | 'motogp') ?? 'f1');
+    const url = seriesConfig.labels.watchUrl;
     try {
       const supported = Platform.OS === 'web' ? true : await Linking.canOpenURL(url);
       if (supported) {

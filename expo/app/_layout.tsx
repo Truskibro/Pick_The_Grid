@@ -10,6 +10,8 @@ import Colors from "@/constants/colors";
 import { UserProvider } from "@/providers/UserProvider";
 import { GameProvider } from "@/providers/GameProvider";
 import { F1DataProvider } from "@/providers/F1DataProvider";
+import { MotoGPDataProvider } from "@/providers/MotoGPDataProvider";
+import { SeriesProvider, useSeries } from "@/providers/SeriesProvider";
 import { AchievementProvider } from "@/providers/AchievementProvider";
 import ScoringBridge from "@/components/ScoringBridge";
 import AchievementCelebrationOverlay from "@/components/AchievementCelebrationOverlay";
@@ -75,6 +77,17 @@ const queryClient = new QueryClient({
 });
 
 function RootLayoutNav() {
+  const router = useRouter();
+  const { hasChosen, isLoading: seriesLoading } = useSeries();
+
+  // Redirect to series-select when no series has been chosen yet.
+  // This makes the landing page the first screen on fresh installs.
+  useEffect(() => {
+    if (!seriesLoading && !hasChosen) {
+      router.replace("/series-select");
+    }
+  }, [seriesLoading, hasChosen, router]);
+
   return (
     <Stack
       screenOptions={{
@@ -86,6 +99,10 @@ function RootLayoutNav() {
       }}
     >
       <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+      <Stack.Screen
+        name="series-select"
+        options={{ headerShown: false, title: "Select Series" }}
+      />
       <Stack.Screen
         name="settings"
         options={{
@@ -158,17 +175,21 @@ export default function RootLayout() {
     <QueryClientProvider client={queryClient}>
       <GestureHandlerRootView style={{ flex: 1 }}>
         <UserProvider>
-          <F1DataProvider>
-            <GameProvider>
-              <AchievementProvider>
-                <ScoringBridge />
-                <NotificationTapHandler />
-                <StatusBar style="light" />
-                <RootLayoutNav />
-                <AchievementCelebrationOverlay />
-              </AchievementProvider>
-            </GameProvider>
-          </F1DataProvider>
+          <SeriesProvider>
+            <F1DataProvider>
+              <MotoGPDataProvider>
+                <GameProvider>
+                  <AchievementProvider>
+                    <ScoringBridge />
+                    <NotificationTapHandler />
+                    <StatusBar style="light" />
+                    <RootLayoutNav />
+                    <AchievementCelebrationOverlay />
+                  </AchievementProvider>
+                </GameProvider>
+              </MotoGPDataProvider>
+            </F1DataProvider>
+          </SeriesProvider>
         </UserProvider>
       </GestureHandlerRootView>
     </QueryClientProvider>

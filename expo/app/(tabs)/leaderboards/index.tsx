@@ -20,6 +20,7 @@ import {
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { LeaderboardEntry, League } from '@/types';
@@ -35,6 +36,8 @@ interface LeagueRanking {
 
 export default function LeaderboardsScreen() {
   const router = useRouter();
+  const { config, currentSeries } = useSeries();
+  const seriesColors = config.colors;
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
@@ -56,7 +59,7 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(true);
 
     try {
-      let data = await fetchGlobalLeaderboard();
+      let data = await fetchGlobalLeaderboard(currentSeries);
 
       // Ensure the currently logged-in user always appears on the leaderboard.
       const currentUserId = session?.user?.id;
@@ -87,7 +90,7 @@ export default function LeaderboardsScreen() {
     }
 
     setLoadingLeaderboard(false);
-  }, [fetchGlobalLeaderboard, session, profile, totalPoints]);
+  }, [fetchGlobalLeaderboard, session, profile, totalPoints, currentSeries]);
 
   // Refresh leaderboard whenever the tab is focused.
   useFocusEffect(

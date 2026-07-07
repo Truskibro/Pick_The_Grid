@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from 'react-native';
 import { Zap, AlertTriangle, ChevronUp, ChevronDown, Plus } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { Driver } from '@/types';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeriesData } from '@/lib/useSeriesData';
 import AnimatedPressable from './AnimatedPressable';
 
 interface DriverCardProps {
@@ -37,7 +37,7 @@ export default React.memo(function DriverCard({
   disabled,
   selected,
 }: DriverCardProps) {
-  const { getTeamById } = useF1Data();
+  const { getTeamById } = useSeriesData();
   const team = getTeamById(driver.teamId);
 
   if (compact) {

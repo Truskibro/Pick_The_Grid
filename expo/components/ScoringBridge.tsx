@@ -1,5 +1,6 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { SEED_USERS, scoreSeededPredictions, getCompletedRaceIds } from '@/constants/seed-predictions';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
@@ -19,6 +20,7 @@ import type { RaceResult } from '@/types';
  *  - Uses a stable scoring-id ref to avoid redundant re-scoring
  */
 export default function ScoringBridge() {
+  const { currentSeries } = useSeries();
   const { raceResults, races } = useF1Data();
   const { scorePredictions, predictions, refreshPredictions } = useGame();
 
@@ -144,6 +146,7 @@ export default function ScoringBridge() {
     scorePredictions,
     refreshPredictions,
     persistSeedScores,
+    currentSeries,
   ]);
 
   return null;

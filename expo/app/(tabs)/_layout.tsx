@@ -3,17 +3,21 @@ import { Grid3x3, Target, CalendarDays, Users, BarChart3 } from "lucide-react-na
 import React from "react";
 import { Platform } from "react-native";
 import Colors from "@/constants/colors";
+import { useSeries } from "@/providers/SeriesProvider";
 
 export default function TabLayout() {
+  const { config } = useSeries();
+  const seriesColors = config.colors;
+
   return (
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: Colors.f1Red,
+        tabBarActiveTintColor: seriesColors.primary,
         tabBarInactiveTintColor: Colors.tabBarInactive,
         tabBarStyle: {
-          backgroundColor: Colors.tabBarBackground,
-          borderTopColor: Colors.border,
+          backgroundColor: seriesColors.tabBarBackground,
+          borderTopColor: seriesColors.border,
           borderTopWidth: 1,
           ...(Platform.OS === 'web' ? { height: 60 } : {}),
         },
@@ -34,7 +38,7 @@ export default function TabLayout() {
       <Tabs.Screen
         name="predict"
         options={{
-          title: "Pick",
+          title: config.labels.pickTabLabel,
           tabBarIcon: ({ color, size }) => <Target size={size - 2} color={color} />,
         }}
       />

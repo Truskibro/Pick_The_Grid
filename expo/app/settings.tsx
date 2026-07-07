@@ -37,6 +37,8 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
 import Colors from '@/constants/colors';
 import { COUNTRIES } from '@/constants/countries';
+import { ALL_SERIES, SeriesId } from '@/constants/series';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useAchievements } from '@/providers/AchievementProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
@@ -53,8 +55,14 @@ export default function SettingsScreen() {
     signOut,
   } = useUser();
 
-  const { leagues, totalPoints, predictions } = useGame();
+  const { leagues: allLeagues, totalPoints, predictions } = useGame();
   const { unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
+  const { currentSeries, switchSeries, config } = useSeries();
+
+  const leagues = useMemo(() =>
+    allLeagues.filter((l) => (l.seriesId ?? 'f1') === currentSeries),
+    [allLeagues, currentSeries],
+  );
 
   const [editorOpen, setEditorOpen] = useState(false);
   const [displayName, setDisplayName] = useState(profile.displayName);
@@ -265,6 +273,44 @@ export default function SettingsScreen() {
           <ChevronRight size={18} color={Colors.textMuted} />
         </AnimatedPressable>
       )}
+
+      <Text style={styles.sectionLabel}>Racing Series</Text>
+
+      <View style={styles.card}>
+        {ALL_SERIES.map((series) => {
+          const isActive = series.id === currentSeries;
+          return (
+            <AnimatedPressable
+              key={series.id}
+              style={[styles.row, isActive && { backgroundColor: `${series.colors.primary}12` }]}
+              onPress={async () => {
+                void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+                await switchSeries(series.id);
+              }}
+              scaleDown={0.98}
+            >
+              <View style={[styles.rowIcon, { backgroundColor: `${series.colors.primary}1F` }]}>
+                {series.id === 'f1' ? (
+                  <Flag size={18} color={series.colors.primary} />
+                ) : (
+                  <Flag size={18} color={series.colors.primary} />
+                )}
+              </View>
+              <View style={styles.rowContent}>
+                <Text style={styles.rowLabel}>{series.name}</Text>
+                <Text style={styles.rowValue} numberOfLines={1}>
+                  {isActive ? 'Active' : 'Switch to ' + series.name}
+                </Text>
+              </View>
+              {isActive ? (
+                <Check size={18} color={series.colors.primary} />
+              ) : (
+                <ChevronRight size={18} color={Colors.textMuted} />
+              )}
+            </AnimatedPressable>
+          );
+        })}
+      </View>
 
       <Text style={styles.sectionLabel}>Account</Text>
 

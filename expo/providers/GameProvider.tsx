@@ -4,10 +4,12 @@ import createContextHook from '@nkzw/create-context-hook';
 import { Prediction, League, LeagueMember, LeaderboardEntry, RaceResult } from '@/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
+import { useSeries } from '@/providers/SeriesProvider';
 import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
 import { SEED_USERS, scoreSeededPredictions, getCompletedRaceIds } from '@/constants/seed-predictions';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
+import type { SeriesId } from '@/constants/series';
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions_rebuilt_v2',
@@ -156,6 +158,7 @@ function buildPredictionPayload(
     predicted_sprint_top8: prediction.sprintTop8 ?? [],
     sprint_points_earned: prediction.sprintPointsEarned ?? 0,
     updated_at: prediction.updatedAt,
+    series_id: prediction.seriesId ?? 'f1',
   };
 }
 
@@ -237,6 +240,7 @@ let lastSaveTimeGlobal: number = 0;
 
 export const [GameProvider, useGame] = createContextHook(() => {
   const { profile, session: userSession } = useUser();
+  const { currentSeries } = useSeries();
   const [predictions, setPredictions] = useState<Prediction[]>([]);
   const [leagues, setLeagues] = useState<League[]>([]);
   const [leagueMembers, setLeagueMembers] = useState<Record<string, LeagueMember[]>>({});
@@ -590,6 +594,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
     ownerId: string,
     ownerName: string,
     ownerDisplayName: string,
+    seriesId?: string,
   ): Promise<League> => {
     const league: League = {
       id: generateId(),
@@ -600,6 +605,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       ownerId,
       memberCount: 1,
       createdAt: new Date().toISOString(),
+      seriesId: seriesId ?? 'f1',
     };
 
     const ownerMember: LeagueMember = {
@@ -715,7 +721,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
     return entries;
   }
 
-  const fetchGlobalLeaderboard = useCallback(async (): Promise<LeaderboardEntry[]> => {
+  const fetchGlobalLeaderboard = useCallback(async (seriesId?: string): Promise<LeaderboardEntry[]> => {
     // Always compute seed-user points from the verified spreadsheet predictions.
     // These are the authoritative scores, immune to stale Supabase cached values.
     const seedUserIdSet = new Set(SEED_USERS.map((u) => u.userId));
@@ -729,15 +735,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
     }
 
     if (!isSupabaseConfigured) {
+      // F1 seed users only appear on the F1 leaderboard.
+      if (seriesId && seriesId !== 'f1') return [];
       return seedLeaderboard;
     }
 
     try {
       // Query BOTH profiles and user_predictions so we include every registered
       // user — not just the ones who happen to have prediction rows.
+      // Filter predictions by series_id when a series is specified.
+      let predictionsQuery = supabase.from('user_predictions').select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at, series_id');
+      if (seriesId) {
+        predictionsQuery = predictionsQuery.eq('series_id', seriesId);
+      }
       const [profilesRes, predictionsRes] = await Promise.all([
         supabase.from('profiles').select('id, username, display_name, total_points'),
-        supabase.from('user_predictions').select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at'),
+        predictionsQuery,
       ]);
 
       const allProfiles = (profilesRes.data ?? []) as Array<{
@@ -754,6 +767,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         points_earned: number | null;
         sprint_points_earned: number | null;
         updated_at: string | null;
+        series_id: string | null;
       }>;
 
       if (predictionsRes.error) {
@@ -783,6 +797,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       // For non-seed users, compute points from their prediction rows (more
       // accurate than profiles.total_points, which may be stale).
+      // When a series filter is active, only predictions for that series
+      // are counted, so the leaderboard is series-specific.
       const nonSeedPoints = new Map<string, number>();
       for (const row of allPredictions) {
         if (seedUserIdSet.has(row.user_id)) continue;
@@ -794,10 +810,22 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
 
       // Override non-seed user points with the sum from predictions.
+      // When filtering by series, users with no predictions in that series
+      // keep a 0 score (set via the map default below).
       for (const [userId, points] of nonSeedPoints) {
         const existing = userMap.get(userId);
         if (existing && !existing.isSeedUser) {
           existing.totalPoints = points;
+        }
+      }
+
+      // When filtering by series, zero out non-seed users who have no
+      // predictions in that series (they shouldn't appear with F1 points).
+      if (seriesId) {
+        for (const [userId, info] of userMap) {
+          if (!info.isSeedUser && !nonSeedPoints.has(userId)) {
+            info.totalPoints = 0;
+          }
         }
       }
 
@@ -816,13 +844,17 @@ export const [GameProvider, useGame] = createContextHook(() => {
           username: info.isSeedUser ? (seedNameMap.get(userId)?.username ?? info.username) : info.username,
           displayName: info.isSeedUser ? (seedNameMap.get(userId)?.displayName ?? info.displayName) : info.displayName,
           totalPoints: info.isSeedUser ? (seedScoreMap.get(userId) ?? info.totalPoints) : info.totalPoints,
+          seriesId: seriesId ?? undefined,
         }));
 
       // Ensure seed users always appear, even if their profile is missing.
-      const existingUserIds = new Set(entries.map((e) => e.userId));
-      for (const seedEntry of seedLeaderboard) {
-        if (!existingUserIds.has(seedEntry.userId)) {
-          entries.push(seedEntry);
+      // But only include seed users on the F1 leaderboard (they have F1 data only).
+      if (!seriesId || seriesId === 'f1') {
+        const existingUserIds = new Set(entries.map((e) => e.userId));
+        for (const seedEntry of seedLeaderboard) {
+          if (!existingUserIds.has(seedEntry.userId)) {
+            entries.push(seedEntry);
+          }
         }
       }
 
@@ -863,14 +895,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       // Race points only update when we actually have race results.
       // Sprint points update independently as soon as sprint results land.
+      const predSeriesId = (prediction.seriesId ?? 'f1') as SeriesId;
+
       const mainBreakdown =
         hasRaceResults && prediction.top10.length > 0
-          ? calculatePoints(prediction, result)
+          ? calculatePoints(prediction, result, predSeriesId)
           : null;
 
       const sprintBreakdown =
         hasSprintResults && prediction.sprintTop8.length > 0
-          ? calculateSprintPoints(prediction.sprintTop8, result.sprintClassification!)
+          ? calculateSprintPoints(prediction.sprintTop8, result.sprintClassification!, predSeriesId)
           : null;
 
       const nextPrediction = normalizePrediction({

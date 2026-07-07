@@ -3,7 +3,8 @@ import { View, Text, StyleSheet, ScrollView } from 'react-native';
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router';
 import { MapPin, Clock, Trophy, Target, Check, X, Zap, AlertTriangle, Medal, Flag } from 'lucide-react-native';
 import Colors from '@/constants/colors';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeries } from '@/providers/SeriesProvider';
+import { useSeriesData } from '@/lib/useSeriesData';
 import { useGame } from '@/providers/GameProvider';
 import { calculatePoints, calculateSprintPoints, getTrueDnfDriverIds } from '@/lib/scoring';
 import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, ClassificationEntry } from '@/types';
@@ -12,8 +13,9 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 export default function RaceResultsScreen() {
   const { raceId } = useLocalSearchParams<{ raceId: string }>();
   const router = useRouter();
+  const { config, currentSeries } = useSeries();
   const { getPrediction } = useGame();
-  const { getRaceById, getDriverById, getTeamById, getRaceResult } = useF1Data();
+  const { getRaceById, getDriverById, getTeamById, getRaceResult } = useSeriesData();
 
   const race = raceId ? getRaceById(raceId) : undefined;
   const prediction = raceId ? getPrediction(raceId) : undefined;
@@ -21,8 +23,8 @@ export default function RaceResultsScreen() {
 
   const breakdown = useMemo(() => {
     if (!prediction || !result || result.classification.length === 0) return null;
-    return calculatePoints(prediction, result);
-  }, [prediction, result]);
+    return calculatePoints(prediction, result, currentSeries);
+  }, [prediction, result, currentSeries]);
 
   const allResults = useMemo(() => {
     if (!result) return [];
@@ -37,8 +39,8 @@ export default function RaceResultsScreen() {
   const sprintBreakdown = useMemo(() => {
     if (!prediction || sprintResults.length === 0) return null;
     if (!prediction.sprintTop8 || prediction.sprintTop8.length === 0) return null;
-    return calculateSprintPoints(prediction.sprintTop8, sprintResults);
-  }, [prediction, sprintResults]);
+    return calculateSprintPoints(prediction.sprintTop8, sprintResults, currentSeries);
+  }, [prediction, sprintResults, currentSeries]);
 
   const podiumColors: Record<number, string> = {
     1: '#FFD700',

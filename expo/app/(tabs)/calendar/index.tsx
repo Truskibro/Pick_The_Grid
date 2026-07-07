@@ -2,7 +2,8 @@ import React, { useCallback, useRef, useEffect } from 'react';
 import { View, Text, StyleSheet, FlatList, Animated } from 'react-native';
 import { useFocusEffect, useRouter } from 'expo-router';
 import Colors from '@/constants/colors';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeries } from '@/providers/SeriesProvider';
+import { useSeriesData } from '@/lib/useSeriesData';
 import { useGame } from '@/providers/GameProvider';
 import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import RaceCard from '@/components/RaceCard';
@@ -10,7 +11,8 @@ import { Race } from '@/types';
 
 export default function CalendarScreen() {
   const router = useRouter();
-  const { races, isRefreshing, refreshAll, getRaceResult, getDriverById } = useF1Data();
+  const { config, currentSeries } = useSeries();
+  const { races, isRefreshing, refreshAll, getRaceResult, getDriverById } = useSeriesData();
   const { getPrediction, refreshPredictions } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
 
@@ -84,7 +86,7 @@ export default function CalendarScreen() {
           let liveSprintPoints: number | undefined;
 
           if (prediction && result && result.classification.length > 0) {
-            const breakdown = calculatePoints(prediction, result);
+            const breakdown = calculatePoints(prediction, result, currentSeries);
             livePoints = breakdown.totalPoints;
 
             if (
@@ -95,6 +97,7 @@ export default function CalendarScreen() {
               const sprintBreakdown = calculateSprintPoints(
                 prediction.sprintTop8,
                 result.sprintClassification,
+                currentSeries,
               );
               liveSprintPoints = sprintBreakdown.totalPoints;
             }
@@ -138,7 +141,7 @@ export default function CalendarScreen() {
         onRefresh={handleRefresh}
         ListHeaderComponent={
           <View style={styles.header}>
-            <Text style={styles.headerTitle}>{races.length} Races</Text>
+            <Text style={styles.headerTitle}>{races.length} {config.labels.eventLabel === 'Grand Prix' ? 'Races' : 'Races'}</Text>
             <Text style={styles.headerSub}>
               {completed.length} completed · {upcoming.length} remaining
             </Text>
@@ -179,7 +182,7 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   sectionTitle: {
-    color: Colors.f1Red,
+    color: '#E10600',
     fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 2,

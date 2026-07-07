@@ -43,7 +43,8 @@ import {
 import * as Haptics from 'expo-haptics';
 
 import Colors from '@/constants/colors';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeries } from '@/providers/SeriesProvider';
+import { useSeriesData } from '@/lib/useSeriesData';
 import {
   F1_POINTS,
   SPRINT_POINTS,
@@ -200,7 +201,17 @@ export default function PredictRaceScreen() {
   const navigation = useNavigation();
   const router = useRouter();
 
-  const { getRaceById, drivers, getTeamById, getRaceResult } = useF1Data();
+  const { config, currentSeries } = useSeries();
+  const seriesColors = config.colors;
+  const seriesLabels = config.labels;
+  const raceTopN = config.pickLimits.raceTopN;
+  const sprintTopN = config.pickLimits.sprintTopN;
+  const racePointsArr = config.scoring.racePoints;
+  const sprintPointsArr = config.scoring.sprintPoints;
+  const flBonus = config.scoring.fastestLapBonus;
+  const dnfBonus = config.scoring.dnfBonus;
+
+  const { getRaceById, drivers, getTeamById, getRaceResult } = useSeriesData();
   const { savePrediction, getPrediction, refreshPredictions } = useGame();
   const { profile, isGuest } = useUser();
 
@@ -249,13 +260,13 @@ export default function PredictRaceScreen() {
     : true;
 
   const cleanedSelectedDrivers = useMemo(
-    () => cleanPickList(selectedDrivers, 10, validDriverIds),
-    [selectedDrivers, validDriverIds],
+    () => cleanPickList(selectedDrivers, raceTopN, validDriverIds),
+    [selectedDrivers, validDriverIds, raceTopN],
   );
 
   const cleanedSprintTop8 = useMemo(
-    () => cleanPickList(sprintTop8, 8, validDriverIds),
-    [sprintTop8, validDriverIds],
+    () => cleanPickList(sprintTop8, sprintTopN, validDriverIds),
+    [sprintTop8, validDriverIds, sprintTopN],
   );
 
   const completedBreakdown = useMemo(() => {
@@ -268,8 +279,8 @@ export default function PredictRaceScreen() {
       return null;
     }
 
-    return calculatePoints(existingPrediction, raceResult);
-  }, [raceIsCompleted, existingPrediction, raceResult]);
+    return calculatePoints(existingPrediction, raceResult, currentSeries);
+  }, [raceIsCompleted, existingPrediction, raceResult, currentSeries]);
 
   const completedPoints =
     (existingPrediction?.pointsEarned ?? 0) +
@@ -342,29 +353,29 @@ export default function PredictRaceScreen() {
     let points = 0;
 
     cleanedSelectedDrivers.forEach((_, index) => {
-      if (index < F1_POINTS.length) points += F1_POINTS[index];
+      if (index < racePointsArr.length) points += racePointsArr[index];
     });
 
-    if (fastestLap) points += FASTEST_LAP_BONUS;
-    if (dnf) points += DNF_BONUS;
+    if (fastestLap) points += flBonus;
+    if (dnf) points += dnfBonus;
 
     return points;
-  }, [cleanedSelectedDrivers, fastestLap, dnf]);
+  }, [cleanedSelectedDrivers, fastestLap, dnf, racePointsArr, flBonus, dnfBonus]);
 
   const sprintPotentialPoints = useMemo(() => {
     let points = 0;
 
     cleanedSprintTop8.forEach((_, index) => {
-      if (index < SPRINT_POINTS.length) points += SPRINT_POINTS[index];
+      if (index < sprintPointsArr.length) points += sprintPointsArr[index];
     });
 
     return points;
-  }, [cleanedSprintTop8]);
+  }, [cleanedSprintTop8, sprintPointsArr]);
 
   const totalPotentialPoints = racePotentialPoints + sprintPotentialPoints;
 
-  const raceProgress = cleanedSelectedDrivers.length / 10;
-  const sprintProgress = cleanedSprintTop8.length / 8;
+  const raceProgress = cleanedSelectedDrivers.length / raceTopN;
+  const sprintProgress = cleanedSprintTop8.length / sprintTopN;
 
   const sortedRacePoolDrivers = useMemo(() => {
     return [...drivers]
@@ -440,7 +451,7 @@ export default function PredictRaceScreen() {
             prev,
             driverId,
             picker.slotIndex,
-            10,
+            raceTopN,
             validDriverIds,
           ),
         );
@@ -452,7 +463,7 @@ export default function PredictRaceScreen() {
             prev,
             driverId,
             picker.slotIndex,
-            8,
+            sprintTopN,
             validDriverIds,
           ),
         );
@@ -477,7 +488,7 @@ export default function PredictRaceScreen() {
       if (locked) return;
 
       setSelectedDrivers((prev) => {
-        const cleaned = cleanPickList(prev, 10, validDriverIds);
+        const cleaned = cleanPickList(prev, raceTopN, validDriverIds);
 
         if (cleaned.includes(driverId)) {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -489,13 +500,13 @@ export default function PredictRaceScreen() {
           return cleaned.filter((id) => id !== driverId);
         }
 
-        if (cleaned.length >= 10) {
+        if (cleaned.length >= raceTopN) {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning,
           );
           Alert.alert(
             'Race Grid Full',
-            'Remove a driver from your race grid first.',
+            `Remove a ${seriesLabels.competitorLower} from your race grid first.`,
           );
           return cleaned;
         }
@@ -514,7 +525,7 @@ export default function PredictRaceScreen() {
       if (sprintLocked) return;
 
       setSprintTop8((prev) => {
-        const cleaned = cleanPickList(prev, 8, validDriverIds);
+        const cleaned = cleanPickList(prev, sprintTopN, validDriverIds);
 
         if (cleaned.includes(driverId)) {
           void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
@@ -523,13 +534,13 @@ export default function PredictRaceScreen() {
           return cleaned.filter((id) => id !== driverId);
         }
 
-        if (cleaned.length >= 8) {
+        if (cleaned.length >= sprintTopN) {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning,
           );
           Alert.alert(
             'Sprint Grid Full',
-            'Remove a driver from your sprint grid first.',
+            `Remove a ${seriesLabels.competitorLower} from your sprint grid first.`,
           );
           return cleaned;
         }
@@ -550,7 +561,7 @@ export default function PredictRaceScreen() {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       setSelectedDrivers((prev) =>
-        cleanPickList(prev, 10, validDriverIds).filter(
+        cleanPickList(prev, raceTopN, validDriverIds).filter(
           (id) => id !== driverId,
         ),
       );
@@ -570,7 +581,7 @@ export default function PredictRaceScreen() {
       void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
 
       setSprintTop8((prev) =>
-        cleanPickList(prev, 8, validDriverIds).filter(
+        cleanPickList(prev, sprintTopN, validDriverIds).filter(
           (id) => id !== driverId,
         ),
       );
@@ -587,7 +598,7 @@ export default function PredictRaceScreen() {
       void Haptics.selectionAsync();
 
       setSelectedDrivers((prev) => {
-        const next = cleanPickList(prev, 10, validDriverIds);
+        const next = cleanPickList(prev, raceTopN, validDriverIds);
         const target = direction === 'up' ? index - 1 : index + 1;
 
         if (index < 0 || index >= next.length) return next;
@@ -610,7 +621,7 @@ export default function PredictRaceScreen() {
       void Haptics.selectionAsync();
 
       setSprintTop8((prev) => {
-        const next = cleanPickList(prev, 8, validDriverIds);
+        const next = cleanPickList(prev, sprintTopN, validDriverIds);
         const target = direction === 'up' ? index - 1 : index + 1;
 
         if (index < 0 || index >= next.length) return next;
@@ -686,8 +697,8 @@ export default function PredictRaceScreen() {
       return;
     }
 
-    const finalTop10 = cleanPickList(selectedDrivers, 10, validDriverIds);
-    const finalSprintTop8 = cleanPickList(sprintTop8, 8, validDriverIds);
+    const finalTop10 = cleanPickList(selectedDrivers, raceTopN, validDriverIds);
+    const finalSprintTop8 = cleanPickList(sprintTop8, sprintTopN, validDriverIds);
 
     const finalFastestLap =
       fastestLap && validDriverIds.has(fastestLap) ? fastestLap : null;
@@ -695,11 +706,11 @@ export default function PredictRaceScreen() {
     const finalDnf = dnf && validDriverIds.has(dnf) ? dnf : null;
 
     // Race picks required only if race picks are still editable.
-    if (!locked && finalTop10.length !== 10) {
+    if (!locked && finalTop10.length !== raceTopN) {
       setActiveTab('race');
       Alert.alert(
         'Cannot Save',
-        `Please select exactly 10 race drivers. You currently have ${finalTop10.length}.`,
+        `Please select exactly ${raceTopN} race ${seriesLabels.competitorsLower}. You currently have ${finalTop10.length}.`,
       );
       return;
     }
@@ -708,12 +719,12 @@ export default function PredictRaceScreen() {
     if (
       race.hasSprint &&
       !sprintLocked &&
-      finalSprintTop8.length !== 8
+      finalSprintTop8.length !== sprintTopN
     ) {
       setActiveTab('sprint');
       Alert.alert(
         'Cannot Save',
-        `Please select exactly 8 sprint drivers. You currently have ${finalSprintTop8.length}.`,
+        `Please select exactly ${sprintTopN} sprint ${seriesLabels.competitorsLower}. You currently have ${finalSprintTop8.length}.`,
       );
       return;
     }
@@ -757,6 +768,7 @@ export default function PredictRaceScreen() {
         sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
         username: profile.username,
         displayName: profile.displayName,
+        seriesId: currentSeries,
       });
 
       setSaved(true);
@@ -799,12 +811,16 @@ export default function PredictRaceScreen() {
     isGuest,
     locked,
     sprintLocked,
+    raceTopN,
+    sprintTopN,
+    seriesLabels.competitorsLower,
+    currentSeries,
   ]);
 
   if (!race) {
     return (
       <View style={styles.emptyContainer}>
-        <AlertTriangle color={Colors.f1Red} size={34} />
+        <AlertTriangle color={seriesColors.primary} size={34} />
         <Text style={styles.emptyTitle}>Race Not Found</Text>
         <Text style={styles.emptyText}>This race could not be found.</Text>
       </View>
@@ -822,7 +838,7 @@ export default function PredictRaceScreen() {
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['rgba(225,6,0,0.18)', Colors.background]}
+          colors={[`${seriesColors.primary}30`, Colors.background]}
           style={styles.hero}
         >
           <View style={styles.heroTop}>
@@ -920,7 +936,7 @@ export default function PredictRaceScreen() {
                 <Text style={styles.completedViewBtnText}>
                   View Full Results
                 </Text>
-                <ChevronRight color={Colors.f1Red} size={16} />
+                <ChevronRight color={seriesColors.primary} size={16} />
               </AnimatedPressable>
             </View>
           )}
@@ -929,16 +945,16 @@ export default function PredictRaceScreen() {
         <View style={styles.statsRow}>
           <StatTile
             label="RACE"
-            value={`${cleanedSelectedDrivers.length}/10`}
-            accent={Colors.f1Red}
-            icon={<Flag color={Colors.f1Red} size={16} />}
+            value={`${cleanedSelectedDrivers.length}/${raceTopN}`}
+            accent={seriesColors.primary}
+            icon={<Flag color={seriesColors.primary} size={16} />}
             progress={raceProgress}
           />
 
           {race.hasSprint && (
             <StatTile
               label="SPRINT"
-              value={`${cleanedSprintTop8.length}/8`}
+              value={`${cleanedSprintTop8.length}/${sprintTopN}`}
               accent={Colors.info}
               icon={<Zap color={Colors.info} size={16} />}
               progress={sprintProgress}
@@ -964,13 +980,13 @@ export default function PredictRaceScreen() {
               scaleDown={0.97}
             >
               <Flag
-                color={activeTab === 'race' ? Colors.f1Red : Colors.textMuted}
+                color={activeTab === 'race' ? seriesColors.primary : Colors.textMuted}
                 size={16}
               />
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'race' && styles.tabTextRace,
+                  activeTab === 'race' && { color: seriesColors.primary },
                 ]}
               >
                 Race Picks
@@ -979,11 +995,11 @@ export default function PredictRaceScreen() {
               <View
                 style={[
                   styles.tabCount,
-                  activeTab === 'race' && styles.tabCountRace,
+                  activeTab === 'race' && { backgroundColor: `${seriesColors.primary}22` },
                 ]}
               >
                 <Text style={styles.tabCountText}>
-                  {cleanedSelectedDrivers.length}/10
+                  {cleanedSelectedDrivers.length}/{raceTopN}
                 </Text>
               </View>
             </AnimatedPressable>
@@ -1018,7 +1034,7 @@ export default function PredictRaceScreen() {
                 ]}
               >
                 <Text style={styles.tabCountText}>
-                  {cleanedSprintTop8.length}/8
+                  {cleanedSprintTop8.length}/{sprintTopN}
                 </Text>
               </View>
             </AnimatedPressable>
@@ -1032,7 +1048,7 @@ export default function PredictRaceScreen() {
                 <View style={styles.sectionHeaderText}>
                   <Text style={styles.sectionTitle}>Race Grid</Text>
                   <Text style={styles.sectionSubtitle}>
-                    Pick exact top 10 finishing order
+                    Pick exact top {raceTopN} finishing order
                   </Text>
                 </View>
 
@@ -1049,7 +1065,7 @@ export default function PredictRaceScreen() {
               </View>
 
               <View style={styles.gridList}>
-                {Array.from({ length: 10 }).map((_, index) => {
+                {Array.from({ length: raceTopN }).map((_, index) => {
                   const position = index + 1;
                   const driverId = cleanedSelectedDrivers[index];
                   const driver = driverId ? driverById(driverId) : undefined;
@@ -1059,7 +1075,7 @@ export default function PredictRaceScreen() {
                     <GridSlot
                       key={`race-slot-${position}`}
                       position={position}
-                      points={F1_POINTS[index] ?? 0}
+                      points={racePointsArr[index] ?? 0}
                       podiumColor={PODIUM_COLORS[position]}
                       driver={driver}
                       teamColor={team?.color}
@@ -1083,9 +1099,9 @@ export default function PredictRaceScreen() {
 
             {!locked && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Available Race Drivers</Text>
+                <Text style={styles.sectionTitle}>Available Race {seriesLabels.competitors}</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Tap a driver to add them to the next race slot
+                  Tap a {seriesLabels.competitorLower} to add them to the next race slot
                 </Text>
 
                 <View style={styles.driverList}>
@@ -1098,7 +1114,7 @@ export default function PredictRaceScreen() {
                         driver={driver}
                         teamColor={team?.color}
                         teamName={team?.shortName}
-                        accentColor={Colors.f1Red}
+                        accentColor={seriesColors.primary}
                         onPress={() => addRaceDriver(driver.id)}
                       />
                     );
@@ -1110,7 +1126,7 @@ export default function PredictRaceScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Bonus Picks</Text>
               <Text style={styles.sectionSubtitle}>
-                Fastest lap +{FASTEST_LAP_BONUS} · DNF +{DNF_BONUS} · DNS does
+                Fastest lap +{flBonus} · {seriesLabels.dnfLabel} +{dnfBonus} · DNS does
                 not count
               </Text>
 
@@ -1132,7 +1148,7 @@ export default function PredictRaceScreen() {
                 />
 
                 <BonusPickCard
-                  label="DNF Pick"
+                  label={`${seriesLabels.dnfLabel} Pick`}
                   hint="Will not finish"
                   icon={<AlertTriangle color={Colors.error} size={18} />}
                   driver={dnfDriver}
@@ -1158,7 +1174,7 @@ export default function PredictRaceScreen() {
                 <View style={styles.sectionHeaderText}>
                   <Text style={styles.sectionTitle}>Sprint Grid</Text>
                   <Text style={styles.sectionSubtitle}>
-                    Pick exact top 8 sprint order
+                    Pick exact top {sprintTopN} sprint order
                   </Text>
                 </View>
 
@@ -1175,7 +1191,7 @@ export default function PredictRaceScreen() {
               </View>
 
               <View style={styles.gridList}>
-                {Array.from({ length: 8 }).map((_, index) => {
+                {Array.from({ length: sprintTopN }).map((_, index) => {
                   const position = index + 1;
                   const driverId = cleanedSprintTop8[index];
                   const driver = driverId ? driverById(driverId) : undefined;
@@ -1186,7 +1202,7 @@ export default function PredictRaceScreen() {
                       key={`sprint-slot-${position}`}
                       position={position}
                       positionPrefix="S"
-                      points={SPRINT_POINTS[index] ?? 0}
+                      points={sprintPointsArr[index] ?? 0}
                       podiumColor={SPRINT_PODIUM_COLORS[position]}
                       driver={driver}
                       teamColor={team?.color}
@@ -1209,10 +1225,10 @@ export default function PredictRaceScreen() {
             {!sprintLocked && (
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>
-                  Available Sprint Drivers
+                  Available Sprint {seriesLabels.competitors}
                 </Text>
                 <Text style={styles.sectionSubtitle}>
-                  Tap a driver to add them to the next sprint slot
+                  Tap a {seriesLabels.competitorLower} to add them to the next sprint slot
                 </Text>
 
                 <View style={styles.driverList}>
@@ -1255,7 +1271,7 @@ export default function PredictRaceScreen() {
               colors={
                 saved
                   ? ['#2ECC71', '#27AE60']
-                  : [Colors.f1Red, Colors.f1RedDark || '#A00000']
+                  : [seriesColors.primary, seriesColors.primaryDark]
               }
               style={styles.saveGradient}
             >
@@ -1289,10 +1305,10 @@ export default function PredictRaceScreen() {
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>
-                  {picker?.type === 'grid' && 'Pick Race Driver'}
-                  {picker?.type === 'sprint' && 'Pick Sprint Driver'}
+                  {picker?.type === 'grid' && `Pick Race ${seriesLabels.competitor}`}
+                  {picker?.type === 'sprint' && `Pick Sprint ${seriesLabels.competitor}`}
                   {picker?.type === 'fl' && 'Pick Fastest Lap'}
-                  {picker?.type === 'dnf' && 'Pick DNF Driver'}
+                  {picker?.type === 'dnf' && `Pick ${seriesLabels.dnfLabel} ${seriesLabels.competitor}`}
                 </Text>
 
                 <Text style={styles.modalSubtitle}>
@@ -1312,7 +1328,7 @@ export default function PredictRaceScreen() {
               <TextInput
                 value={search}
                 onChangeText={setSearch}
-                placeholder="Search drivers"
+                placeholder={`Search ${seriesLabels.competitorsLower}`}
                 placeholderTextColor={Colors.textMuted}
                 style={styles.searchInput}
                 autoCapitalize="none"
@@ -1332,7 +1348,7 @@ export default function PredictRaceScreen() {
               keyboardShouldPersistTaps="handled"
             >
               {pickerDrivers.length === 0 && (
-                <Text style={styles.modalEmpty}>No drivers found</Text>
+                <Text style={styles.modalEmpty}>No {seriesLabels.competitorsLower} found</Text>
               )}
 
               {pickerDrivers.map((driver, index) => {
@@ -1390,7 +1406,7 @@ export default function PredictRaceScreen() {
                       </View>
                     ) : (
                       <View style={styles.pickerAdd}>
-                        <Plus color={Colors.f1Red} size={16} />
+                        <Plus color={seriesColors.primary} size={16} />
                       </View>
                     )}
                   </AnimatedPressable>

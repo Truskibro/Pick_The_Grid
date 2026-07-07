@@ -5,12 +5,14 @@ import { Globe, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import AnimatedPressable from '@/components/AnimatedPressable';
 
 export default function CreateLeagueScreen() {
   const router = useRouter();
+  const { currentSeries } = useSeries();
   const { createLeague } = useGame();
   const { profile, isGuest } = useUser();
   const [name, setName] = useState<string>('');
@@ -48,6 +50,7 @@ export default function CreateLeagueScreen() {
         profile.id,
         profile.username,
         profile.displayName,
+        currentSeries,
       );
 
       Alert.alert(

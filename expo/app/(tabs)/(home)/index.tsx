@@ -6,7 +6,8 @@ import { Target, Users, UserPlus, Settings, Trophy, Flag, Zap, LogIn, Clock, Map
 
 import { Stack } from 'expo-router';
 import Colors from '@/constants/colors';
-import { useF1Data } from '@/providers/F1DataProvider';
+import { useSeries } from '@/providers/SeriesProvider';
+import { useSeriesData } from '@/lib/useSeriesData';
 import { useUser } from '@/providers/UserProvider';
 import { useGame } from '@/providers/GameProvider';
 import CountdownTimer from '@/components/CountdownTimer';
@@ -17,9 +18,12 @@ const { width: SCREEN_W } = Dimensions.get('window');
 
 export default function HomeScreen() {
   const router = useRouter();
+  const { config, currentSeries } = useSeries();
+  const seriesColors = config.colors;
+  const seriesLabels = config.labels;
   const { isGuest, profile } = useUser();
   const { leagues, totalPoints, predictions } = useGame();
-  const { nextRace, races, drivers } = useF1Data();
+  const { nextRace, races, drivers } = useSeriesData();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(48)).current;
 
@@ -117,8 +121,8 @@ export default function HomeScreen() {
             <View style={styles.spotlightSection}>
               <View style={styles.spotlightHeader}>
                 <View style={styles.spotlightLabelRow}>
-                  <Circle size={6} color={Colors.f1Red} fill={Colors.f1Red} />
-                  <Text style={styles.spotlightLabel}>NEXT RACE</Text>
+                  <Circle size={6} color={seriesColors.primary} fill={seriesColors.primary} />
+                  <Text style={[styles.spotlightLabel, { color: seriesColors.primary }]}>NEXT RACE</Text>
                 </View>
                 <Text style={styles.spotlightRound}>Round {nextRace.round}</Text>
               </View>
@@ -134,9 +138,9 @@ export default function HomeScreen() {
                 >
                   <View style={styles.spotlightTopRow}>
                     <Text style={styles.spotlightFlag}>{nextRace.countryFlag}</Text>
-                    <View style={styles.spotlightTrackBadge}>
-                      <Gauge size={10} color={Colors.f1Red} />
-                      <Text style={styles.spotlightTrackText}>CIRCUIT</Text>
+                    <View style={[styles.spotlightTrackBadge, { backgroundColor: `${seriesColors.primary}1A` }]}>
+                      <Gauge size={10} color={seriesColors.primary} />
+                      <Text style={[styles.spotlightTrackText, { color: seriesColors.primary }]}>CIRCUIT</Text>
                     </View>
                   </View>
                   <Text style={styles.spotlightRaceName}>{nextRace.name}</Text>
@@ -157,7 +161,7 @@ export default function HomeScreen() {
                     onPress={() => router.push('/predict' as any)}
                   >
                     <LinearGradient
-                      colors={[Colors.f1Red, '#A30500']}
+                      colors={[seriesColors.primary, seriesColors.primaryDark]}
                       start={{ x: 0, y: 0 }}
                       end={{ x: 1, y: 1 }}
                       style={styles.setGridBtnGradient}
@@ -189,15 +193,15 @@ export default function HomeScreen() {
                 color={Colors.info}
               />
               <StatsCard
-                icon={<Target size={18} color={Colors.f1Red} />}
+                icon={<Target size={18} color={seriesColors.primary} />}
                 value={predictionsMade}
                 label="Picks Made"
-                color={Colors.f1Red}
+                color={seriesColors.primary}
               />
               <StatsCard
                 icon={<Flag size={18} color={Colors.success} />}
                 value={drivers.length}
-                label="Drivers"
+                label={seriesLabels.competitors}
                 color={Colors.success}
               />
             </View>
@@ -209,8 +213,8 @@ export default function HomeScreen() {
               style={styles.actionCard}
               onPress={() => router.push('/create-league' as any)}
             >
-              <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(225, 6, 0, 0.12)' }]}>
-                <Swords size={20} color={Colors.f1Red} />
+              <View style={[styles.actionIconCircle, { backgroundColor: `${seriesColors.primary}1F` }]}>
+                <Swords size={20} color={seriesColors.primary} />
               </View>
               <Text style={styles.actionTitle}>Create League</Text>
               <Text style={styles.actionSubtitle}>Start your own championship</Text>
@@ -231,22 +235,22 @@ export default function HomeScreen() {
           {/* ── GUEST BANNER ── */}
           {isGuest && (
             <AnimatedPressable
-              style={styles.guestBannerWrap}
+              style={[styles.guestBannerWrap, { borderColor: `${seriesColors.primary}1F` }]}
               onPress={() => router.push('/auth' as any)}
             >
               <LinearGradient
-                colors={['rgba(225, 6, 0, 0.1)', 'rgba(225, 6, 0, 0.02)']}
+                colors={[`${seriesColors.primary}1A`, `${seriesColors.primary}05`]}
                 start={{ x: 0, y: 0 }}
                 end={{ x: 1, y: 1 }}
                 style={styles.guestBanner}
               >
                 <View style={styles.guestBannerLeft}>
-                  <Text style={styles.guestBannerTitle}>Playing as Guest</Text>
+                  <Text style={[styles.guestBannerTitle, { color: seriesColors.primary }]}>Playing as Guest</Text>
                   <Text style={styles.guestBannerText}>
                     Sign in to save picks and compete in leagues
                   </Text>
                 </View>
-                <ChevronRight size={16} color={Colors.f1Red} />
+                <ChevronRight size={16} color={seriesColors.primary} />
               </LinearGradient>
             </AnimatedPressable>
           )}
@@ -279,16 +283,16 @@ export default function HomeScreen() {
             <View style={styles.howCard}>
               <HowStep
                 step="1"
-                icon={<Target size={16} color={Colors.f1Red} />}
+                icon={<Target size={16} color={seriesColors.primary} />}
                 title="Set Your Grid"
-                text="Pick the top 10 finishing order before each race locks"
+                text={`Pick the top ${config.pickLimits.raceTopN} finishing order before each race locks`}
               />
               <View style={styles.howDivider} />
               <HowStep
                 step="2"
                 icon={<Zap size={16} color={Colors.warning} />}
                 title="Bonus Picks"
-                text="Choose Fastest Lap and DNF drivers for extra points"
+                text={`Choose Fastest Lap and ${seriesLabels.dnfLabel} ${seriesLabels.competitorsLower} for extra points`}
               />
               <View style={styles.howDivider} />
               <HowStep

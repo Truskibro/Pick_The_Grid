@@ -6,7 +6,12 @@ import {
   SPRINT_POINTS,
   FASTEST_LAP_BONUS,
   DNF_BONUS,
+  MOTOGP_RACE_POINTS,
+  MOTOGP_SPRINT_POINTS,
+  MOTOGP_FASTEST_LAP_BONUS,
+  MOTOGP_DNF_BONUS,
 } from '@/types';
+import { SeriesId, getSeriesConfig } from '@/constants/series';
 
 export interface ScoringBreakdown {
   positionPoints: number;
@@ -126,22 +131,33 @@ export function getTrueDnfDriverIds(result: RaceResult): Set<string> {
   return trueDnfIds;
 }
 
+/**
+ * Calculate points for a race prediction using the scoring rules of the
+ * given series. Defaults to F1 if no seriesId is provided (backward compat).
+ */
 export function calculatePoints(
   prediction: Prediction,
-  result: RaceResult
+  result: RaceResult,
+  seriesId: SeriesId = 'f1',
 ): ScoringBreakdown {
+  const config = getSeriesConfig(seriesId).scoring;
+  const racePoints = config.racePoints;
+  const flBonus = config.fastestLapBonus;
+  const dnfBonus = config.dnfBonus;
+  const raceTopN = getSeriesConfig(seriesId).pickLimits.raceTopN;
+
   let positionPoints = 0;
   const correctPositions: number[] = [];
   const alreadyScoredDrivers = new Set<string>();
 
-  const resultTop10 = result.classification
-    .filter((entry) => entry.position <= 10)
+  const resultTopN = result.classification
+    .filter((entry) => entry.position <= raceTopN)
     .sort((a, b) => a.position - b.position)
     .map((entry) => normalizeDriverId(entry.driverId));
 
-  for (let i = 0; i < prediction.top10.length && i < 10; i++) {
+  for (let i = 0; i < prediction.top10.length && i < raceTopN; i++) {
     const predictedDriverId = normalizeDriverId(prediction.top10[i]);
-    const actualDriverId = resultTop10[i];
+    const actualDriverId = resultTopN[i];
 
     if (!predictedDriverId) continue;
 
@@ -155,11 +171,11 @@ export function calculatePoints(
     alreadyScoredDrivers.add(predictedDriverId);
 
     if (predictedDriverId === actualDriverId) {
-      positionPoints += F1_POINTS[i];
+      positionPoints += racePoints[i] ?? 0;
       correctPositions.push(i);
 
       console.log(
-        `[Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${F1_POINTS[i]}`
+        `[Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${racePoints[i] ?? 0}`
       );
     }
   }
@@ -169,10 +185,10 @@ export function calculatePoints(
   const actualFastestLap = normalizeDriverId(result.fastestLapDriverId);
 
   if (predictedFastestLap && predictedFastestLap === actualFastestLap) {
-    fastestLapPoints = FASTEST_LAP_BONUS;
+    fastestLapPoints = flBonus;
 
     console.log(
-      `[Scoring] Fastest lap correct: ${predictedFastestLap} = +${FASTEST_LAP_BONUS}`
+      `[Scoring] Fastest lap correct: ${predictedFastestLap} = +${flBonus}`
     );
   }
 
@@ -182,19 +198,19 @@ export function calculatePoints(
   const actualDnfDriverIds = getTrueDnfDriverIds(result);
 
   if (!predictedDnf && actualDnfDriverIds.size === 0) {
-    dnfPoints = DNF_BONUS;
+    dnfPoints = dnfBonus;
 
     console.log(
-      `[Scoring] DNF correct: no DNF predicted and none retired = +${DNF_BONUS}`
+      `[Scoring] DNF correct: no DNF predicted and none retired = +${dnfBonus}`
     );
   } else if (predictedDnf && actualDnsDriverIds.has(predictedDnf)) {
     console.log(
       `[Scoring] DNF pick was DNS, no DNF points awarded: ${predictedDnf}`
     );
   } else if (predictedDnf && actualDnfDriverIds.has(predictedDnf)) {
-    dnfPoints = DNF_BONUS;
+    dnfPoints = dnfBonus;
 
-    console.log(`[Scoring] DNF correct: ${predictedDnf} = +${DNF_BONUS}`);
+    console.log(`[Scoring] DNF correct: ${predictedDnf} = +${dnfBonus}`);
   } else if (predictedDnf) {
     console.log(
       `[Scoring] DNF incorrect: predicted ${predictedDnf}, true DNFs: ${
@@ -218,22 +234,31 @@ export function calculatePoints(
   };
 }
 
+/**
+ * Calculate sprint points using the scoring rules of the given series.
+ * Defaults to F1 if no seriesId is provided (backward compat).
+ */
 export function calculateSprintPoints(
   sprintTop8: string[],
-  sprintResult: ClassificationEntry[]
+  sprintResult: ClassificationEntry[],
+  seriesId: SeriesId = 'f1',
 ): SprintScoringBreakdown {
+  const config = getSeriesConfig(seriesId).scoring;
+  const sprintPoints = config.sprintPoints;
+  const sprintTopN = getSeriesConfig(seriesId).pickLimits.sprintTopN;
+
   let positionPoints = 0;
   const correctPositions: number[] = [];
   const alreadyScoredDrivers = new Set<string>();
 
-  const resultTop8 = sprintResult
-    .filter((entry) => entry.position <= 8)
+  const resultTopN = sprintResult
+    .filter((entry) => entry.position <= sprintTopN)
     .sort((a, b) => a.position - b.position)
     .map((entry) => normalizeDriverId(entry.driverId));
 
-  for (let i = 0; i < sprintTop8.length && i < 8; i++) {
+  for (let i = 0; i < sprintTop8.length && i < sprintTopN; i++) {
     const predictedDriverId = normalizeDriverId(sprintTop8[i]);
-    const actualDriverId = resultTop8[i];
+    const actualDriverId = resultTopN[i];
 
     if (!predictedDriverId) continue;
 
@@ -247,11 +272,11 @@ export function calculateSprintPoints(
     alreadyScoredDrivers.add(predictedDriverId);
 
     if (predictedDriverId === actualDriverId) {
-      positionPoints += SPRINT_POINTS[i];
+      positionPoints += sprintPoints[i] ?? 0;
       correctPositions.push(i);
 
       console.log(
-        `[Sprint Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${SPRINT_POINTS[i]}`
+        `[Sprint Scoring] Exact match at P${i + 1}: ${predictedDriverId} = +${sprintPoints[i] ?? 0}`
       );
     }
   }

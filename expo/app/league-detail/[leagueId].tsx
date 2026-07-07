@@ -29,6 +29,7 @@ import {
   scoreMockMember,
 } from '@/constants/mock-members';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
+import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { LeagueMember } from '@/types';
@@ -36,6 +37,8 @@ import { LeagueMember } from '@/types';
 export default function LeagueDetailScreen() {
   const { leagueId } = useLocalSearchParams<{ leagueId: string }>();
   const router = useRouter();
+  const { config } = useSeries();
+  const seriesColors = config.colors;
 
   const {
     leagues,
