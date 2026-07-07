@@ -1,4 +1,10 @@
-import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import React, {
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useRef,
+} from 'react';
 import {
   View,
   Text,
@@ -47,12 +53,18 @@ import {
 } from '@/types';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
-import CountdownTimer, { isLocked } from '@/components/CountdownTimer';
+import CountdownTimer from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { calculatePoints } from '@/lib/scoring';
 
-type PickerMode = { type: 'fl' } | { type: 'dnf' } | null;
 type ActiveTab = 'race' | 'sprint';
+
+type PickerMode =
+  | { type: 'grid'; slotIndex: number }
+  | { type: 'sprint'; slotIndex: number }
+  | { type: 'fl' }
+  | { type: 'dnf' }
+  | null;
 
 const PODIUM_COLORS: Record<number, string> = {
   1: '#FFD700',
@@ -65,6 +77,123 @@ const SPRINT_PODIUM_COLORS: Record<number, string> = {
   2: '#5E9EFF',
   3: '#5078E0',
 };
+
+function buildRaceStartDate(
+  raceDate?: string,
+  raceTime?: string,
+): Date | null {
+  if (!raceDate || !raceTime) return null;
+
+  const cleanDate = String(raceDate).trim();
+  const cleanTime = String(raceTime).trim();
+
+  if (!cleanDate || !cleanTime) return null;
+
+  const timeWithSeconds =
+    cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime;
+
+  const hasTimezone =
+    timeWithSeconds.endsWith('Z') ||
+    /[+-]\d{2}:?\d{2}$/.test(timeWithSeconds);
+
+  const isoString = hasTimezone
+    ? `${cleanDate}T${timeWithSeconds}`
+    : `${cleanDate}T${timeWithSeconds}Z`;
+
+  const parsed = new Date(isoString);
+
+  if (Number.isNaN(parsed.getTime())) return null;
+
+  return parsed;
+}
+
+function isRaceLockedExactlyAtStart(
+  raceDate?: string,
+  raceTime?: string,
+): boolean {
+  const raceStart = buildRaceStartDate(raceDate, raceTime);
+
+  if (!raceStart) return false;
+
+  return Date.now() >= raceStart.getTime();
+}
+
+/**
+ * Sprint picks lock independently at the sprint start time (Saturday),
+ * not at the main race start (Sunday). Falls back to the race start
+ * time when no separate sprint time is configured.
+ */
+function isSprintLockedExactlyAtStart(
+  raceDate?: string,
+  raceTime?: string,
+  sprintDate?: string,
+  sprintTime?: string,
+): boolean {
+  const sprintStart = buildRaceStartDate(sprintDate, sprintTime);
+
+  if (!sprintStart) return isRaceLockedExactlyAtStart(raceDate, raceTime);
+
+  return Date.now() >= sprintStart.getTime();
+}
+
+function cleanPickList(
+  picks: string[],
+  maxLength: number,
+  validDriverIds: Set<string>,
+): string[] {
+  const seen = new Set<string>();
+  const cleaned: string[] = [];
+
+  for (const pick of picks) {
+    if (!pick) continue;
+    if (!validDriverIds.has(pick)) continue;
+    if (seen.has(pick)) continue;
+
+    seen.add(pick);
+    cleaned.push(pick);
+
+    if (cleaned.length >= maxLength) break;
+  }
+
+  return cleaned;
+}
+
+function setDriverAtSlot(
+  currentPicks: string[],
+  driverId: string,
+  slotIndex: number,
+  maxLength: number,
+  validDriverIds: Set<string>,
+): string[] {
+  const next = cleanPickList(currentPicks, maxLength, validDriverIds);
+  const existingIndex = next.indexOf(driverId);
+
+  if (existingIndex === slotIndex) {
+    next.splice(slotIndex, 1);
+    return next;
+  }
+
+  if (existingIndex !== -1) {
+    next.splice(existingIndex, 1);
+
+    const insertIndex =
+      existingIndex < slotIndex
+        ? Math.min(slotIndex - 1, next.length)
+        : Math.min(slotIndex, next.length);
+
+    next.splice(insertIndex, 0, driverId);
+
+    return cleanPickList(next, maxLength, validDriverIds);
+  }
+
+  if (slotIndex < next.length) {
+    next[slotIndex] = driverId;
+  } else {
+    next.push(driverId);
+  }
+
+  return cleanPickList(next, maxLength, validDriverIds);
+}
 
 export default function PredictRaceScreen() {
   const { raceId } = useLocalSearchParams<{ raceId: string }>();
@@ -84,16 +213,16 @@ export default function PredictRaceScreen() {
 
   const [activeTab, setActiveTab] = useState<ActiveTab>('race');
   const [selectedDrivers, setSelectedDrivers] = useState<string[]>(
-    existingPrediction?.top10 || []
+    existingPrediction?.top10 || [],
   );
   const [sprintTop8, setSprintTop8] = useState<string[]>(
-    existingPrediction?.sprintTop8 || []
+    existingPrediction?.sprintTop8 || [],
   );
   const [fastestLap, setFastestLap] = useState<string | null>(
-    existingPrediction?.fastestLap || null
+    existingPrediction?.fastestLap || null,
   );
   const [dnf, setDnf] = useState<string | null>(
-    existingPrediction?.dnf || null
+    existingPrediction?.dnf || null,
   );
   const [saved, setSaved] = useState(false);
   const [lastSyncedPredId, setLastSyncedPredId] = useState<string | null>(null);
@@ -101,38 +230,32 @@ export default function PredictRaceScreen() {
   const [picker, setPicker] = useState<PickerMode>(null);
   const [search, setSearch] = useState('');
 
-  const locked = race ? isLocked(race.raceDate, race.raceTime) : true;
-
-  const cleanPickList = useCallback(
-    (picks: string[], maxLength: number): string[] => {
-      const validDriverIds = new Set(drivers.map((driver) => driver.id));
-      const seen = new Set<string>();
-      const cleaned: string[] = [];
-
-      for (const pick of picks) {
-        if (!pick) continue;
-        if (!validDriverIds.has(pick)) continue;
-        if (seen.has(pick)) continue;
-
-        seen.add(pick);
-        cleaned.push(pick);
-
-        if (cleaned.length >= maxLength) break;
-      }
-
-      return cleaned;
-    },
-    [drivers]
+  const validDriverIds = useMemo(
+    () => new Set(drivers.map((driver) => driver.id)),
+    [drivers],
   );
 
+  const locked = race
+    ? isRaceLockedExactlyAtStart(race.raceDate, race.raceTime)
+    : true;
+
+  const sprintLocked = race
+    ? isSprintLockedExactlyAtStart(
+        race.raceDate,
+        race.raceTime,
+        race.sprintDate,
+        race.sprintTime,
+      )
+    : true;
+
   const cleanedSelectedDrivers = useMemo(
-    () => cleanPickList(selectedDrivers, 10),
-    [selectedDrivers, cleanPickList]
+    () => cleanPickList(selectedDrivers, 10, validDriverIds),
+    [selectedDrivers, validDriverIds],
   );
 
   const cleanedSprintTop8 = useMemo(
-    () => cleanPickList(sprintTop8, 8),
-    [sprintTop8, cleanPickList]
+    () => cleanPickList(sprintTop8, 8, validDriverIds),
+    [sprintTop8, validDriverIds],
   );
 
   const completedBreakdown = useMemo(() => {
@@ -157,6 +280,14 @@ export default function PredictRaceScreen() {
       navigation.setOptions({ title: race.name });
     }
   }, [race, navigation]);
+
+  useEffect(() => {
+    if (!race) return;
+
+    if (!race.hasSprint && activeTab === 'sprint') {
+      setActiveTab('race');
+    }
+  }, [race, activeTab]);
 
   useEffect(() => {
     if (!race) return;
@@ -199,14 +330,19 @@ export default function PredictRaceScreen() {
   useFocusEffect(
     useCallback(() => {
       void refreshPredictions();
-    }, [refreshPredictions])
+    }, [refreshPredictions]),
   );
 
-  const potentialPoints = useMemo(() => {
+  const driverById = useCallback(
+    (id: string) => drivers.find((driver) => driver.id === id),
+    [drivers],
+  );
+
+  const racePotentialPoints = useMemo(() => {
     let points = 0;
 
-    cleanedSelectedDrivers.forEach((_, i) => {
-      if (i < F1_POINTS.length) points += F1_POINTS[i];
+    cleanedSelectedDrivers.forEach((_, index) => {
+      if (index < F1_POINTS.length) points += F1_POINTS[index];
     });
 
     if (fastestLap) points += FASTEST_LAP_BONUS;
@@ -218,336 +354,35 @@ export default function PredictRaceScreen() {
   const sprintPotentialPoints = useMemo(() => {
     let points = 0;
 
-    cleanedSprintTop8.forEach((_, i) => {
-      if (i < SPRINT_POINTS.length) points += SPRINT_POINTS[i];
+    cleanedSprintTop8.forEach((_, index) => {
+      if (index < SPRINT_POINTS.length) points += SPRINT_POINTS[index];
     });
 
     return points;
   }, [cleanedSprintTop8]);
 
-  const driverById = useCallback(
-    (id: string) => drivers.find((driver) => driver.id === id),
-    [drivers]
-  );
+  const totalPotentialPoints = racePotentialPoints + sprintPotentialPoints;
 
-  const addDriverToNextSlot = useCallback(
-    (driverId: string) => {
-      if (locked) return;
+  const raceProgress = cleanedSelectedDrivers.length / 10;
+  const sprintProgress = cleanedSprintTop8.length / 8;
 
-      setSelectedDrivers((prev) => {
-        const cleaned = cleanPickList(prev, 10);
+  const sortedRacePoolDrivers = useMemo(() => {
+    return [...drivers]
+      .filter((driver) => !cleanedSelectedDrivers.includes(driver.id))
+      .sort((a, b) => b.championshipPoints - a.championshipPoints);
+  }, [drivers, cleanedSelectedDrivers]);
 
-        if (cleaned.includes(driverId)) {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-          if (fastestLap === driverId) setFastestLap(null);
-          if (dnf === driverId) setDnf(null);
-
-          setSaved(false);
-          return cleaned.filter((id) => id !== driverId);
-        }
-
-        if (cleaned.length >= 10) {
-          void Haptics.notificationAsync(
-            Haptics.NotificationFeedbackType.Warning
-          );
-          Alert.alert('Grid Full', 'Remove a driver from your race grid first.');
-          return cleaned;
-        }
-
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSaved(false);
-
-        return [...cleaned, driverId];
-      });
-    },
-    [locked, cleanPickList, fastestLap, dnf]
-  );
-
-  const removeDriver = useCallback(
-    (driverId: string) => {
-      if (locked) return;
-
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      setSelectedDrivers((prev) =>
-        cleanPickList(prev, 10).filter((id) => id !== driverId)
-      );
-
-      if (fastestLap === driverId) setFastestLap(null);
-      if (dnf === driverId) setDnf(null);
-
-      setSaved(false);
-    },
-    [locked, cleanPickList, fastestLap, dnf]
-  );
-
-  const moveDriver = useCallback(
-    (index: number, direction: 'up' | 'down') => {
-      if (locked) return;
-
-      void Haptics.selectionAsync();
-
-      setSelectedDrivers((prev) => {
-        const next = cleanPickList(prev, 10);
-        const target = direction === 'up' ? index - 1 : index + 1;
-
-        if (index < 0 || index >= next.length) return next;
-        if (target < 0 || target >= next.length) return next;
-
-        [next[index], next[target]] = [next[target], next[index]];
-
-        return next;
-      });
-
-      setSaved(false);
-    },
-    [locked, cleanPickList]
-  );
-
-  const addDriverToSprintSlot = useCallback(
-    (driverId: string) => {
-      if (locked) return;
-
-      setSprintTop8((prev) => {
-        const cleaned = cleanPickList(prev, 8);
-
-        if (cleaned.includes(driverId)) {
-          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-          setSaved(false);
-          return cleaned.filter((id) => id !== driverId);
-        }
-
-        if (cleaned.length >= 8) {
-          void Haptics.notificationAsync(
-            Haptics.NotificationFeedbackType.Warning
-          );
-          Alert.alert('Sprint Grid Full', 'Remove a driver from your sprint grid first.');
-          return cleaned;
-        }
-
-        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-        setSaved(false);
-
-        return [...cleaned, driverId];
-      });
-    },
-    [locked, cleanPickList]
-  );
-
-  const removeSprintDriver = useCallback(
-    (driverId: string) => {
-      if (locked) return;
-
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-
-      setSprintTop8((prev) =>
-        cleanPickList(prev, 8).filter((id) => id !== driverId)
-      );
-
-      setSaved(false);
-    },
-    [locked, cleanPickList]
-  );
-
-  const moveSprintDriver = useCallback(
-    (index: number, direction: 'up' | 'down') => {
-      if (locked) return;
-
-      void Haptics.selectionAsync();
-
-      setSprintTop8((prev) => {
-        const next = cleanPickList(prev, 8);
-        const target = direction === 'up' ? index - 1 : index + 1;
-
-        if (index < 0 || index >= next.length) return next;
-        if (target < 0 || target >= next.length) return next;
-
-        [next[index], next[target]] = [next[target], next[index]];
-
-        return next;
-      });
-
-      setSaved(false);
-    },
-    [locked, cleanPickList]
-  );
-
-  const selectFastestLap = useCallback(
-    (driverId: string) => {
-      if (locked) return;
-
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      setFastestLap((prev) => (prev === driverId ? null : driverId));
-      setSaved(false);
-    },
-    [locked]
-  );
-
-  const selectDnf = useCallback(
-    (driverId: string) => {
-      if (locked) return;
-
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-
-      setDnf((prev) => (prev === driverId ? null : driverId));
-      setSaved(false);
-    },
-    [locked]
-  );
-
-  const clearRace = useCallback(() => {
-    if (locked) return;
-
-    Alert.alert('Clear Race Picks', 'Remove all race picks?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          void Haptics.notificationAsync(
-            Haptics.NotificationFeedbackType.Warning
-          );
-          setSelectedDrivers([]);
-          setFastestLap(null);
-          setDnf(null);
-          setSaved(false);
-        },
-      },
-    ]);
-  }, [locked]);
-
-  const clearSprint = useCallback(() => {
-    if (locked) return;
-
-    Alert.alert('Clear Sprint Picks', 'Remove all sprint picks?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Clear',
-        style: 'destructive',
-        onPress: () => {
-          void Haptics.notificationAsync(
-            Haptics.NotificationFeedbackType.Warning
-          );
-          setSprintTop8([]);
-          setSaved(false);
-        },
-      },
-    ]);
-  }, [locked]);
-
-  const handleSave = useCallback(async () => {
-    if (!race) {
-      Alert.alert('Error', 'Race data is not available.');
-      return;
-    }
-
-    const finalTop10 = cleanPickList(selectedDrivers, 10);
-    const finalSprintTop8 = cleanPickList(sprintTop8, 8);
-    const validDriverIds = new Set(drivers.map((driver) => driver.id));
-
-    const finalFastestLap =
-      fastestLap && validDriverIds.has(fastestLap) ? fastestLap : null;
-
-    const finalDnf = dnf && validDriverIds.has(dnf) ? dnf : null;
-
-    if (finalTop10.length !== 10) {
-      setActiveTab('race');
-      Alert.alert(
-        'Cannot Save',
-        `Please select exactly 10 race drivers. You currently have ${finalTop10.length}.`
-      );
-      return;
-    }
-
-    if (race.hasSprint && finalSprintTop8.length !== 8) {
-      setActiveTab('sprint');
-      Alert.alert(
-        'Cannot Save',
-        `Please select exactly 8 sprint drivers. You currently have ${finalSprintTop8.length}.`
-      );
-      return;
-    }
-
-    setSelectedDrivers(finalTop10);
-    setSprintTop8(race.hasSprint ? finalSprintTop8 : []);
-    setFastestLap(finalFastestLap);
-    setDnf(finalDnf);
-
-    const existing = getPrediction(race.id);
-
-    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-
-    try {
-      const result = await savePrediction({
-        raceId: race.id,
-        top10: finalTop10,
-        fastestLap: finalFastestLap,
-        dnf: finalDnf,
-        pointsEarned: existing?.pointsEarned ?? 0,
-        sprintTop8: race.hasSprint ? finalSprintTop8 : [],
-        sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
-        username: profile.username,
-        displayName: profile.displayName,
-      });
-
-      setSaved(true);
-
-      if (result.synced) {
-        Alert.alert(
-          'Prediction Saved!',
-          'Your prediction has been saved and synced to the cloud.'
-        );
-      } else if (isGuest) {
-        Alert.alert(
-          'Prediction Saved!',
-          'Saved on this device. Set up your profile to sync to cloud.'
-        );
-      } else {
-        Alert.alert(
-          'Prediction Saved Locally',
-          result.errorMessage ??
-            'Could not sync to cloud. Please sign out and sign back in, then try again.'
-        );
-      }
-    } catch (e: any) {
-      console.log('[handleSave] Error:', e?.message || e);
-      Alert.alert('Save Failed', 'An unexpected error occurred. Please try again.');
-    }
-  }, [
-    race,
-    selectedDrivers,
-    sprintTop8,
-    fastestLap,
-    dnf,
-    savePrediction,
-    getPrediction,
-    isGuest,
-    profile.username,
-    profile.displayName,
-    cleanPickList,
-    drivers,
-  ]);
-
-  const openPicker = useCallback(
-    (mode: PickerMode) => {
-      if (locked) return;
-
-      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setSearch('');
-      setPicker(mode);
-    },
-    [locked]
-  );
-
-  const closePicker = useCallback(() => setPicker(null), []);
+  const sortedSprintPoolDrivers = useMemo(() => {
+    return [...drivers]
+      .filter((driver) => !cleanedSprintTop8.includes(driver.id))
+      .sort((a, b) => b.championshipPoints - a.championshipPoints);
+  }, [drivers, cleanedSprintTop8]);
 
   const pickerDrivers = useMemo(() => {
     if (!picker) return [];
 
     const all = [...drivers].sort(
-      (a, b) => b.championshipPoints - a.championshipPoints
+      (a, b) => b.championshipPoints - a.championshipPoints,
     );
 
     if (!search.trim()) return all;
@@ -566,32 +401,405 @@ export default function PredictRaceScreen() {
     });
   }, [picker, drivers, search, getTeamById]);
 
+  const openPicker = useCallback(
+    (mode: PickerMode) => {
+      if (mode?.type === 'sprint') {
+        if (sprintLocked) return;
+      } else if (locked) {
+        return;
+      }
+
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      setSearch('');
+      setPicker(mode);
+    },
+    [locked, sprintLocked],
+  );
+
+  const closePicker = useCallback(() => {
+    setPicker(null);
+    setSearch('');
+  }, []);
+
   const handlePickerSelect = useCallback(
     (driverId: string) => {
       if (!picker) return;
 
-      if (picker.type === 'fl') {
-        selectFastestLap(driverId);
-      } else {
-        selectDnf(driverId);
+      if (picker.type === 'sprint') {
+        if (sprintLocked) return;
+      } else if (locked) {
+        return;
       }
 
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+      if (picker.type === 'grid') {
+        setSelectedDrivers((prev) =>
+          setDriverAtSlot(
+            prev,
+            driverId,
+            picker.slotIndex,
+            10,
+            validDriverIds,
+          ),
+        );
+      }
+
+      if (picker.type === 'sprint') {
+        setSprintTop8((prev) =>
+          setDriverAtSlot(
+            prev,
+            driverId,
+            picker.slotIndex,
+            8,
+            validDriverIds,
+          ),
+        );
+      }
+
+      if (picker.type === 'fl') {
+        setFastestLap((prev) => (prev === driverId ? null : driverId));
+      }
+
+      if (picker.type === 'dnf') {
+        setDnf((prev) => (prev === driverId ? null : driverId));
+      }
+
+      setSaved(false);
       closePicker();
     },
-    [picker, selectFastestLap, selectDnf, closePicker]
+    [picker, locked, sprintLocked, validDriverIds, closePicker],
   );
 
-  const sortedPoolDrivers = useMemo(() => {
-    return [...drivers]
-      .filter((driver) => !cleanedSelectedDrivers.includes(driver.id))
-      .sort((a, b) => b.championshipPoints - a.championshipPoints);
-  }, [drivers, cleanedSelectedDrivers]);
+  const addRaceDriver = useCallback(
+    (driverId: string) => {
+      if (locked) return;
 
-  const sortedSprintPoolDrivers = useMemo(() => {
-    return [...drivers]
-      .filter((driver) => !cleanedSprintTop8.includes(driver.id))
-      .sort((a, b) => b.championshipPoints - a.championshipPoints);
-  }, [drivers, cleanedSprintTop8]);
+      setSelectedDrivers((prev) => {
+        const cleaned = cleanPickList(prev, 10, validDriverIds);
+
+        if (cleaned.includes(driverId)) {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+          if (fastestLap === driverId) setFastestLap(null);
+          if (dnf === driverId) setDnf(null);
+
+          setSaved(false);
+          return cleaned.filter((id) => id !== driverId);
+        }
+
+        if (cleaned.length >= 10) {
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Warning,
+          );
+          Alert.alert(
+            'Race Grid Full',
+            'Remove a driver from your race grid first.',
+          );
+          return cleaned;
+        }
+
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        setSaved(false);
+        return [...cleaned, driverId];
+      });
+    },
+    [locked, validDriverIds, fastestLap, dnf],
+  );
+
+  const addSprintDriver = useCallback(
+    (driverId: string) => {
+      if (sprintLocked) return;
+
+      setSprintTop8((prev) => {
+        const cleaned = cleanPickList(prev, 8, validDriverIds);
+
+        if (cleaned.includes(driverId)) {
+          void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+          setSaved(false);
+          return cleaned.filter((id) => id !== driverId);
+        }
+
+        if (cleaned.length >= 8) {
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Warning,
+          );
+          Alert.alert(
+            'Sprint Grid Full',
+            'Remove a driver from your sprint grid first.',
+          );
+          return cleaned;
+        }
+
+        void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+        setSaved(false);
+        return [...cleaned, driverId];
+      });
+    },
+    [sprintLocked, validDriverIds],
+  );
+
+  const removeRaceDriver = useCallback(
+    (driverId: string) => {
+      if (locked) return;
+
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      setSelectedDrivers((prev) =>
+        cleanPickList(prev, 10, validDriverIds).filter(
+          (id) => id !== driverId,
+        ),
+      );
+
+      if (fastestLap === driverId) setFastestLap(null);
+      if (dnf === driverId) setDnf(null);
+
+      setSaved(false);
+    },
+    [locked, validDriverIds, fastestLap, dnf],
+  );
+
+  const removeSprintDriver = useCallback(
+    (driverId: string) => {
+      if (sprintLocked) return;
+
+      void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+
+      setSprintTop8((prev) =>
+        cleanPickList(prev, 8, validDriverIds).filter(
+          (id) => id !== driverId,
+        ),
+      );
+
+      setSaved(false);
+    },
+    [sprintLocked, validDriverIds],
+  );
+
+  const moveRaceDriver = useCallback(
+    (index: number, direction: 'up' | 'down') => {
+      if (locked) return;
+
+      void Haptics.selectionAsync();
+
+      setSelectedDrivers((prev) => {
+        const next = cleanPickList(prev, 10, validDriverIds);
+        const target = direction === 'up' ? index - 1 : index + 1;
+
+        if (index < 0 || index >= next.length) return next;
+        if (target < 0 || target >= next.length) return next;
+
+        [next[index], next[target]] = [next[target], next[index]];
+
+        return next;
+      });
+
+      setSaved(false);
+    },
+    [locked, validDriverIds],
+  );
+
+  const moveSprintDriver = useCallback(
+    (index: number, direction: 'up' | 'down') => {
+      if (sprintLocked) return;
+
+      void Haptics.selectionAsync();
+
+      setSprintTop8((prev) => {
+        const next = cleanPickList(prev, 8, validDriverIds);
+        const target = direction === 'up' ? index - 1 : index + 1;
+
+        if (index < 0 || index >= next.length) return next;
+        if (target < 0 || target >= next.length) return next;
+
+        [next[index], next[target]] = [next[target], next[index]];
+
+        return next;
+      });
+
+      setSaved(false);
+    },
+    [sprintLocked, validDriverIds],
+  );
+
+  const clearRace = useCallback(() => {
+    if (locked) return;
+
+    Alert.alert('Clear Race Picks', 'Remove all race picks?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => {
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Warning,
+          );
+          setSelectedDrivers([]);
+          setFastestLap(null);
+          setDnf(null);
+          setSaved(false);
+        },
+      },
+    ]);
+  }, [locked]);
+
+  const clearSprint = useCallback(() => {
+    if (sprintLocked) return;
+
+    Alert.alert('Clear Sprint Picks', 'Remove all sprint picks?', [
+      { text: 'Cancel', style: 'cancel' },
+      {
+        text: 'Clear',
+        style: 'destructive',
+        onPress: () => {
+          void Haptics.notificationAsync(
+            Haptics.NotificationFeedbackType.Warning,
+          );
+          setSprintTop8([]);
+          setSaved(false);
+        },
+      },
+    ]);
+  }, [sprintLocked]);
+
+  const clearFastestLap = useCallback(() => {
+    if (locked) return;
+
+    setFastestLap(null);
+    setSaved(false);
+  }, [locked]);
+
+  const clearDnf = useCallback(() => {
+    if (locked) return;
+
+    setDnf(null);
+    setSaved(false);
+  }, [locked]);
+
+  const handleSave = useCallback(async () => {
+    if (!race) {
+      Alert.alert('Error', 'Race data is not available.');
+      return;
+    }
+
+    const finalTop10 = cleanPickList(selectedDrivers, 10, validDriverIds);
+    const finalSprintTop8 = cleanPickList(sprintTop8, 8, validDriverIds);
+
+    const finalFastestLap =
+      fastestLap && validDriverIds.has(fastestLap) ? fastestLap : null;
+
+    const finalDnf = dnf && validDriverIds.has(dnf) ? dnf : null;
+
+    // Race picks required only if race picks are still editable.
+    if (!locked && finalTop10.length !== 10) {
+      setActiveTab('race');
+      Alert.alert(
+        'Cannot Save',
+        `Please select exactly 10 race drivers. You currently have ${finalTop10.length}.`,
+      );
+      return;
+    }
+
+    // Sprint picks required only if sprint picks are still editable.
+    if (
+      race.hasSprint &&
+      !sprintLocked &&
+      finalSprintTop8.length !== 8
+    ) {
+      setActiveTab('sprint');
+      Alert.alert(
+        'Cannot Save',
+        `Please select exactly 8 sprint drivers. You currently have ${finalSprintTop8.length}.`,
+      );
+      return;
+    }
+
+    // If both race and sprint are locked, nothing left to save.
+    if (locked && sprintLocked) {
+      Alert.alert(
+        'Predictions Locked',
+        'Both race and sprint picks are locked.',
+      );
+      return;
+    }
+
+    // Preserve locked-side picks from the existing prediction.
+    const existing = getPrediction(race.id);
+    const persistedTop10 = locked ? (existing?.top10 ?? []) : finalTop10;
+    const persistedFastestLap = locked
+      ? (existing?.fastestLap ?? null)
+      : finalFastestLap;
+    const persistedDnf = locked ? (existing?.dnf ?? null) : finalDnf;
+    const persistedSprintTop8 =
+      sprintLocked || !race.hasSprint
+        ? (existing?.sprintTop8 ?? [])
+        : finalSprintTop8;
+
+    setSelectedDrivers(persistedTop10);
+    setSprintTop8(race.hasSprint ? persistedSprintTop8 : []);
+    setFastestLap(persistedFastestLap);
+    setDnf(persistedDnf);
+
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    try {
+      const result = await savePrediction({
+        raceId: race.id,
+        top10: persistedTop10,
+        fastestLap: persistedFastestLap,
+        dnf: persistedDnf,
+        pointsEarned: existing?.pointsEarned ?? 0,
+        sprintTop8: race.hasSprint ? persistedSprintTop8 : [],
+        sprintPointsEarned: existing?.sprintPointsEarned ?? 0,
+        username: profile.username,
+        displayName: profile.displayName,
+      });
+
+      setSaved(true);
+
+      if (result.synced) {
+        Alert.alert(
+          'Prediction Saved!',
+          'Your prediction has been saved and synced to the cloud.',
+        );
+      } else if (isGuest) {
+        Alert.alert(
+          'Prediction Saved!',
+          'Saved on this device. Set up your profile to sync to cloud.',
+        );
+      } else {
+        Alert.alert(
+          'Prediction Saved Locally',
+          result.errorMessage ??
+            'Could not sync to cloud. Please sign out and sign back in, then try again.',
+        );
+      }
+    } catch (e: any) {
+      console.log('[PredictRaceScreen] Save failed:', e?.message || e);
+      Alert.alert(
+        'Save Failed',
+        'An unexpected error occurred. Please try again.',
+      );
+    }
+  }, [
+    race,
+    selectedDrivers,
+    sprintTop8,
+    fastestLap,
+    dnf,
+    validDriverIds,
+    savePrediction,
+    getPrediction,
+    profile.username,
+    profile.displayName,
+    isGuest,
+    locked,
+    sprintLocked,
+  ]);
 
   if (!race) {
     return (
@@ -603,8 +811,8 @@ export default function PredictRaceScreen() {
     );
   }
 
-  const raceProgress = cleanedSelectedDrivers.length / 10;
-  const sprintProgress = cleanedSprintTop8.length / 8;
+  const fastestLapDriver = fastestLap ? driverById(fastestLap) : undefined;
+  const dnfDriver = dnf ? driverById(dnf) : undefined;
 
   return (
     <View style={styles.container}>
@@ -636,14 +844,30 @@ export default function PredictRaceScreen() {
           </View>
 
           <View style={styles.countdownWrap}>
-            <CountdownTimer raceDate={race.raceDate} raceTime={race.raceTime} />
+            <CountdownTimer
+              raceDate={race.raceDate}
+              raceTime={race.raceTime}
+            />
           </View>
 
-          {locked && !raceIsCompleted && (
+          {locked && (
             <View style={styles.lockedBanner}>
               <Lock color={Colors.f1Red} size={16} />
               <Text style={styles.lockedText}>
-                Predictions locked for this race
+                {locked && sprintLocked
+                  ? 'Race & sprint predictions locked'
+                  : locked
+                    ? 'Race predictions locked because the race has started'
+                    : 'Sprint predictions locked because the sprint has started'}
+              </Text>
+            </View>
+          )}
+
+          {!locked && sprintLocked && race.hasSprint && (
+            <View style={styles.lockedBanner}>
+              <Lock color={Colors.info} size={16} />
+              <Text style={styles.lockedText}>
+                Sprint predictions locked — race picks still open
               </Text>
             </View>
           )}
@@ -723,7 +947,7 @@ export default function PredictRaceScreen() {
 
           <StatTile
             label="POTENTIAL"
-            value={`${potentialPoints + sprintPotentialPoints}`}
+            value={`${totalPotentialPoints}`}
             accent={Colors.warning}
             icon={<Trophy color={Colors.warning} size={16} />}
           />
@@ -735,7 +959,7 @@ export default function PredictRaceScreen() {
               onPress={() => setActiveTab('race')}
               style={[
                 styles.tabButton,
-                activeTab === 'race' && styles.tabButtonActive,
+                activeTab === 'race' && styles.tabButtonActiveRace,
               ]}
               scaleDown={0.97}
             >
@@ -746,15 +970,16 @@ export default function PredictRaceScreen() {
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'race' && styles.tabTextActiveRace,
+                  activeTab === 'race' && styles.tabTextRace,
                 ]}
               >
                 Race Picks
               </Text>
+
               <View
                 style={[
                   styles.tabCount,
-                  activeTab === 'race' && styles.tabCountActiveRace,
+                  activeTab === 'race' && styles.tabCountRace,
                 ]}
               >
                 <Text style={styles.tabCountText}>
@@ -767,26 +992,29 @@ export default function PredictRaceScreen() {
               onPress={() => setActiveTab('sprint')}
               style={[
                 styles.tabButton,
-                activeTab === 'sprint' && styles.tabButtonActive,
+                activeTab === 'sprint' && styles.tabButtonActiveSprint,
               ]}
               scaleDown={0.97}
             >
               <Zap
-                color={activeTab === 'sprint' ? Colors.info : Colors.textMuted}
+                color={
+                  activeTab === 'sprint' ? Colors.info : Colors.textMuted
+                }
                 size={16}
               />
               <Text
                 style={[
                   styles.tabText,
-                  activeTab === 'sprint' && styles.tabTextActiveSprint,
+                  activeTab === 'sprint' && styles.tabTextSprint,
                 ]}
               >
                 Sprint Picks
               </Text>
+
               <View
                 style={[
                   styles.tabCount,
-                  activeTab === 'sprint' && styles.tabCountActiveSprint,
+                  activeTab === 'sprint' && styles.tabCountSprint,
                 ]}
               >
                 <Text style={styles.tabCountText}>
@@ -821,16 +1049,17 @@ export default function PredictRaceScreen() {
               </View>
 
               <View style={styles.gridList}>
-                {Array.from({ length: 10 }).map((_, i) => {
-                  const driverId = cleanedSelectedDrivers[i];
+                {Array.from({ length: 10 }).map((_, index) => {
+                  const position = index + 1;
+                  const driverId = cleanedSelectedDrivers[index];
                   const driver = driverId ? driverById(driverId) : undefined;
                   const team = driver ? getTeamById(driver.teamId) : undefined;
-                  const position = i + 1;
 
                   return (
                     <GridSlot
-                      key={`grid-${position}`}
+                      key={`race-slot-${position}`}
                       position={position}
+                      points={F1_POINTS[index] ?? 0}
                       podiumColor={PODIUM_COLORS[position]}
                       driver={driver}
                       teamColor={team?.color}
@@ -838,12 +1067,14 @@ export default function PredictRaceScreen() {
                       isFL={driver?.id === fastestLap}
                       isDnf={driver?.id === dnf}
                       locked={locked}
-                      isFirst={i === 0}
-                      isLast={i === cleanedSelectedDrivers.length - 1}
-                      onRemove={() => driver && removeDriver(driver.id)}
-                      onMoveUp={() => moveDriver(i, 'up')}
-                      onMoveDown={() => moveDriver(i, 'down')}
-                      onToggleFL={() => driver && selectFastestLap(driver.id)}
+                      isFirst={index === 0}
+                      isLast={index === cleanedSelectedDrivers.length - 1}
+                      onPress={() =>
+                        openPicker({ type: 'grid', slotIndex: index })
+                      }
+                      onRemove={() => driver && removeRaceDriver(driver.id)}
+                      onMoveUp={() => moveRaceDriver(index, 'up')}
+                      onMoveDown={() => moveRaceDriver(index, 'down')}
                     />
                   );
                 })}
@@ -852,23 +1083,23 @@ export default function PredictRaceScreen() {
 
             {!locked && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Available Drivers</Text>
+                <Text style={styles.sectionTitle}>Available Race Drivers</Text>
                 <Text style={styles.sectionSubtitle}>
-                  Tap a driver to add to race grid
+                  Tap a driver to add them to the next race slot
                 </Text>
 
                 <View style={styles.driverList}>
-                  {sortedPoolDrivers.map((driver) => {
+                  {sortedRacePoolDrivers.map((driver) => {
                     const team = getTeamById(driver.teamId);
 
                     return (
                       <DriverPickRow
-                        key={`pool-${driver.id}`}
+                        key={`race-pool-${driver.id}`}
                         driver={driver}
                         teamColor={team?.color}
                         teamName={team?.shortName}
                         accentColor={Colors.f1Red}
-                        onPress={() => addDriverToNextSlot(driver.id)}
+                        onPress={() => addRaceDriver(driver.id)}
                       />
                     );
                   })}
@@ -879,38 +1110,41 @@ export default function PredictRaceScreen() {
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Bonus Picks</Text>
               <Text style={styles.sectionSubtitle}>
-                Fastest lap +{FASTEST_LAP_BONUS} · DNF +{DNF_BONUS} · DNS does not count
+                Fastest lap +{FASTEST_LAP_BONUS} · DNF +{DNF_BONUS} · DNS does
+                not count
               </Text>
 
-              <View style={styles.bonusGrid}>
+              <View style={styles.bonusList}>
                 <BonusPickCard
                   label="Fastest Lap"
                   hint="Pick any driver"
                   icon={<Zap color={Colors.warning} size={18} />}
-                  driver={fastestLap ? driverById(fastestLap) : undefined}
+                  driver={fastestLapDriver}
                   teamName={
-                    fastestLap
-                      ? getTeamById(driverById(fastestLap)?.teamId || '')?.shortName
+                    fastestLapDriver
+                      ? getTeamById(fastestLapDriver.teamId)?.shortName
                       : undefined
                   }
                   accentColor={Colors.warning}
                   locked={locked}
                   onPress={() => openPicker({ type: 'fl' })}
-                  onClear={() => fastestLap && selectFastestLap(fastestLap)}
+                  onClear={clearFastestLap}
                 />
 
                 <BonusPickCard
-                  label="DNF"
+                  label="DNF Pick"
                   hint="Will not finish"
                   icon={<AlertTriangle color={Colors.error} size={18} />}
-                  driver={dnf ? driverById(dnf) : undefined}
+                  driver={dnfDriver}
                   teamName={
-                    dnf ? getTeamById(driverById(dnf)?.teamId || '')?.shortName : undefined
+                    dnfDriver
+                      ? getTeamById(dnfDriver.teamId)?.shortName
+                      : undefined
                   }
                   accentColor={Colors.error}
                   locked={locked}
                   onPress={() => openPicker({ type: 'dnf' })}
-                  onClear={() => dnf && selectDnf(dnf)}
+                  onClear={clearDnf}
                 />
               </View>
             </View>
@@ -928,7 +1162,7 @@ export default function PredictRaceScreen() {
                   </Text>
                 </View>
 
-                {!locked && cleanedSprintTop8.length > 0 && (
+                {!sprintLocked && cleanedSprintTop8.length > 0 && (
                   <AnimatedPressable
                     onPress={clearSprint}
                     style={styles.clearBtn}
@@ -941,37 +1175,44 @@ export default function PredictRaceScreen() {
               </View>
 
               <View style={styles.gridList}>
-                {Array.from({ length: 8 }).map((_, i) => {
-                  const driverId = cleanedSprintTop8[i];
+                {Array.from({ length: 8 }).map((_, index) => {
+                  const position = index + 1;
+                  const driverId = cleanedSprintTop8[index];
                   const driver = driverId ? driverById(driverId) : undefined;
                   const team = driver ? getTeamById(driver.teamId) : undefined;
-                  const position = i + 1;
 
                   return (
-                    <SprintGridSlot
-                      key={`sprint-${position}`}
+                    <GridSlot
+                      key={`sprint-slot-${position}`}
                       position={position}
-                      sprintColor={SPRINT_PODIUM_COLORS[position]}
+                      positionPrefix="S"
+                      points={SPRINT_POINTS[index] ?? 0}
+                      podiumColor={SPRINT_PODIUM_COLORS[position]}
                       driver={driver}
                       teamColor={team?.color}
                       teamName={team?.shortName}
-                      locked={locked}
-                      isFirst={i === 0}
-                      isLast={i === cleanedSprintTop8.length - 1}
+                      locked={sprintLocked}
+                      isFirst={index === 0}
+                      isLast={index === cleanedSprintTop8.length - 1}
+                      onPress={() =>
+                        openPicker({ type: 'sprint', slotIndex: index })
+                      }
                       onRemove={() => driver && removeSprintDriver(driver.id)}
-                      onMoveUp={() => moveSprintDriver(i, 'up')}
-                      onMoveDown={() => moveSprintDriver(i, 'down')}
+                      onMoveUp={() => moveSprintDriver(index, 'up')}
+                      onMoveDown={() => moveSprintDriver(index, 'down')}
                     />
                   );
                 })}
               </View>
             </View>
 
-            {!locked && (
+            {!sprintLocked && (
               <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Available Sprint Drivers</Text>
+                <Text style={styles.sectionTitle}>
+                  Available Sprint Drivers
+                </Text>
                 <Text style={styles.sectionSubtitle}>
-                  Tap a driver to add to sprint grid
+                  Tap a driver to add them to the next sprint slot
                 </Text>
 
                 <View style={styles.driverList}>
@@ -985,7 +1226,7 @@ export default function PredictRaceScreen() {
                         teamColor={team?.color}
                         teamName={team?.shortName}
                         accentColor={Colors.info}
-                        onPress={() => addDriverToSprintSlot(driver.id)}
+                        onPress={() => addSprintDriver(driver.id)}
                       />
                     );
                   })}
@@ -996,12 +1237,12 @@ export default function PredictRaceScreen() {
         )}
       </Animated.ScrollView>
 
-      {!locked && (
+      {(!locked || (race.hasSprint && !sprintLocked)) && (
         <View style={styles.saveBar}>
           <View style={styles.saveBarInfo}>
             <Text style={styles.saveBarLabel}>POTENTIAL</Text>
             <Text style={styles.saveBarPoints}>
-              {potentialPoints + sprintPotentialPoints} pts
+              {totalPotentialPoints} pts
             </Text>
           </View>
 
@@ -1023,6 +1264,7 @@ export default function PredictRaceScreen() {
               ) : (
                 <Save color="#FFF" size={18} />
               )}
+
               <Text style={styles.saveText}>
                 {saved ? 'Saved' : 'Save Prediction'}
               </Text>
@@ -1038,18 +1280,25 @@ export default function PredictRaceScreen() {
         onRequestClose={closePicker}
       >
         <Pressable style={styles.modalBackdrop} onPress={closePicker}>
-          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+          <Pressable
+            style={styles.modalCard}
+            onPress={(e) => e.stopPropagation()}
+          >
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
               <View style={styles.modalHeaderText}>
                 <Text style={styles.modalTitle}>
-                  {picker?.type === 'fl' ? 'Pick Fastest Lap' : 'Pick DNF Driver'}
+                  {picker?.type === 'grid' && 'Pick Race Driver'}
+                  {picker?.type === 'sprint' && 'Pick Sprint Driver'}
+                  {picker?.type === 'fl' && 'Pick Fastest Lap'}
+                  {picker?.type === 'dnf' && 'Pick DNF Driver'}
                 </Text>
+
                 <Text style={styles.modalSubtitle}>
-                  {picker?.type === 'fl'
-                    ? 'Who sets the fastest lap?'
-                    : 'Who will not finish? DNS does not count.'}
+                  {picker?.type === 'dnf'
+                    ? 'DNS does not count as DNF.'
+                    : 'Select a driver from the list.'}
                 </Text>
               </View>
 
@@ -1086,12 +1335,23 @@ export default function PredictRaceScreen() {
                 <Text style={styles.modalEmpty}>No drivers found</Text>
               )}
 
-              {pickerDrivers.map((driver, idx) => {
+              {pickerDrivers.map((driver, index) => {
                 const team = getTeamById(driver.teamId);
-                const isCurrentSelection =
-                  picker?.type === 'fl'
-                    ? fastestLap === driver.id
-                    : dnf === driver.id;
+
+                const isCurrent =
+                  (picker?.type === 'grid' &&
+                    cleanedSelectedDrivers[picker.slotIndex] === driver.id) ||
+                  (picker?.type === 'sprint' &&
+                    cleanedSprintTop8[picker.slotIndex] === driver.id) ||
+                  (picker?.type === 'fl' && fastestLap === driver.id) ||
+                  (picker?.type === 'dnf' && dnf === driver.id);
+
+                const alreadyPicked =
+                  picker?.type === 'grid'
+                    ? cleanedSelectedDrivers.includes(driver.id)
+                    : picker?.type === 'sprint'
+                      ? cleanedSprintTop8.includes(driver.id)
+                      : false;
 
                 return (
                   <AnimatedPressable
@@ -1099,27 +1359,32 @@ export default function PredictRaceScreen() {
                     onPress={() => handlePickerSelect(driver.id)}
                     style={[
                       styles.pickerRow,
-                      isCurrentSelection && styles.pickerRowActive,
+                      isCurrent && styles.pickerRowActive,
                     ]}
                     scaleDown={0.98}
                   >
                     <View
                       style={[
                         styles.pickerStripe,
-                        { backgroundColor: team?.color || Colors.border },
+                        {
+                          backgroundColor: team?.color || Colors.border,
+                        },
                       ]}
                     />
 
-                    <Text style={styles.pickerRank}>{idx + 1}</Text>
+                    <Text style={styles.pickerRank}>{index + 1}</Text>
 
                     <View style={styles.flex}>
                       <Text style={styles.pickerName}>{driver.name}</Text>
                       <Text style={styles.pickerTeam}>
-                        {team?.shortName || ''} · {driver.championshipPoints} pts
+                        {team?.shortName || driver.shortName}
+                        {alreadyPicked && !isCurrent
+                          ? ' · already picked'
+                          : ''}
                       </Text>
                     </View>
 
-                    {isCurrentSelection ? (
+                    {isCurrent ? (
                       <View style={styles.pickerCheck}>
                         <Check color="#FFF" size={16} />
                       </View>
@@ -1147,13 +1412,7 @@ interface StatTileProps {
   progress?: number;
 }
 
-const StatTile = React.memo(function StatTile({
-  label,
-  value,
-  accent,
-  icon,
-  progress,
-}: StatTileProps) {
+function StatTile({ label, value, accent, icon, progress }: StatTileProps) {
   return (
     <View style={styles.statTile}>
       <View style={styles.statTileHeader}>
@@ -1178,7 +1437,7 @@ const StatTile = React.memo(function StatTile({
       )}
     </View>
   );
-});
+}
 
 interface DriverPickRowProps {
   driver: Driver;
@@ -1188,7 +1447,7 @@ interface DriverPickRowProps {
   onPress: () => void;
 }
 
-const DriverPickRow = React.memo(function DriverPickRow({
+function DriverPickRow({
   driver,
   teamColor,
   teamName,
@@ -1210,7 +1469,9 @@ const DriverPickRow = React.memo(function DriverPickRow({
 
       <View style={styles.driverPickMain}>
         <Text style={styles.driverPickName}>{driver.name}</Text>
-        <Text style={styles.driverPickTeam}>{teamName || driver.shortName}</Text>
+        <Text style={styles.driverPickTeam}>
+          {teamName || driver.shortName}
+        </Text>
       </View>
 
       <View style={[styles.driverPickAdd, { borderColor: accentColor }]}>
@@ -1218,7 +1479,7 @@ const DriverPickRow = React.memo(function DriverPickRow({
       </View>
     </AnimatedPressable>
   );
-});
+}
 
 interface BonusPickCardProps {
   label: string;
@@ -1232,7 +1493,7 @@ interface BonusPickCardProps {
   onClear: () => void;
 }
 
-const BonusPickCard = React.memo(function BonusPickCard({
+function BonusPickCard({
   label,
   hint,
   icon,
@@ -1260,7 +1521,9 @@ const BonusPickCard = React.memo(function BonusPickCard({
         {driver ? (
           <>
             <Text style={styles.bonusDriver}>{driver.name}</Text>
-            <Text style={styles.bonusHint}>{teamName || driver.shortName}</Text>
+            <Text style={styles.bonusHint}>
+              {teamName || driver.shortName}
+            </Text>
           </>
         ) : (
           <Text style={styles.bonusHint}>{hint}</Text>
@@ -1276,27 +1539,31 @@ const BonusPickCard = React.memo(function BonusPickCard({
       )}
     </AnimatedPressable>
   );
-});
+}
 
 interface GridSlotProps {
   position: number;
+  positionPrefix?: string;
+  points: number;
   podiumColor?: string;
   driver?: Driver;
   teamColor?: string;
   teamName?: string;
-  isFL: boolean;
-  isDnf: boolean;
+  isFL?: boolean;
+  isDnf?: boolean;
   locked: boolean;
   isFirst: boolean;
   isLast: boolean;
+  onPress: () => void;
   onRemove: () => void;
   onMoveUp: () => void;
   onMoveDown: () => void;
-  onToggleFL: () => void;
 }
 
-const GridSlot = React.memo(function GridSlot({
+function GridSlot({
   position,
+  positionPrefix = 'P',
+  points,
   podiumColor,
   driver,
   teamColor,
@@ -1306,30 +1573,38 @@ const GridSlot = React.memo(function GridSlot({
   locked,
   isFirst,
   isLast,
+  onPress,
   onRemove,
   onMoveUp,
   onMoveDown,
-  onToggleFL,
 }: GridSlotProps) {
   if (!driver) {
     return (
-      <View style={styles.slotEmpty}>
+      <AnimatedPressable
+        onPress={onPress}
+        disabled={locked}
+        style={styles.slotEmpty}
+        scaleDown={0.98}
+      >
         <View
           style={[
             styles.positionBadge,
             podiumColor && { borderColor: podiumColor },
           ]}
         >
-          <Text style={styles.positionText}>P{position}</Text>
+          <Text style={styles.positionText}>
+            {positionPrefix}
+            {position}
+          </Text>
         </View>
 
         <View style={styles.slotEmptyContent}>
           <Text style={styles.slotEmptyText}>Empty</Text>
-          <Text style={styles.slotEmptyHint}>Add a driver below</Text>
+          <Text style={styles.slotEmptyHint}>Tap to choose a driver</Text>
         </View>
 
-        <Text style={styles.slotPointText}>{F1_POINTS[position - 1]}pts</Text>
-      </View>
+        <Text style={styles.slotPointText}>{points}pts</Text>
+      </AnimatedPressable>
     );
   }
 
@@ -1342,20 +1617,33 @@ const GridSlot = React.memo(function GridSlot({
         ]}
       />
 
-      <View
+      <AnimatedPressable
+        onPress={onPress}
+        disabled={locked}
         style={[
           styles.positionBadge,
           podiumColor && { borderColor: podiumColor },
         ]}
+        scaleDown={0.9}
       >
-        <Text style={styles.positionText}>P{position}</Text>
-      </View>
+        <Text style={styles.positionText}>
+          {positionPrefix}
+          {position}
+        </Text>
+      </AnimatedPressable>
 
-      <View style={styles.slotDriverInfo}>
+      <AnimatedPressable
+        onPress={onPress}
+        disabled={locked}
+        style={styles.slotDriverInfo}
+        scaleDown={0.98}
+      >
         <Text style={styles.slotDriverName}>{driver.name}</Text>
 
         <View style={styles.slotMetaRow}>
-          <Text style={styles.slotTeamName}>{teamName || ''}</Text>
+          <Text style={styles.slotTeamName}>
+            {teamName || driver.shortName}
+          </Text>
 
           {isFL && (
             <View style={styles.flMiniBadge}>
@@ -1371,21 +1659,10 @@ const GridSlot = React.memo(function GridSlot({
             </View>
           )}
         </View>
-      </View>
+      </AnimatedPressable>
 
       {!locked && (
         <View style={styles.slotActions}>
-          <AnimatedPressable
-            onPress={onToggleFL}
-            style={[styles.actionBtn, isFL && styles.actionBtnActiveFL]}
-            scaleDown={0.85}
-          >
-            <Zap
-              color={isFL ? Colors.warning : Colors.textSecondary}
-              size={14}
-            />
-          </AnimatedPressable>
-
           <View style={styles.reorderStack}>
             <AnimatedPressable
               onPress={onMoveUp}
@@ -1423,126 +1700,7 @@ const GridSlot = React.memo(function GridSlot({
       )}
     </View>
   );
-});
-
-interface SprintGridSlotProps {
-  position: number;
-  sprintColor?: string;
-  driver?: Driver;
-  teamColor?: string;
-  teamName?: string;
-  locked: boolean;
-  isFirst: boolean;
-  isLast: boolean;
-  onRemove: () => void;
-  onMoveUp: () => void;
-  onMoveDown: () => void;
 }
-
-const SprintGridSlot = React.memo(function SprintGridSlot({
-  position,
-  sprintColor,
-  driver,
-  teamColor,
-  teamName,
-  locked,
-  isFirst,
-  isLast,
-  onRemove,
-  onMoveUp,
-  onMoveDown,
-}: SprintGridSlotProps) {
-  const pointValue = SPRINT_POINTS[position - 1] ?? 0;
-
-  if (!driver) {
-    return (
-      <View style={styles.slotEmpty}>
-        <View
-          style={[
-            styles.positionBadge,
-            sprintColor && { borderColor: sprintColor },
-          ]}
-        >
-          <Text style={styles.positionText}>S{position}</Text>
-        </View>
-
-        <View style={styles.slotEmptyContent}>
-          <Text style={styles.slotEmptyText}>Empty</Text>
-          <Text style={styles.slotEmptyHint}>Add a sprint driver below</Text>
-        </View>
-
-        <Text style={styles.slotPointText}>{pointValue}pts</Text>
-      </View>
-    );
-  }
-
-  return (
-    <View style={styles.slotFilled}>
-      <View
-        style={[
-          styles.teamStripe,
-          { backgroundColor: teamColor || Colors.border },
-        ]}
-      />
-
-      <View
-        style={[
-          styles.positionBadge,
-          sprintColor && { borderColor: sprintColor },
-        ]}
-      >
-        <Text style={styles.positionText}>S{position}</Text>
-      </View>
-
-      <View style={styles.slotDriverInfo}>
-        <Text style={styles.slotDriverName}>{driver.name}</Text>
-        <Text style={styles.slotTeamName}>{teamName || ''}</Text>
-      </View>
-
-      <View style={styles.sprintPointBadge}>
-        <Text style={styles.sprintPointText}>{pointValue}pt</Text>
-      </View>
-
-      {!locked && (
-        <View style={styles.slotActions}>
-          <View style={styles.reorderStack}>
-            <AnimatedPressable
-              onPress={onMoveUp}
-              disabled={isFirst}
-              style={[
-                styles.reorderBtn,
-                isFirst && styles.reorderBtnDisabled,
-              ]}
-              scaleDown={0.85}
-            >
-              <ChevronUp color={Colors.textSecondary} size={14} />
-            </AnimatedPressable>
-
-            <AnimatedPressable
-              onPress={onMoveDown}
-              disabled={isLast}
-              style={[
-                styles.reorderBtn,
-                isLast && styles.reorderBtnDisabled,
-              ]}
-              scaleDown={0.85}
-            >
-              <ChevronDown color={Colors.textSecondary} size={14} />
-            </AnimatedPressable>
-          </View>
-
-          <AnimatedPressable
-            onPress={onRemove}
-            style={styles.actionBtn}
-            scaleDown={0.85}
-          >
-            <X color={Colors.textSecondary} size={14} />
-          </AnimatedPressable>
-        </View>
-      )}
-    </View>
-  );
-});
 
 const styles = StyleSheet.create({
   container: {
@@ -1709,9 +1867,13 @@ const styles = StyleSheet.create({
     marginRight: 8,
     paddingHorizontal: 8,
   },
-  tabButtonActive: {
-    backgroundColor: Colors.surfaceHighlight,
-    borderColor: 'rgba(255,255,255,0.18)',
+  tabButtonActiveRace: {
+    backgroundColor: 'rgba(225,6,0,0.12)',
+    borderColor: 'rgba(225,6,0,0.35)',
+  },
+  tabButtonActiveSprint: {
+    backgroundColor: 'rgba(10,132,255,0.12)',
+    borderColor: 'rgba(10,132,255,0.35)',
   },
   tabText: {
     color: Colors.textMuted,
@@ -1719,10 +1881,10 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     marginLeft: 6,
   },
-  tabTextActiveRace: {
+  tabTextRace: {
     color: Colors.f1Red,
   },
-  tabTextActiveSprint: {
+  tabTextSprint: {
     color: Colors.info,
   },
   tabCount: {
@@ -1732,10 +1894,10 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     backgroundColor: 'rgba(255,255,255,0.08)',
   },
-  tabCountActiveRace: {
+  tabCountRace: {
     backgroundColor: 'rgba(225,6,0,0.18)',
   },
-  tabCountActiveSprint: {
+  tabCountSprint: {
     backgroundColor: 'rgba(10,132,255,0.18)',
   },
   tabCountText: {
@@ -1856,6 +2018,7 @@ const styles = StyleSheet.create({
   slotDriverInfo: {
     flex: 1,
     paddingHorizontal: 12,
+    paddingVertical: 10,
   },
   slotDriverName: {
     color: Colors.text,
@@ -1917,9 +2080,6 @@ const styles = StyleSheet.create({
     backgroundColor: Colors.surfaceHighlight,
     marginLeft: 4,
   },
-  actionBtnActiveFL: {
-    backgroundColor: 'rgba(255, 214, 10, 0.2)',
-  },
   reorderStack: {
     marginLeft: 4,
   },
@@ -1978,7 +2138,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginRight: 10,
   },
-  bonusGrid: {
+  bonusList: {
     marginTop: 12,
   },
   bonusCard: {
@@ -2203,18 +2363,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     marginRight: 10,
-  },
-  sprintPointBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 3,
-    borderRadius: 5,
-    backgroundColor: 'rgba(10, 132, 255, 0.15)',
-    marginRight: 8,
-  },
-  sprintPointText: {
-    color: Colors.info,
-    fontSize: 10,
-    fontWeight: '800',
   },
   completedBanner: {
     backgroundColor: 'rgba(10, 132, 255, 0.08)',
