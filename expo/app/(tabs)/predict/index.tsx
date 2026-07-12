@@ -52,6 +52,7 @@ import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import CountdownTimer from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 
 type ActiveTab = 'race' | 'sprint';
 
@@ -1315,8 +1316,10 @@ interface StatTileProps {
 }
 
 function StatTile({ label, value, accent, icon, progress }: StatTileProps) {
+  const { config, currentSeries } = useSeries();
+  const isMotoGP = currentSeries === 'motogp';
   return (
-    <View style={styles.statTile}>
+    <View style={[styles.statTile, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}>
       <View style={styles.statTileHeader}>
         {icon}
         <Text style={[styles.statTileLabel, { color: accent }]}>{label}</Text>
@@ -1337,6 +1340,9 @@ function StatTile({ label, value, accent, icon, progress }: StatTileProps) {
           />
         </View>
       )}
+      {isMotoGP && (
+        <ChamferOverlay chamferSize={10} borderColor={config.colors.border} borderWidth={1} surroundingColor={config.colors.background} />
+      )}
     </View>
   );
 }
@@ -1356,16 +1362,19 @@ function DriverPickRow({
   accentColor,
   onPress,
 }: DriverPickRowProps) {
+  const { config, currentSeries } = useSeries();
+  const isMotoGP = currentSeries === 'motogp';
   return (
     <AnimatedPressable
       onPress={onPress}
-      style={styles.driverPickRow}
+      style={[styles.driverPickRow, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}
       scaleDown={0.97}
     >
       <View
         style={[
           styles.driverPickStripe,
           { backgroundColor: teamColor || Colors.border },
+          isMotoGP && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 },
         ]}
       />
 
@@ -1374,9 +1383,12 @@ function DriverPickRow({
         <Text style={styles.driverPickTeam}>{teamName || driver.shortName}</Text>
       </View>
 
-      <View style={[styles.driverPickAdd, { borderColor: accentColor }]}>
+      <View style={[styles.driverPickAdd, { borderColor: accentColor }, isMotoGP && { borderRadius: 2 }]}>
         <Plus color={accentColor} size={17} />
       </View>
+      {isMotoGP && (
+        <ChamferOverlay chamferSize={10} borderColor={config.colors.border} borderWidth={1} surroundingColor={config.colors.background} />
+      )}
     </AnimatedPressable>
   );
 }
@@ -1404,14 +1416,16 @@ function BonusPickCard({
   onPress,
   onClear,
 }: BonusPickCardProps) {
+  const { config, currentSeries } = useSeries();
+  const isMotoGP = currentSeries === 'motogp';
   return (
     <AnimatedPressable
       onPress={driver ? undefined : onPress}
-      style={[styles.bonusCard, { borderColor: `${accentColor}55` }]}
+      style={[styles.bonusCard, { borderColor: `${accentColor}55` }, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}
       scaleDown={0.97}
       disabled={locked}
     >
-      <View style={[styles.bonusIcon, { backgroundColor: `${accentColor}22` }]}>
+      <View style={[styles.bonusIcon, { backgroundColor: `${accentColor}22` }, isMotoGP && { borderRadius: 2 }]}>
         {icon}
       </View>
 
@@ -1434,6 +1448,9 @@ function BonusPickCard({
         </Pressable>
       ) : (
         <ChevronRight color={accentColor} size={18} />
+      )}
+      {isMotoGP && (
+        <ChamferOverlay chamferSize={12} borderColor={`${accentColor}55`} borderWidth={1} surroundingColor={config.colors.background} />
       )}
     </AnimatedPressable>
   );

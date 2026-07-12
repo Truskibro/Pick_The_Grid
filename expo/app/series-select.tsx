@@ -13,6 +13,7 @@ import * as Haptics from 'expo-haptics';
 import { Flag, Bike, ChevronRight } from 'lucide-react-native';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 import { useSeries } from '@/providers/SeriesProvider';
 import { ALL_SERIES, SeriesId } from '@/constants/series';
 
@@ -149,7 +150,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
       <AnimatedPressable
         onPress={onSelect}
         scaleDown={0.97}
-        style={[styles.cardWrapper, !isF1 && styles.cardWrapperMotoGP]}
+        style={[styles.cardWrapper, !isF1 && { borderRadius: 0, overflow: 'hidden' }]}
       >
         <LinearGradient
           colors={colors.heroGradient as [string, string, string]}
@@ -158,7 +159,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
           style={[
             styles.card,
             isF1 ? styles.f1Card : styles.motogpCard,
-            !isF1 && styles.cardMotoGP,
+            !isF1 && { borderRadius: 0, borderWidth: 0 },
             { borderColor: colors.primary },
           ]}
         >
@@ -274,6 +275,16 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
               <ChevronRight size={16} color="#FFF" />
             </View>
           </View>
+
+          {/* 45° chamfered corners for MotoGP */}
+          {!isF1 && (
+            <ChamferOverlay
+              chamferSize={18}
+              borderColor={colors.primary}
+              borderWidth={1.5}
+              surroundingColor="#0B0E11"
+            />
+          )}
         </LinearGradient>
       </AnimatedPressable>
     </Animated.View>
@@ -326,9 +337,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardWrapperMotoGP: {
-    borderRadius: 4,
-    borderTopLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderRadius: 0,
   },
   card: {
     minHeight: 200,
@@ -339,9 +348,7 @@ const styles = StyleSheet.create({
     overflow: 'hidden',
   },
   cardMotoGP: {
-    borderRadius: 4,
-    borderTopLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderRadius: 0,
   },
   f1Card: {},
   motogpCard: {},
@@ -387,9 +394,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   iconBadgeMotoGP: {
-    borderRadius: 4,
-    borderTopLeftRadius: 0,
-    borderBottomRightRadius: 0,
+    borderRadius: 2,
   },
   cardTextContainer: {
     marginBottom: 20,
@@ -417,8 +422,6 @@ const styles = StyleSheet.create({
   },
   enterBtnMotoGP: {
     borderRadius: 2,
-    borderTopLeftRadius: 0,
-    borderBottomRightRadius: 0,
   },
   enterBtnText: {
     color: '#FFF',

@@ -12,6 +12,7 @@ import { useUser } from '@/providers/UserProvider';
 import { useGame } from '@/providers/GameProvider';
 import CountdownTimer from '@/components/CountdownTimer';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 import { Race } from '@/types';
 
 const { width: SCREEN_W } = Dimensions.get('window');
@@ -141,7 +142,7 @@ export default function HomeScreen() {
               </View>
 
               <AnimatedPressable
-                style={[styles.spotlightCard, isMotoGP && styles.spotlightCardMotoGP]}
+                style={[styles.spotlightCard, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}
                 onPress={() => router.push('/calendar' as any)}
                 scaleDown={0.98}
               >
@@ -185,6 +186,9 @@ export default function HomeScreen() {
                     </LinearGradient>
                   </AnimatedPressable>
                 </LinearGradient>
+                {isMotoGP && (
+                  <ChamferOverlay chamferSize={16} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+                )}
               </AnimatedPressable>
             </View>
           )}
@@ -227,7 +231,7 @@ export default function HomeScreen() {
           {/* ── LEAGUE ACTIONS ── */}
           <View style={styles.actionsSection}>
             <AnimatedPressable
-              style={[styles.actionCard, isMotoGP && styles.actionCardMotoGP]}
+              style={[styles.actionCard, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}
               onPress={() => router.push('/create-league' as any)}
             >
               <View style={[styles.actionIconCircle, { backgroundColor: `${seriesColors.primary}1F` }]}>
@@ -235,10 +239,13 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.actionTitle}>Create League</Text>
               <Text style={styles.actionSubtitle}>Start your own championship</Text>
+              {isMotoGP && (
+                <ChamferOverlay chamferSize={12} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+              )}
             </AnimatedPressable>
 
             <AnimatedPressable
-              style={[styles.actionCard, isMotoGP && styles.actionCardMotoGP]}
+              style={[styles.actionCard, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}
               onPress={() => router.push('/join-league' as any)}
             >
               <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(10, 132, 255, 0.12)' }]}>
@@ -246,6 +253,9 @@ export default function HomeScreen() {
               </View>
               <Text style={styles.actionTitle}>Join League</Text>
               <Text style={styles.actionSubtitle}>Compete with friends</Text>
+              {isMotoGP && (
+                <ChamferOverlay chamferSize={12} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+              )}
             </AnimatedPressable>
           </View>
 
@@ -297,19 +307,21 @@ export default function HomeScreen() {
           {/* ── HOW IT WORKS ── */}
           <View style={styles.howSection}>
             <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
-            <View style={[styles.howCard, isMotoGP && styles.howCardMotoGP]}>
+            <View style={[styles.howCard, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}>
               <HowStep
                 step="1"
                 icon={<Target size={16} color={seriesColors.primary} />}
                 title="Set Your Grid"
                 text={`Pick the top ${config.pickLimits.raceTopN} finishing order before each race locks`}
+                isMotoGP={isMotoGP}
               />
               <View style={styles.howDivider} />
               <HowStep
                 step="2"
-                icon={<Zap size={16} color={Colors.warning} />}
+                icon={<Zap size={16} color={isMotoGP ? seriesColors.highlight : Colors.warning} />}
                 title="Bonus Picks"
                 text={`Choose Fastest Lap and ${seriesLabels.dnfLabel} ${seriesLabels.competitorsLower} for extra points`}
+                isMotoGP={isMotoGP}
               />
               <View style={styles.howDivider} />
               <HowStep
@@ -317,7 +329,11 @@ export default function HomeScreen() {
                 icon={<Trophy size={16} color={Colors.info} />}
                 title="Score & Climb"
                 text="Earn points for correct picks. Dominate your leagues"
+                isMotoGP={isMotoGP}
               />
+              {isMotoGP && (
+                <ChamferOverlay chamferSize={14} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+              )}
             </View>
           </View>
 
@@ -338,6 +354,8 @@ function StatsCard({ icon, value, label, color, isMotoGP }: {
   color: string;
   isMotoGP?: boolean;
 }) {
+  const { config } = useSeries();
+  const seriesColors = config.colors;
   const animatedValue = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
@@ -350,7 +368,7 @@ function StatsCard({ icon, value, label, color, isMotoGP }: {
   }, [animatedValue]);
 
   return (
-    <View style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 3 }, isMotoGP && styles.statCardMotoGP]}>
+    <View style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 3 }, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}>
       <View style={[styles.statIconWrap, { backgroundColor: `${color}14` }]}>
         {icon}
       </View>
@@ -358,6 +376,9 @@ function StatsCard({ icon, value, label, color, isMotoGP }: {
         {value}
       </Text>
       <Text style={styles.statLabel}>{label}</Text>
+      {isMotoGP && (
+        <ChamferOverlay chamferSize={10} borderColor={seriesColors.border} borderWidth={1} />
+      )}
     </View>
   );
 }
@@ -373,7 +394,7 @@ function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }
   });
 
   return (
-    <AnimatedPressable onPress={onPress} style={[styles.upcomingCard, { borderColor: seriesColors.border }, isMotoGP && styles.upcomingCardMotoGP]}>
+    <AnimatedPressable onPress={onPress} style={[styles.upcomingCard, { borderColor: seriesColors.border }, isMotoGP && { borderRadius: 0, borderWidth: 0 }]}>
       <LinearGradient
         colors={[seriesColors.surface, seriesColors.surfaceElevated]}
         style={styles.upcomingCardInner}
@@ -388,6 +409,9 @@ function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }
           <Text style={styles.upcomingDate}>{dateStr}</Text>
         </View>
       </LinearGradient>
+      {isMotoGP && (
+        <ChamferOverlay chamferSize={12} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+      )}
     </AnimatedPressable>
   );
 }

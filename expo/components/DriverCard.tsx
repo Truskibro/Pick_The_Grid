@@ -6,6 +6,7 @@ import { Driver } from '@/types';
 import { useSeriesData } from '@/lib/useSeriesData';
 import { useSeries } from '@/providers/SeriesProvider';
 import AnimatedPressable from './AnimatedPressable';
+import ChamferOverlay from './ChamferOverlay';
 
 interface DriverCardProps {
   driver: Driver;
@@ -44,12 +45,12 @@ export default React.memo(function DriverCard({
   const isMotoGP = currentSeries === 'motogp';
   const team = getTeamById(driver.teamId);
 
-  // Angular corners for MotoGP
-  const angularCorners = isMotoGP
-    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: seriesColors.cardRadius }
+  // MotoGP cards: remove borderRadius/borderWidth so ChamferOverlay can draw true 45° chamfers
+  const motogpCardOverrides = isMotoGP
+    ? { borderRadius: 0, borderWidth: 0 }
     : {};
-  const angularBadge = isMotoGP
-    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }
+  const motogpBadgeOverrides = isMotoGP
+    ? { borderRadius: 2 }
     : {};
   const pointsColor = isMotoGP ? seriesColors.highlight : Colors.warning;
 
@@ -58,23 +59,31 @@ export default React.memo(function DriverCard({
       <AnimatedPressable
         onPress={onPress}
         disabled={disabled}
-        style={[styles.compactCard, disabled && styles.disabledCard, angularCorners]}
+        style={[styles.compactCard, disabled && styles.disabledCard, motogpCardOverrides]}
       >
-        <View style={[styles.teamStripeCompact, { backgroundColor: team?.color || '#666' }, isMotoGP && { borderTopLeftRadius: 0 }]} />
+        <View style={[styles.teamStripeCompact, { backgroundColor: team?.color || '#666' }, isMotoGP && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]} />
         <View style={styles.compactInfo}>
           <Text style={styles.compactName} numberOfLines={1}>{driver.name}</Text>
           <Text style={styles.compactTeam} numberOfLines={1}>{team?.shortName || ''}</Text>
         </View>
         <Text style={[styles.compactPoints, isMotoGP && { color: seriesColors.highlight }]}>{driver.championshipPoints} pts</Text>
-        <View style={[styles.addIcon, { backgroundColor: seriesColors.primary }, angularBadge]}>
+        <View style={[styles.addIcon, { backgroundColor: seriesColors.primary }, motogpBadgeOverrides]}>
           <Plus size={16} color="#FFF" />
         </View>
+        {isMotoGP && (
+          <ChamferOverlay
+            chamferSize={10}
+            borderColor={seriesColors.border}
+            borderWidth={1}
+            surroundingColor={seriesColors.background}
+          />
+        )}
       </AnimatedPressable>
     );
   }
 
   return (
-    <View style={[styles.card, selected && styles.cardSelected, angularCorners, selected && isMotoGP && { borderColor: seriesColors.primary }]}>
+    <View style={[styles.card, selected && styles.cardSelected, motogpCardOverrides, selected && isMotoGP && { borderWidth: 0 }]}>
       <View style={[styles.teamStripe, { backgroundColor: team?.color || '#666' }]} />
 
       {onMoveUp && onMoveDown && !disabled && (
@@ -137,12 +146,20 @@ export default React.memo(function DriverCard({
       {onToggleFastestLap && !disabled && (
         <AnimatedPressable
           onPress={onToggleFastestLap}
-          style={[styles.flBtn, { backgroundColor: seriesColors.surfaceHighlight }, isFastestLap && styles.flBtnActive, isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }]}
+          style={[styles.flBtn, { backgroundColor: seriesColors.surfaceHighlight }, isFastestLap && styles.flBtnActive, isMotoGP && { borderRadius: 2 }]}
           scaleDown={0.85}
           hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
         >
           <Zap size={16} color={isFastestLap ? pointsColor : Colors.textMuted} />
         </AnimatedPressable>
+      )}
+      {isMotoGP && (
+        <ChamferOverlay
+          chamferSize={10}
+          borderColor={selected ? seriesColors.primary : seriesColors.border}
+          borderWidth={selected ? 2 : 1}
+          surroundingColor={seriesColors.background}
+        />
       )}
     </View>
   );

@@ -9,6 +9,7 @@ import { useGame } from '@/providers/GameProvider';
 import { calculatePoints, calculateSprintPoints, getTrueDnfDriverIds } from '@/lib/scoring';
 import { F1_POINTS, SPRINT_POINTS, FASTEST_LAP_BONUS, DNF_BONUS, ClassificationEntry } from '@/types';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 
 export default function RaceResultsScreen() {
   const { raceId } = useLocalSearchParams<{ raceId: string }>();

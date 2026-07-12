@@ -6,6 +6,7 @@ import { getSeriesConfig } from '@/constants/series';
 import { useSeries } from '@/providers/SeriesProvider';
 import { Race } from '@/types';
 import AnimatedPressable from './AnimatedPressable';
+import ChamferOverlay from './ChamferOverlay';
 
 interface RaceCardProps {
   race: Race;
@@ -54,9 +55,9 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
   const shouldShowPoints = race.status === 'completed' && pointsEarned !== undefined;
   // MotoGP uses yellow highlight, F1 uses amber/warning
   const pointsColor = isMotoGP ? seriesColors.highlight : Colors.warning;
-  // Angular corners for MotoGP cards
-  const angularCorners = isMotoGP
-    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: seriesColors.cardRadius }
+  // MotoGP cards: remove borderRadius/borderWidth so ChamferOverlay can draw true 45° chamfers
+  const motogpCardOverrides = isMotoGP
+    ? { borderRadius: 0, borderWidth: 0 }
     : {};
   const hasPicks = (pickNames && pickNames.length > 0) || !!fastestLapPickName || !!dnfPickName;
   const shouldShowPicks = race.status === 'completed' && hasPicks;
@@ -78,7 +79,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
   }, []);
 
   return (
-    <AnimatedPressable onPress={onPress} style={[styles.card, angularCorners, race.hasSprint && styles.cardSprint]}>
+    <AnimatedPressable onPress={onPress} style={[styles.card, motogpCardOverrides, race.hasSprint && !isMotoGP && styles.cardSprint]}>
       {race.hasSprint && (
         <View style={styles.sprintRibbon}>
           <Flame size={11} color={Colors.background} fill={Colors.background} />
@@ -190,13 +191,22 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
         )}
 
         {race.status === 'live' && (
-          <AnimatedPressable onPress={handleWatchLive} style={[styles.watchButton, { backgroundColor: seriesColors.primary }, isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }]} testID="watch-live-button">
+          <AnimatedPressable onPress={handleWatchLive} style={[styles.watchButton, { backgroundColor: seriesColors.primary }, isMotoGP && { borderRadius: 2 }]} testID="watch-live-button">
             <PlayCircle size={14} color={Colors.text} />
             <Text style={styles.watchText}>{isMotoGP ? 'Watch Live on MotoGP VideoPass' : 'Watch Live on F1 TV'}</Text>
           </AnimatedPressable>
         )}
       </View>
       </View>
+      {/* 45° chamfered corners for MotoGP */}
+      {isMotoGP && (
+        <ChamferOverlay
+          chamferSize={14}
+          borderColor={race.hasSprint ? Colors.warning : seriesColors.border}
+          borderWidth={race.hasSprint ? 1.5 : 1}
+          surroundingColor={seriesColors.background}
+        />
+      )}
     </AnimatedPressable>
   );
 });

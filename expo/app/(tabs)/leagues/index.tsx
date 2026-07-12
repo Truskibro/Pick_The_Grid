@@ -30,6 +30,7 @@ import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 import { League } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -38,6 +39,7 @@ export default function LeaguesScreen() {
   const router = useRouter();
   const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const { leagues: allLeagues, getLeagueMembers, refreshLeagues, fetchPublicLeagues, joinLeague } = useGame();
   const { profile, isGuest } = useUser();
 
@@ -132,6 +134,7 @@ export default function LeaguesScreen() {
       <AnimatedPressable
         style={[
           styles.leagueCard,
+          isMotoGP && { borderRadius: 0, borderWidth: 0 },
           {
             opacity: fadeAnim,
             transform: [
@@ -146,11 +149,11 @@ export default function LeaguesScreen() {
         ]}
         onPress={() => router.push(`/league-detail/${item.id}` as any)}
       >
-        <View style={[styles.cardAccent, isPublic ? styles.accentPublic : styles.accentPrivate]} />
+        <View style={[styles.cardAccent, isPublic ? styles.accentPublic : styles.accentPrivate, isMotoGP && { borderTopLeftRadius: 0, borderBottomLeftRadius: 0 }]} />
         <View style={styles.cardContent}>
           <View style={styles.cardTopRow}>
             <View style={styles.cardNameBlock}>
-              <View style={styles.cardInitialsCircle}>
+              <View style={[styles.cardInitialsCircle, isMotoGP && { borderRadius: 2 }]}>
                 <Text style={styles.cardInitials}>
                   {item.name.charAt(0).toUpperCase()}
                 </Text>
@@ -158,7 +161,7 @@ export default function LeaguesScreen() {
               <View style={styles.cardNameInfo}>
                 <View style={styles.cardNameRow}>
                   <Text style={styles.cardName} numberOfLines={1}>{item.name}</Text>
-                  {isOwner && <Crown size={13} color={Colors.warning} />}
+                  {isOwner && <Crown size={13} color={isMotoGP ? seriesColors.highlight : Colors.warning} />}
                 </View>
                 <Text style={styles.cardOwner}>by {ownerName}</Text>
               </View>
@@ -166,7 +169,7 @@ export default function LeaguesScreen() {
             <ChevronRight size={16} color={Colors.textMuted} />
           </View>
           <View style={styles.cardMetaRow}>
-            <View style={[styles.visPill, isPublic ? styles.visPillPublic : styles.visPillPrivate]}>
+            <View style={[styles.visPill, isPublic ? styles.visPillPublic : styles.visPillPrivate, isMotoGP && { borderRadius: 2 }]}>
               {isPublic ? (
                 <Globe size={10} color={Colors.info} />
               ) : (
@@ -176,7 +179,7 @@ export default function LeaguesScreen() {
                 {isPublic ? 'PUBLIC' : 'PRIVATE'}
               </Text>
             </View>
-            <View style={styles.memberPill}>
+            <View style={[styles.memberPill, isMotoGP && { borderRadius: 2 }]}>
               <Users size={10} color={Colors.textSecondary} />
               <Text style={styles.memberPillText}>{item.memberCount}</Text>
             </View>
@@ -185,6 +188,9 @@ export default function LeaguesScreen() {
             ) : null}
           </View>
         </View>
+        {isMotoGP && (
+          <ChamferOverlay chamferSize={12} borderColor={seriesColors.border} borderWidth={1} surroundingColor={seriesColors.background} />
+        )}
       </AnimatedPressable>
     );
   };

@@ -19,6 +19,7 @@ import {
 } from 'lucide-react-native';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
+import ChamferOverlay from '@/components/ChamferOverlay';
 import Colors from '@/constants/colors';
 import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
@@ -146,24 +147,13 @@ export default function LeaderboardsScreen() {
   const leaguePodiumOrder =
     leagueTop3.length >= 3 ? [leagueTop3[1], leagueTop3[0], leagueTop3[2]] : leagueTop3;
 
-  // Angular corner style for MotoGP cards (cut-corner effect)
-  const angularCardCorners = isMotoGP
-    ? {
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: seriesColors.cardRadius,
-        borderBottomLeftRadius: seriesColors.cardRadius,
-        borderBottomRightRadius: 0,
-      }
-    : { borderRadius: seriesColors.cardRadius };
-
-  const angularBadgeCorners = isMotoGP
-    ? {
-        borderTopLeftRadius: 0,
-        borderTopRightRadius: seriesColors.badgeRadius,
-        borderBottomLeftRadius: seriesColors.badgeRadius,
-        borderBottomRightRadius: 0,
-      }
-    : { borderRadius: seriesColors.badgeRadius };
+  // MotoGP cards: remove borderRadius/borderWidth so ChamferOverlay can draw true 45° chamfers
+  const motogpCardOverrides = isMotoGP
+    ? { borderRadius: 0, borderWidth: 0 }
+    : {};
+  const motogpBadgeOverrides = isMotoGP
+    ? { borderRadius: 0, borderWidth: 0 }
+    : {};
 
   const renderTrendIcon = (entry: LeaderboardEntry) => {
     if (!entry.previousRank) {
@@ -190,12 +180,12 @@ export default function LeaderboardsScreen() {
         style={[
           styles.rankRow,
           { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          angularCardCorners,
+          motogpCardOverrides,
           accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
-        {accentColor && (
+        {accentColor && !isMotoGP && (
           <>
             <LinearGradient
               colors={[`${accentColor}14`, 'transparent']}
@@ -216,7 +206,7 @@ export default function LeaderboardsScreen() {
                 backgroundColor: seriesColors.surfaceHighlight,
                 borderColor: seriesColors.border,
               },
-              angularBadgeCorners,
+              motogpBadgeOverrides,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -226,6 +216,9 @@ export default function LeaderboardsScreen() {
             <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{actualRank}
             </Text>
+            {isMotoGP && (
+              <ChamferOverlay chamferSize={8} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.surface} />
+            )}
           </View>
         </View>
 
@@ -276,7 +269,7 @@ export default function LeaderboardsScreen() {
               style={[
                 styles.trendPill,
                 { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
-                isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+                isMotoGP && { borderRadius: 2 },
               ]}
             >
               {renderTrendIcon(item)}
@@ -290,6 +283,9 @@ export default function LeaderboardsScreen() {
             </Text>
           </View>
         </View>
+        {isMotoGP && (
+          <ChamferOverlay chamferSize={12} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.background} />
+        )}
       </AnimatedPressable>
     );
   };
@@ -302,12 +298,12 @@ export default function LeaderboardsScreen() {
         style={[
           styles.rankRow,
           { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          angularCardCorners,
+          motogpCardOverrides,
           accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
       >
-        {accentColor && (
+        {accentColor && !isMotoGP && (
           <>
             <LinearGradient
               colors={[`${accentColor}14`, 'transparent']}
@@ -328,7 +324,7 @@ export default function LeaderboardsScreen() {
                 backgroundColor: seriesColors.surfaceHighlight,
                 borderColor: seriesColors.border,
               },
-              angularBadgeCorners,
+              motogpBadgeOverrides,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -338,6 +334,9 @@ export default function LeaderboardsScreen() {
             <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{item.rank}
             </Text>
+            {isMotoGP && (
+              <ChamferOverlay chamferSize={8} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.surface} />
+            )}
           </View>
         </View>
 
@@ -391,7 +390,7 @@ export default function LeaderboardsScreen() {
               style={[
                 styles.trendPill,
                 { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
-                isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+                isMotoGP && { borderRadius: 2 },
               ]}
             >
               <Shield size={13} color={Colors.textSecondary} />
@@ -405,6 +404,9 @@ export default function LeaderboardsScreen() {
             </Text>
           </View>
         </View>
+        {isMotoGP && (
+          <ChamferOverlay chamferSize={12} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.background} />
+        )}
       </AnimatedPressable>
     );
   };
@@ -433,12 +435,7 @@ export default function LeaderboardsScreen() {
             backgroundColor: `${color}0D`,
           },
           isMotoGP
-            ? {
-                borderTopLeftRadius: 0,
-                borderTopRightRadius: seriesColors.cardRadius,
-                borderBottomLeftRadius: seriesColors.cardRadius,
-                borderBottomRightRadius: 0,
-              }
+            ? { borderRadius: 0, borderWidth: 0 }
             : { borderRadius: 18 },
         ]}
       >
@@ -477,7 +474,7 @@ export default function LeaderboardsScreen() {
               style={[
                 styles.podiumRankBubble,
                 { backgroundColor: color },
-                isMotoGP && { borderRadius: 2, borderTopLeftRadius: 0 },
+                isMotoGP && { borderRadius: 2 },
               ]}
             >
               <Text style={styles.podiumRankBubbleText}>#{rank}</Text>
@@ -497,6 +494,9 @@ export default function LeaderboardsScreen() {
         <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
           {points.toLocaleString()} pts
         </Text>
+        {isMotoGP && (
+          <ChamferOverlay chamferSize={12} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
+        )}
       </View>
     );
   };
@@ -560,16 +560,14 @@ export default function LeaderboardsScreen() {
                     borderColor: `${color}55`,
                   },
                   isMotoGP
-                    ? {
-                        borderTopLeftRadius: 0,
-                        borderTopRightRadius: seriesColors.cardRadius,
-                        borderBottomLeftRadius: seriesColors.cardRadius,
-                        borderBottomRightRadius: 0,
-                      }
+                    ? { borderRadius: 0, borderWidth: 0 }
                     : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                {isMotoGP && (
+                  <ChamferOverlay chamferSize={10} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
+                )}
               </View>
             </AnimatedPressable>
           );
@@ -621,16 +619,14 @@ export default function LeaderboardsScreen() {
                     borderColor: `${color}55`,
                   },
                   isMotoGP
-                    ? {
-                        borderTopLeftRadius: 0,
-                        borderTopRightRadius: seriesColors.cardRadius,
-                        borderBottomLeftRadius: seriesColors.cardRadius,
-                        borderBottomRightRadius: 0,
-                      }
+                    ? { borderRadius: 0, borderWidth: 0 }
                     : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
+                {isMotoGP && (
+                  <ChamferOverlay chamferSize={10} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
+                )}
               </View>
             </AnimatedPressable>
           );
@@ -646,7 +642,7 @@ export default function LeaderboardsScreen() {
           style={[
             styles.tab,
             { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+            isMotoGP && { borderRadius: 2 },
             activeTab === 'global' && {
               backgroundColor: seriesColors.primary,
               borderColor: seriesColors.primary,
@@ -663,7 +659,7 @@ export default function LeaderboardsScreen() {
           style={[
             styles.tab,
             { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+            isMotoGP && { borderRadius: 2 },
             activeTab === 'league' && {
               backgroundColor: seriesColors.primary,
               borderColor: seriesColors.primary,
