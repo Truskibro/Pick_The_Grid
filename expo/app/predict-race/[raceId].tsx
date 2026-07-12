@@ -831,19 +831,19 @@ export default function PredictRaceScreen() {
   const dnfDriver = dnf ? driverById(dnf) : undefined;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: seriesColors.background }]}>
       <Animated.ScrollView
         style={[styles.flex, { opacity: fadeAnim }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={[`${seriesColors.primary}30`, Colors.background]}
+          colors={[`${seriesColors.primary}30`, seriesColors.background]}
           style={styles.hero}
         >
           <View style={styles.heroTop}>
             <View style={styles.heroLeft}>
-              <Text style={styles.targetLabel}>PREDICTING</Text>
+              <Text style={[styles.targetLabel, { color: seriesColors.primary }]}>PREDICTING</Text>
               <Text style={styles.raceName}>{race.name}</Text>
 
               <View style={styles.heroLocationRow}>
@@ -854,8 +854,8 @@ export default function PredictRaceScreen() {
               </View>
             </View>
 
-            <View style={styles.roundBadge}>
-              <Text style={styles.roundBadgeLabel}>R{race.round}</Text>
+            <View style={[styles.roundBadge, { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border }]}>
+              <Text style={[styles.roundBadgeLabel, { color: seriesColors.primary }]}>R{race.round}</Text>
             </View>
           </View>
 
@@ -867,8 +867,8 @@ export default function PredictRaceScreen() {
           </View>
 
           {locked && (
-            <View style={styles.lockedBanner}>
-              <Lock color={Colors.f1Red} size={16} />
+            <View style={[styles.lockedBanner, { borderColor: `${seriesColors.primary}30` }]}>
+              <Lock color={seriesColors.primary} size={16} />
               <Text style={styles.lockedText}>
                 {locked && sprintLocked
                   ? 'Race & sprint predictions locked'
@@ -880,7 +880,7 @@ export default function PredictRaceScreen() {
           )}
 
           {!locked && sprintLocked && race.hasSprint && (
-            <View style={styles.lockedBanner}>
+            <View style={[styles.lockedBanner, { borderColor: `${Colors.info}30` }]}>
               <Lock color={Colors.info} size={16} />
               <Text style={styles.lockedText}>
                 Sprint predictions locked — race picks still open

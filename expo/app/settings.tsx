@@ -58,6 +58,7 @@ export default function SettingsScreen() {
   const { leagues: allLeagues, totalPoints, predictions } = useGame();
   const { unlockedCount, totalTiersCount, unlockedTiersCount } = useAchievements();
   const { currentSeries, switchSeries, config } = useSeries();
+  const seriesColors = config.colors;
 
   const leagues = useMemo(() =>
     allLeagues.filter((l) => (l.seriesId ?? 'f1') === currentSeries),
@@ -197,9 +198,9 @@ export default function SettingsScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView style={[styles.container, { backgroundColor: seriesColors.background }]} contentContainerStyle={styles.content}>
       <View style={styles.heroWrap}>
-        <LinearGradient colors={[Colors.f1RedDark, '#1A1025']} style={styles.hero}>
+        <LinearGradient colors={[seriesColors.primaryDark, seriesColors.surfaceElevated]} style={styles.hero}>
           <View style={styles.heroPattern} />
 
           <View style={styles.heroTop}>
@@ -209,7 +210,7 @@ export default function SettingsScreen() {
               </View>
             </View>
 
-            <AnimatedPressable style={styles.editPill} onPress={openEditor}>
+            <AnimatedPressable style={[styles.editPill, { backgroundColor: seriesColors.primary }]} onPress={openEditor}>
               {isGuest ? <LogIn size={14} color="#FFF" /> : <Pencil size={14} color="#FFF" />}
               <Text style={styles.editPillText}>{isGuest ? 'Sign In' : 'Edit'}</Text>
             </AnimatedPressable>
@@ -262,7 +263,7 @@ export default function SettingsScreen() {
       {isGuest && (
         <AnimatedPressable style={styles.signInBanner} onPress={() => router.push('/auth' as any)}>
           <View style={styles.signInIcon}>
-            <LogIn size={18} color={Colors.f1Red} />
+            <LogIn size={18} color={seriesColors.primary} />
           </View>
 
           <View style={styles.signInContent}>

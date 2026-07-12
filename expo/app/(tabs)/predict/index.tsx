@@ -782,19 +782,19 @@ export default function PredictScreen() {
   const dnfDriver = dnf ? driverById(dnf) : undefined;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: seriesColors.background }]}>
       <Animated.ScrollView
         style={[styles.flex, { opacity: fadeAnim }]}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
         <LinearGradient
-          colors={['rgba(225,6,0,0.18)', Colors.background]}
+          colors={[`${seriesColors.primary}30`, seriesColors.background]}
           style={styles.hero}
         >
           <View style={styles.heroTop}>
             <View style={styles.heroLeft}>
-              <Text style={styles.targetLabel}>PICK YOUR GRID</Text>
+              <Text style={[styles.targetLabel, { color: seriesColors.primary }]}>{seriesLabels.heroTitle.toUpperCase()}</Text>
               <Text style={styles.raceName}>{nextRace.name}</Text>
 
               <View style={styles.heroLocationRow}>
@@ -805,8 +805,8 @@ export default function PredictScreen() {
               </View>
             </View>
 
-            <View style={styles.roundBadge}>
-              <Text style={styles.roundBadgeLabel}>R{nextRace.round}</Text>
+            <View style={[styles.roundBadge, { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border }]}>
+              <Text style={[styles.roundBadgeLabel, { color: seriesColors.primary }]}>R{nextRace.round}</Text>
             </View>
           </View>
 
@@ -818,8 +818,8 @@ export default function PredictScreen() {
           </View>
 
           {locked && (
-            <View style={styles.lockedBanner}>
-              <Lock color={Colors.f1Red} size={16} />
+            <View style={[styles.lockedBanner, { borderColor: `${seriesColors.primary}30` }]}>
+              <Lock color={seriesColors.primary} size={16} />
               <Text style={styles.lockedText}>
                 {locked && sprintLocked
                   ? 'Race & sprint predictions locked'
@@ -831,7 +831,7 @@ export default function PredictScreen() {
           )}
 
           {!locked && sprintLocked && nextRace.hasSprint && (
-            <View style={styles.lockedBanner}>
+            <View style={[styles.lockedBanner, { borderColor: `${Colors.info}30` }]}>
               <Lock color={Colors.info} size={16} />
               <Text style={styles.lockedText}>
                 Sprint predictions locked — race picks still open
@@ -873,7 +873,8 @@ export default function PredictScreen() {
               onPress={() => setActiveTab('race')}
               style={[
                 styles.tabButton,
-                activeTab === 'race' && styles.tabButtonActiveRace,
+                { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+                activeTab === 'race' && { borderColor: seriesColors.primary, backgroundColor: `${seriesColors.primary}14` },
               ]}
               scaleDown={0.97}
             >
@@ -893,6 +894,7 @@ export default function PredictScreen() {
               <View
                 style={[
                   styles.tabCount,
+                  { backgroundColor: seriesColors.surfaceHighlight },
                   activeTab === 'race' && { backgroundColor: `${seriesColors.primary}22` },
                 ]}
               >
@@ -906,7 +908,8 @@ export default function PredictScreen() {
               onPress={() => setActiveTab('sprint')}
               style={[
                 styles.tabButton,
-                activeTab === 'sprint' && styles.tabButtonActiveSprint,
+                { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
+                activeTab === 'sprint' && { borderColor: Colors.info, backgroundColor: `${Colors.info}14` },
               ]}
               scaleDown={0.97}
             >
@@ -926,6 +929,7 @@ export default function PredictScreen() {
               <View
                 style={[
                   styles.tabCount,
+                  { backgroundColor: seriesColors.surfaceHighlight },
                   activeTab === 'sprint' && styles.tabCountSprint,
                 ]}
               >

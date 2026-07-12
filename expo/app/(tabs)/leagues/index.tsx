@@ -37,6 +37,7 @@ const { width: SCREEN_WIDTH } = Dimensions.get('window');
 export default function LeaguesScreen() {
   const router = useRouter();
   const { config, currentSeries } = useSeries();
+  const seriesColors = config.colors;
   const { leagues: allLeagues, getLeagueMembers, refreshLeagues, fetchPublicLeagues, joinLeague } = useGame();
   const { profile, isGuest } = useUser();
 
@@ -203,7 +204,7 @@ export default function LeaguesScreen() {
               ) : null}
             </View>
             <AnimatedPressable
-              style={[styles.joinBtn, isJoining && styles.joinBtnLoading]}
+              style={[styles.joinBtn, { backgroundColor: seriesColors.primary }, isJoining && styles.joinBtnLoading]}
               onPress={() => handleQuickJoin(item)}
             >
               {isJoining ? (

@@ -69,8 +69,10 @@ export default function RaceResultsScreen() {
     hour12: true,
   });
 
+  const seriesColors = config.colors;
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: seriesColors.background }]}>
       <Stack.Screen options={{ title: race.name }} />
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.raceHeader}>
@@ -91,7 +93,7 @@ export default function RaceResultsScreen() {
               backgroundColor: race.status === 'completed'
                 ? `${Colors.success}18`
                 : race.status === 'live'
-                ? `${Colors.f1Red}18`
+                ? `${seriesColors.primary}18`
                 : race.status === 'cancelled'
                 ? `${Colors.textMuted}18`
                 : `${Colors.info}18`
@@ -103,7 +105,7 @@ export default function RaceResultsScreen() {
                 color: race.status === 'completed'
                   ? Colors.success
                   : race.status === 'live'
-                  ? Colors.f1Red
+                  ? seriesColors.primary
                   : race.status === 'cancelled'
                   ? Colors.textMuted
                   : Colors.info
@@ -115,7 +117,7 @@ export default function RaceResultsScreen() {
         </View>
 
         {prediction && (prediction.pointsEarned + (prediction.sprintPointsEarned ?? 0)) > 0 && (
-          <View style={styles.pointsCard}>
+          <View style={[styles.pointsCard, { backgroundColor: `${Colors.warning}08`, borderColor: `${Colors.warning}20` }]}>
             <Trophy size={24} color={Colors.warning} />
             <View style={styles.pointsCardContent}>
               <Text style={styles.pointsCardLabel}>POINTS EARNED</Text>
@@ -147,13 +149,13 @@ export default function RaceResultsScreen() {
         )}
 
         {prediction && (prediction.pointsEarned + (prediction.sprintPointsEarned ?? 0)) === 0 && result && result.classification.length > 0 && (
-          <View style={styles.zeroPointsCard}>
+          <View style={[styles.zeroPointsCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
             <Text style={styles.zeroPointsText}>No points earned for this race</Text>
           </View>
         )}
 
         {race.status === 'cancelled' && (
-          <View style={styles.cancelledCard}>
+          <View style={[styles.cancelledCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
             <AlertTriangle size={24} color={Colors.textMuted} />
             <Text style={styles.cancelledTitle}>Race Cancelled</Text>
             <Text style={styles.cancelledText}>
@@ -163,14 +165,14 @@ export default function RaceResultsScreen() {
         )}
 
         {race.status === 'upcoming' && (
-          <View style={styles.upcomingCard}>
-            <Target size={24} color={Colors.f1Red} />
+          <View style={[styles.upcomingCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
+            <Target size={24} color={seriesColors.primary} />
             <Text style={styles.upcomingTitle}>Race hasn&apos;t started yet</Text>
             <Text style={styles.upcomingText}>
               Results will appear here after the race is completed.
             </Text>
             <AnimatedPressable
-              style={styles.predictBtn}
+              style={[styles.predictBtn, { backgroundColor: seriesColors.primary }]}
               onPress={() => router.push('/predict' as any)}
             >
               <Text style={styles.predictBtnText}>Make Your Prediction</Text>
@@ -217,7 +219,7 @@ export default function RaceResultsScreen() {
             </View>
 
             {/* Full classification table */}
-            <View style={styles.resultsCard}>
+            <View style={[styles.resultsCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
               {/* Table header */}
               <View style={styles.tableHeader}>
                 <Text style={styles.tableHeaderPos}>POS</Text>
@@ -317,8 +319,8 @@ export default function RaceResultsScreen() {
               <Text style={styles.positionCount}>{sprintResults.length} classified</Text>
             </View>
 
-            <View style={styles.resultsCard}>
-              <View style={styles.tableHeader}>
+            <View style={[styles.resultsCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
+              <View style={[styles.tableHeader, { backgroundColor: seriesColors.surfaceHighlight, borderBottomColor: seriesColors.borderLight }]}>
                 <Text style={styles.tableHeaderPos}>POS</Text>
                 <Text style={styles.tableHeaderDriver}>DRIVER</Text>
                 <Text style={styles.tableHeaderGap}>GAP</Text>
@@ -392,7 +394,7 @@ export default function RaceResultsScreen() {
                 </View>
               )}
             </View>
-            <View style={styles.predictionCard}>
+            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
               {prediction.sprintTop8.map((driverId, index) => {
                 const driver = getDriverById(driverId);
                 const team = driver ? getTeamById(driver.teamId) : undefined;
@@ -443,7 +445,7 @@ export default function RaceResultsScreen() {
                   ? `Prediction by @${prediction.username}`
                   : 'Your Prediction'}
             </Text>
-            <View style={styles.predictionCard}>
+            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
               {prediction.top10.map((driverId, index) => {
                 const driver = getDriverById(driverId);
                 const team = driver ? getTeamById(driver.teamId) : undefined;
@@ -547,7 +549,7 @@ export default function RaceResultsScreen() {
         <View style={styles.infoSection}>
           <Text style={styles.sectionTitle}>Race Info</Text>
           <View style={styles.infoGrid}>
-            <View style={styles.infoItem}>
+            <View style={[styles.infoItem, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
               <Text style={styles.infoLabel}>Round</Text>
               <Text style={styles.infoValue}>{race.round} / 22</Text>
             </View>

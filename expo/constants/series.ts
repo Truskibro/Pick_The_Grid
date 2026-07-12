@@ -155,20 +155,20 @@ const F1_CONFIG: SeriesConfig = {
 // ── MotoGP ──────────────────────────────────────────────────────────────────
 
 const MOTOGP_COLORS: SeriesColors = {
-  // Dark asphalt + electric red/orange
-  primary: '#FF4500',
-  primaryLight: '#FF6A2C',
-  primaryDark: '#CC3300',
-  background: '#08080A',
-  surface: '#121215',
-  surfaceElevated: '#1A1A1F',
-  surfaceHighlight: '#242429',
-  border: '#1C1C22',
-  borderLight: '#2A2A30',
-  tabBarBackground: '#08080A',
-  accentGlow: 'rgba(255, 69, 0, 0.15)',
-  heroGradient: ['#1A0A02', '#0F0A08', '#08080A'] as const,
-  asphalt: '#0C0C0E',
+  // MotoGP 2025 rebrand inspired: dark carbon slate + electric cyan + hot yellow.
+  // Neutral, flexible masterbrand with high-contrast accents that feels nothing like F1 red.
+  primary: '#00E5FF',
+  primaryLight: '#4DEEFF',
+  primaryDark: '#00A8CC',
+  background: '#0A0C0E',
+  surface: '#121418',
+  surfaceElevated: '#1A1E24',
+  surfaceHighlight: '#22282F',
+  border: '#1C2228',
+  borderLight: '#2A3138',
+  tabBarBackground: '#0A0C0E',
+  accentGlow: 'rgba(0, 229, 255, 0.15)',
+  heroGradient: ['#0A1E26', '#0E141A', '#0A0C0E'] as const,
 };
 
 const MOTOGP_CONFIG: SeriesConfig = {

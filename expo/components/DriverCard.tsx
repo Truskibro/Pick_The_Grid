@@ -4,6 +4,7 @@ import { Zap, AlertTriangle, ChevronUp, ChevronDown, Plus } from 'lucide-react-n
 import Colors from '@/constants/colors';
 import { Driver } from '@/types';
 import { useSeriesData } from '@/lib/useSeriesData';
+import { useSeries } from '@/providers/SeriesProvider';
 import AnimatedPressable from './AnimatedPressable';
 
 interface DriverCardProps {
@@ -38,6 +39,8 @@ export default React.memo(function DriverCard({
   selected,
 }: DriverCardProps) {
   const { getTeamById } = useSeriesData();
+  const { config } = useSeries();
+  const seriesColors = config.colors;
   const team = getTeamById(driver.teamId);
 
   if (compact) {
@@ -124,7 +127,7 @@ export default React.memo(function DriverCard({
       {onToggleFastestLap && !disabled && (
         <AnimatedPressable
           onPress={onToggleFastestLap}
-          style={[styles.flBtn, isFastestLap && styles.flBtnActive]}
+          style={[styles.flBtn, { backgroundColor: seriesColors.surfaceHighlight }, isFastestLap && styles.flBtnActive]}
           scaleDown={0.85}
           hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
         >
@@ -139,11 +142,9 @@ const styles = StyleSheet.create({
   card: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: Colors.surface,
     borderRadius: 14,
     overflow: 'hidden',
     borderWidth: 1,
-    borderColor: Colors.border,
     minHeight: 64,
   },
   cardSelected: {
@@ -172,7 +173,6 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surfaceHighlight,
   },
   reorderBtnDisabled: {
     backgroundColor: 'transparent',
@@ -244,7 +244,6 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     alignItems: 'center',
     justifyContent: 'center',
-    backgroundColor: Colors.surfaceHighlight,
     marginRight: 10,
   },
   flBtnActive: {

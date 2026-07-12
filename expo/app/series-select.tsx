@@ -185,24 +185,49 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
             </>
           ) : (
             <>
-              {/* Asphalt tire-mark detail for MotoGP */}
-              <View style={[styles.asphaltOverlay, { backgroundColor: colors.asphalt }]} />
+              {/* MotoGP: angular speed lines + leaning grid motif */}
               <View
                 style={[
-                  styles.tireMark,
-                  { top: -10, left: -20, width: 160, transform: [{ rotate: '15deg' }] },
+                  styles.speedLine,
+                  {
+                    top: 18,
+                    left: -40,
+                    width: 220,
+                    transform: [{ rotate: '-35deg' }],
+                    backgroundColor: colors.primary,
+                    opacity: 0.12,
+                  },
                 ]}
               />
               <View
                 style={[
-                  styles.tireMark,
-                  { top: 40, right: -30, width: 120, transform: [{ rotate: '-12deg' }] },
+                  styles.speedLine,
+                  {
+                    top: 58,
+                    right: -40,
+                    width: 180,
+                    transform: [{ rotate: '-35deg' }],
+                    backgroundColor: colors.primary,
+                    opacity: 0.06,
+                  },
                 ]}
               />
               <View
                 style={[
-                  styles.circuitDot,
-                  { top: 30, right: 80, backgroundColor: colors.primary },
+                  styles.leanLine,
+                  { top: 90, left: -10, width: 140, transform: [{ rotate: '55deg' }] },
+                ]}
+              />
+              <View
+                style={[
+                  styles.leanLine,
+                  { top: 120, right: -10, width: 100, transform: [{ rotate: '55deg' }] },
+                ]}
+              />
+              <View
+                style={[
+                  styles.hexAccent,
+                  { top: 24, right: 28, borderColor: colors.primary },
                 ]}
               />
             </>
@@ -314,19 +339,24 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     opacity: 0.3,
   },
-  asphaltOverlay: {
+  speedLine: {
     position: 'absolute',
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    opacity: 0.3,
+    height: 2,
+    borderRadius: 1,
   },
-  tireMark: {
+  leanLine: {
     position: 'absolute',
-    height: 6,
+    height: 1,
     backgroundColor: 'rgba(255,255,255,0.04)',
-    borderRadius: 3,
+  },
+  hexAccent: {
+    position: 'absolute',
+    width: 40,
+    height: 46,
+    borderWidth: 2,
+    borderRadius: 8,
+    opacity: 0.18,
+    transform: [{ rotate: '12deg' }, { skewX: '-12deg' }],
   },
   iconBadge: {
     width: 56,

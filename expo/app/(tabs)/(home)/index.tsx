@@ -47,8 +47,10 @@ export default function HomeScreen() {
     .toUpperCase()
     .slice(0, 2) || 'P';
 
+  const isMotoGP = currentSeries === 'motogp';
+
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, { backgroundColor: seriesColors.background }]}>
       <Stack.Screen
         options={{
           headerRight: () => (
@@ -69,24 +71,35 @@ export default function HomeScreen() {
         <Animated.View style={{ opacity: fadeAnim, transform: [{ translateY: slideAnim }] }}>
           {/* ── HERO SECTION ── */}
           <LinearGradient
-            colors={['#1A0204', '#10060C', '#0B0E11']}
+            colors={seriesColors.heroGradient as [string, string, string]}
             start={{ x: 0, y: 0 }}
             end={{ x: 0.3, y: 1 }}
             style={styles.hero}
           >
-            {/* Circuit accent lines */}
+            {/* Circuit / speed accent lines */}
             <View style={styles.circuitLines}>
-              <View style={[styles.circuitLine, { top: 20, left: -20, width: 180, transform: [{ rotate: '-28deg' }] }]} />
-              <View style={[styles.circuitLine, { top: 60, right: -40, width: 140, transform: [{ rotate: '22deg' }] }]} />
-              <View style={[styles.circuitDot, { top: 18, left: 155 }]} />
-              <View style={[styles.circuitDot, { top: 62, right: 95 }]} />
+              {isMotoGP ? (
+                <>
+                  <View style={[styles.speedLine, { top: 16, left: -30, width: 200, transform: [{ rotate: '-38deg' }], backgroundColor: seriesColors.primary }]} />
+                  <View style={[styles.speedLine, { top: 56, right: -50, width: 160, transform: [{ rotate: '-38deg' }], backgroundColor: seriesColors.primary }]} />
+                  <View style={[styles.leanLine, { top: 84, left: -10, width: 130, transform: [{ rotate: '52deg' }] }]} />
+                  <View style={[styles.circuitDot, { top: 14, left: 165, backgroundColor: seriesColors.primary }]} />
+                </>
+              ) : (
+                <>
+                  <View style={[styles.circuitLine, { top: 20, left: -20, width: 180, transform: [{ rotate: '-28deg' }] }]} />
+                  <View style={[styles.circuitLine, { top: 60, right: -40, width: 140, transform: [{ rotate: '22deg' }] }]} />
+                  <View style={[styles.circuitDot, { top: 18, left: 155 }]} />
+                  <View style={[styles.circuitDot, { top: 62, right: 95 }]} />
+                </>
+              )}
             </View>
 
             {/* Header row */}
             <View style={styles.heroHeader}>
               {isGuest ? (
                 <AnimatedPressable
-                  style={styles.signInPill}
+                  style={[styles.signInPill, { backgroundColor: seriesColors.primary }]}
                   onPress={() => router.push('/auth' as any)}
                 >
                   <LogIn size={13} color="#FFF" />
@@ -97,22 +110,22 @@ export default function HomeScreen() {
                   style={styles.userPill}
                   onPress={() => router.push('/settings' as any)}
                 >
-                  <View style={styles.avatarCircle}>
+                  <View style={[styles.avatarCircle, { backgroundColor: seriesColors.primary }]}>
                     <Text style={styles.avatarText}>{initials}</Text>
                   </View>
                   <Text style={styles.userPillName} numberOfLines={1}>{displayName}</Text>
                 </AnimatedPressable>
               )}
-              <View style={styles.seasonBadge}>
-                <View style={styles.liveDot} />
-                <Text style={styles.seasonBadgeText}>2026</Text>
+              <View style={[styles.seasonBadge, { backgroundColor: seriesColors.accentGlow, borderColor: `${seriesColors.primary}26` }]}>
+                <View style={[styles.liveDot, { backgroundColor: seriesColors.primary }]} />
+                <Text style={[styles.seasonBadgeText, { color: seriesColors.primary }]}>2026</Text>
               </View>
             </View>
 
             {/* Hero title */}
-            <Text style={styles.heroTitle}>Pick The Grid</Text>
+            <Text style={styles.heroTitle}>{seriesLabels.heroTitle}</Text>
             <Text style={styles.heroSubtitle}>
-              Predict the top 10. Score big. Own the paddock.
+              {seriesLabels.heroSubtitle}
             </Text>
           </LinearGradient>
 
@@ -345,6 +358,8 @@ function StatsCard({ icon, value, label, color }: {
 }
 
 function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }) {
+  const { config } = useSeries();
+  const seriesColors = config.colors;
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     month: 'short',
@@ -352,9 +367,9 @@ function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }
   });
 
   return (
-    <AnimatedPressable onPress={onPress} style={styles.upcomingCard}>
+    <AnimatedPressable onPress={onPress} style={[styles.upcomingCard, { borderColor: seriesColors.border }]}>
       <LinearGradient
-        colors={[Colors.surface, Colors.surfaceElevated]}
+        colors={[seriesColors.surface, seriesColors.surfaceElevated]}
         style={styles.upcomingCardInner}
       >
         <View style={styles.upcomingCardTop}>
@@ -371,17 +386,18 @@ function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }
   );
 }
 
-function HowStep({ step, icon, title, text }: {
+function HowStep({ step, icon, title, text, isMotoGP }: {
   step: string;
   icon: React.ReactNode;
   title: string;
   text: string;
+  isMotoGP?: boolean;
 }) {
   return (
     <View style={styles.howStep}>
       <View style={styles.howStepLeft}>
-        <View style={styles.howStepNum}>
-          <Text style={styles.howStepNumText}>{step}</Text>
+        <View style={[styles.howStepNum, isMotoGP && styles.howStepNumMotoGP]}>
+          <Text style={[styles.howStepNumText, isMotoGP && styles.howStepNumTextMotoGP]}>{step}</Text>
         </View>
       </View>
       <View style={styles.howStepContent}>
@@ -430,6 +446,16 @@ const styles = StyleSheet.create({
     position: 'absolute',
     height: 1,
     backgroundColor: 'rgba(225, 6, 0, 0.08)',
+  },
+  speedLine: {
+    position: 'absolute',
+    height: 2,
+    borderRadius: 1,
+  },
+  leanLine: {
+    position: 'absolute',
+    height: 1,
+    backgroundColor: 'rgba(255,255,255,0.04)',
   },
   circuitDot: {
     position: 'absolute',
@@ -827,10 +853,20 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  howStepNumMotoGP: {
+    borderRadius: 6,
+    transform: [{ rotate: '-12deg' }],
+    backgroundColor: 'rgba(0, 229, 255, 0.1)',
+    borderColor: 'rgba(0, 229, 255, 0.25)',
+  },
   howStepNumText: {
     color: Colors.f1Red,
     fontSize: 11,
     fontWeight: '700' as const,
+  },
+  howStepNumTextMotoGP: {
+    color: '#00E5FF',
+    transform: [{ rotate: '12deg' }],
   },
   howStepContent: {
     flex: 1,

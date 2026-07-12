@@ -3,6 +3,7 @@ import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
 import { MapPin, Clock, Trophy, Zap, PlayCircle, Flame, CheckCircle, AlertTriangle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getSeriesConfig } from '@/constants/series';
+import { useSeries } from '@/providers/SeriesProvider';
 import { Race } from '@/types';
 import AnimatedPressable from './AnimatedPressable';
 
@@ -22,6 +23,8 @@ interface RaceCardProps {
 }
 
 export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned, sprintPointsEarned, hasPrediction = false, pickNames, fastestLapPickName, dnfPickName }: RaceCardProps) {
+  const { config } = useSeries();
+  const seriesColors = config.colors;
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -77,7 +80,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
         </View>
       )}
       <View style={styles.cardBody}>
-      <View style={[styles.roundBadge, race.hasSprint && styles.roundBadgeSprint]}>
+      <View style={[styles.roundBadge, { backgroundColor: seriesColors.surfaceHighlight }, race.hasSprint && styles.roundBadgeSprint]}>
         <Text style={[styles.roundText, race.hasSprint && styles.roundTextSprint]}>R{race.round}</Text>
       </View>
 
