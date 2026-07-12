@@ -149,7 +149,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
       <AnimatedPressable
         onPress={onSelect}
         scaleDown={0.97}
-        style={styles.cardWrapper}
+        style={[styles.cardWrapper, !isF1 && styles.cardWrapperMotoGP]}
       >
         <LinearGradient
           colors={colors.heroGradient as [string, string, string]}
@@ -158,6 +158,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
           style={[
             styles.card,
             isF1 ? styles.f1Card : styles.motogpCard,
+            !isF1 && styles.cardMotoGP,
             { borderColor: colors.primary },
           ]}
         >
@@ -230,6 +231,12 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
                   { top: 24, right: 28, borderColor: colors.primary },
                 ]}
               />
+              <View
+                style={[
+                  styles.hexAccent,
+                  { top: 24, right: 28, borderColor: colors.highlight, opacity: 0.12 },
+                ]}
+              />
             </>
           )}
 
@@ -237,6 +244,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
           <View
             style={[
               styles.iconBadge,
+              !isF1 && styles.iconBadgeMotoGP,
               { backgroundColor: `${colors.primary}22`, borderColor: colors.primary },
             ]}
           >
@@ -256,6 +264,7 @@ function SeriesCard({ seriesId, name, tagline, colors, onSelect, delay }: Series
             <View
               style={[
                 styles.enterBtn,
+                !isF1 && styles.enterBtnMotoGP,
                 {
                   backgroundColor: colors.primary,
                 },
@@ -316,6 +325,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     overflow: 'hidden',
   },
+  cardWrapperMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   card: {
     minHeight: 200,
     padding: 24,
@@ -323,6 +337,11 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     position: 'relative',
     overflow: 'hidden',
+  },
+  cardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   f1Card: {},
   motogpCard: {},
@@ -367,6 +386,11 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     marginBottom: 16,
   },
+  iconBadgeMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   cardTextContainer: {
     marginBottom: 20,
   },
@@ -390,6 +414,11 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
     paddingVertical: 12,
     borderRadius: 12,
+  },
+  enterBtnMotoGP: {
+    borderRadius: 2,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   enterBtnText: {
     color: '#FFF',

@@ -13,6 +13,7 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const { races, isRefreshing, refreshAll, getRaceResult, getDriverById } = useSeriesData();
   const { getPrediction, refreshPredictions } = useGame();
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -66,7 +67,7 @@ export default function CalendarScreen() {
           if (item.type === 'header') {
             return (
               <View style={styles.sectionHeader}>
-                <Text style={[styles.sectionTitle, { color: seriesColors.primary }]}>{item.title}</Text>
+                <Text style={[styles.sectionTitle, isMotoGP && styles.sectionTitleMotoGP]}>{item.title}</Text>
                 <View style={[styles.sectionLine, { backgroundColor: seriesColors.border }]} />
               </View>
             );
@@ -187,6 +188,9 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '700' as const,
     letterSpacing: 2,
+  },
+  sectionTitleMotoGP: {
+    color: '#00E5FF',
   },
   sectionLine: {
     flex: 1,

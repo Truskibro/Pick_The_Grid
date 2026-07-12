@@ -38,6 +38,7 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
@@ -127,7 +128,10 @@ export default function LeaderboardsScreen() {
   const leagueTop3 = leagueRankings.slice(0, 3);
   const leagueRest = leagueRankings.slice(3);
 
-  const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
+  // Series-aware podium colors: MotoGP uses yellow + cyan shades, F1 uses gold/silver/bronze.
+  const podiumColors = isMotoGP
+    ? [seriesColors.highlight, seriesColors.primary, seriesColors.primaryLight]
+    : ['#FFD700', '#C0C0C0', '#CD7F32'];
   const podiumSizes = [72, 60, 56];
   const podiumHeights = [100, 80, 64];
 
@@ -141,6 +145,25 @@ export default function LeaderboardsScreen() {
 
   const leaguePodiumOrder =
     leagueTop3.length >= 3 ? [leagueTop3[1], leagueTop3[0], leagueTop3[2]] : leagueTop3;
+
+  // Angular corner style for MotoGP cards (cut-corner effect)
+  const angularCardCorners = isMotoGP
+    ? {
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: seriesColors.cardRadius,
+        borderBottomLeftRadius: seriesColors.cardRadius,
+        borderBottomRightRadius: 0,
+      }
+    : { borderRadius: seriesColors.cardRadius };
+
+  const angularBadgeCorners = isMotoGP
+    ? {
+        borderTopLeftRadius: 0,
+        borderTopRightRadius: seriesColors.badgeRadius,
+        borderBottomLeftRadius: seriesColors.badgeRadius,
+        borderBottomRightRadius: 0,
+      }
+    : { borderRadius: seriesColors.badgeRadius };
 
   const renderTrendIcon = (entry: LeaderboardEntry) => {
     if (!entry.previousRank) {
@@ -167,7 +190,8 @@ export default function LeaderboardsScreen() {
         style={[
           styles.rankRow,
           { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          accentColor && styles.rankRowTop,
+          angularCardCorners,
+          accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
@@ -188,7 +212,11 @@ export default function LeaderboardsScreen() {
           <View
             style={[
               styles.rankBadge,
-              { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border },
+              {
+                backgroundColor: seriesColors.surfaceHighlight,
+                borderColor: seriesColors.border,
+              },
+              angularBadgeCorners,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -220,19 +248,37 @@ export default function LeaderboardsScreen() {
 
             <View style={styles.pointsColumn}>
               <Text
-                style={[styles.pointsText, accentColor && { color: accentColor }]}
+                style={[
+                  styles.pointsText,
+                  accentColor
+                    ? { color: accentColor }
+                    : isMotoGP && { color: seriesColors.highlight },
+                ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
               >
                 {item.totalPoints.toLocaleString()}
               </Text>
-              <Text style={styles.pointsLabel}>PTS</Text>
+              <Text
+                style={[
+                  styles.pointsLabel,
+                  isMotoGP && !accentColor && { color: `${seriesColors.highlight}99` },
+                ]}
+              >
+                PTS
+              </Text>
             </View>
           </View>
 
           <View style={styles.rowBottom}>
-            <View style={styles.trendPill}>
+            <View
+              style={[
+                styles.trendPill,
+                { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
+                isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+              ]}
+            >
               {renderTrendIcon(item)}
               <Text style={styles.trendText} numberOfLines={1}>
                 {item.previousRank ? `Prev #${item.previousRank}` : 'New Entry'}
@@ -256,7 +302,8 @@ export default function LeaderboardsScreen() {
         style={[
           styles.rankRow,
           { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          accentColor && styles.rankRowTop,
+          angularCardCorners,
+          accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
       >
@@ -277,7 +324,11 @@ export default function LeaderboardsScreen() {
           <View
             style={[
               styles.rankBadge,
-              { backgroundColor: seriesColors.surfaceHighlight, borderColor: seriesColors.border },
+              {
+                backgroundColor: seriesColors.surfaceHighlight,
+                borderColor: seriesColors.border,
+              },
+              angularBadgeCorners,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -312,19 +363,37 @@ export default function LeaderboardsScreen() {
 
             <View style={styles.pointsColumn}>
               <Text
-                style={[styles.pointsText, accentColor && { color: accentColor }]}
+                style={[
+                  styles.pointsText,
+                  accentColor
+                    ? { color: accentColor }
+                    : isMotoGP && { color: seriesColors.highlight },
+                ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
                 minimumFontScale={0.75}
               >
                 {item.combinedPoints.toLocaleString()}
               </Text>
-              <Text style={styles.pointsLabel}>PTS</Text>
+              <Text
+                style={[
+                  styles.pointsLabel,
+                  isMotoGP && !accentColor && { color: `${seriesColors.highlight}99` },
+                ]}
+              >
+                PTS
+              </Text>
             </View>
           </View>
 
           <View style={styles.rowBottom}>
-            <View style={styles.trendPill}>
+            <View
+              style={[
+                styles.trendPill,
+                { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
+                isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+              ]}
+            >
               <Shield size={13} color={Colors.textSecondary} />
               <Text style={styles.trendText} numberOfLines={1}>
                 League
@@ -363,6 +432,14 @@ export default function LeaderboardsScreen() {
             borderColor: `${color}35`,
             backgroundColor: `${color}0D`,
           },
+          isMotoGP
+            ? {
+                borderTopLeftRadius: 0,
+                borderTopRightRadius: seriesColors.cardRadius,
+                borderBottomLeftRadius: seriesColors.cardRadius,
+                borderBottomRightRadius: 0,
+              }
+            : { borderRadius: 18 },
         ]}
       >
         <View style={styles.avatarSlot}>
@@ -373,7 +450,7 @@ export default function LeaderboardsScreen() {
                 {
                   width: size + 10,
                   height: size + 10,
-                  borderRadius: (size + 10) / 2,
+                  borderRadius: isMotoGP ? 4 : (size + 10) / 2,
                   backgroundColor: `${color}10`,
                 },
               ]}
@@ -387,6 +464,7 @@ export default function LeaderboardsScreen() {
                   height: size,
                   borderColor: color,
                   backgroundColor: seriesColors.surfaceHighlight,
+                  borderRadius: isMotoGP ? 2 : 999,
                 },
               ]}
             >
@@ -395,7 +473,13 @@ export default function LeaderboardsScreen() {
               </Text>
             </View>
 
-            <View style={[styles.podiumRankBubble, { backgroundColor: color }]}>
+            <View
+              style={[
+                styles.podiumRankBubble,
+                { backgroundColor: color },
+                isMotoGP && { borderRadius: 2, borderTopLeftRadius: 0 },
+              ]}
+            >
               <Text style={styles.podiumRankBubbleText}>#{rank}</Text>
             </View>
           </View>
@@ -475,6 +559,14 @@ export default function LeaderboardsScreen() {
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
                   },
+                  isMotoGP
+                    ? {
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: seriesColors.cardRadius,
+                        borderBottomLeftRadius: seriesColors.cardRadius,
+                        borderBottomRightRadius: 0,
+                      }
+                    : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
@@ -528,6 +620,14 @@ export default function LeaderboardsScreen() {
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
                   },
+                  isMotoGP
+                    ? {
+                        borderTopLeftRadius: 0,
+                        borderTopRightRadius: seriesColors.cardRadius,
+                        borderBottomLeftRadius: seriesColors.cardRadius,
+                        borderBottomRightRadius: 0,
+                      }
+                    : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
@@ -546,7 +646,11 @@ export default function LeaderboardsScreen() {
           style={[
             styles.tab,
             { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            activeTab === 'global' && { backgroundColor: seriesColors.primary, borderColor: seriesColors.primary },
+            isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+            activeTab === 'global' && {
+              backgroundColor: seriesColors.primary,
+              borderColor: seriesColors.primary,
+            },
           ]}
           onPress={() => setActiveTab('global')}
         >
@@ -559,7 +663,11 @@ export default function LeaderboardsScreen() {
           style={[
             styles.tab,
             { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            activeTab === 'league' && { backgroundColor: seriesColors.primary, borderColor: seriesColors.primary },
+            isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0 },
+            activeTab === 'league' && {
+              backgroundColor: seriesColors.primary,
+              borderColor: seriesColors.primary,
+            },
           ]}
           onPress={() => setActiveTab('league')}
         >
@@ -621,7 +729,6 @@ export default function LeaderboardsScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: Colors.background,
   },
 
   tabRow: {
@@ -636,20 +743,13 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     borderRadius: 10,
     alignItems: 'center',
-    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: Colors.border,
-  },
-
-  tabActive: {
-    backgroundColor: Colors.f1Red,
-    borderColor: Colors.f1Red,
   },
 
   tabText: {
     color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
 
   tabTextActive: {
@@ -705,7 +805,6 @@ const styles = StyleSheet.create({
   podiumProfileCard: {
     width: '100%',
     height: 124,
-    borderRadius: 18,
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'flex-start',
@@ -733,16 +832,14 @@ const styles = StyleSheet.create({
   },
 
   podiumAvatar: {
-    borderRadius: 999,
     borderWidth: 3,
-    backgroundColor: Colors.surfaceHighlight,
     alignItems: 'center',
     justifyContent: 'center',
   },
 
   podiumInitials: {
     color: Colors.text,
-    fontWeight: '900',
+    fontWeight: '900' as const,
   },
 
   podiumRankBubble: {
@@ -762,14 +859,14 @@ const styles = StyleSheet.create({
   podiumRankBubbleText: {
     color: '#000',
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '900' as const,
   },
 
   podiumName: {
     color: Colors.text,
     fontSize: 11,
     lineHeight: 13,
-    fontWeight: '900',
+    fontWeight: '900' as const,
     textAlign: 'center',
     width: '100%',
     height: 26,
@@ -777,7 +874,7 @@ const styles = StyleSheet.create({
 
   podiumPoints: {
     fontSize: 10,
-    fontWeight: '900',
+    fontWeight: '900' as const,
     marginTop: 2,
     textAlign: 'center',
   },
@@ -785,7 +882,6 @@ const styles = StyleSheet.create({
   podiumBar: {
     width: '100%',
     marginTop: 8,
-    borderRadius: 12,
     alignItems: 'center',
     justifyContent: 'center',
     borderWidth: 1,
@@ -793,26 +889,19 @@ const styles = StyleSheet.create({
 
   podiumRank: {
     fontSize: 17,
-    fontWeight: '900',
+    fontWeight: '900' as const,
   },
 
   rankRow: {
     minHeight: 86,
     flexDirection: 'row',
     alignItems: 'stretch',
-    backgroundColor: Colors.surface,
-    borderRadius: 16,
     paddingVertical: 12,
     paddingLeft: 10,
     paddingRight: 12,
     marginBottom: 12,
     borderWidth: 1,
-    borderColor: Colors.border,
     overflow: 'hidden',
-  },
-
-  rankRowTop: {
-    borderColor: 'rgba(255,214,10,0.16)',
   },
 
   accentStrip: {
@@ -822,8 +911,6 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     bottom: 0,
-    borderTopLeftRadius: 16,
-    borderBottomLeftRadius: 16,
   },
 
   rankColumn: {
@@ -836,10 +923,7 @@ const styles = StyleSheet.create({
   rankBadge: {
     minWidth: 34,
     height: 34,
-    borderRadius: 17,
-    backgroundColor: Colors.surfaceHighlight,
     borderWidth: 1,
-    borderColor: Colors.border,
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 5,
@@ -848,7 +932,7 @@ const styles = StyleSheet.create({
   rankBadgeText: {
     color: Colors.textSecondary,
     fontSize: 12,
-    fontWeight: '900',
+    fontWeight: '900' as const,
   },
 
   rowMain: {
@@ -874,7 +958,7 @@ const styles = StyleSheet.create({
     color: Colors.text,
     fontSize: 18,
     lineHeight: 21,
-    fontWeight: '900',
+    fontWeight: '900' as const,
     letterSpacing: -0.25,
   },
 
@@ -882,7 +966,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 12,
     lineHeight: 15,
-    fontWeight: '600',
+    fontWeight: '600' as const,
     marginTop: 2,
   },
 
@@ -903,7 +987,7 @@ const styles = StyleSheet.create({
   pointsText: {
     color: Colors.text,
     fontSize: 23,
-    fontWeight: '900',
+    fontWeight: '900' as const,
     lineHeight: 25,
     letterSpacing: -0.5,
   },
@@ -911,7 +995,7 @@ const styles = StyleSheet.create({
   pointsLabel: {
     color: Colors.textMuted,
     fontSize: 9,
-    fontWeight: '900',
+    fontWeight: '900' as const,
     letterSpacing: 1.2,
     marginTop: 1,
   },
@@ -929,9 +1013,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
-    backgroundColor: 'rgba(255,255,255,0.055)',
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.08)',
     borderRadius: 999,
     paddingHorizontal: 8,
     paddingVertical: 4,
@@ -940,14 +1022,14 @@ const styles = StyleSheet.create({
   trendText: {
     color: Colors.textSecondary,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
 
   rankMetaText: {
     flexShrink: 1,
     color: Colors.textMuted,
     fontSize: 10,
-    fontWeight: '700',
+    fontWeight: '700' as const,
     textAlign: 'right',
   },
 
@@ -960,7 +1042,7 @@ const styles = StyleSheet.create({
   emptyTitle: {
     color: Colors.text,
     fontSize: 20,
-    fontWeight: '700',
+    fontWeight: '700' as const,
   },
 
   emptyText: {

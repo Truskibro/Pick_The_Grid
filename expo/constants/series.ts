@@ -67,6 +67,8 @@ export interface SeriesColors {
   primaryLight: string;
   /** Darker accent */
   primaryDark: string;
+  /** Secondary highlight color (MotoGP yellow, F1 amber) */
+  highlight: string;
   /** Background base */
   background: string;
   /** Surface card color */
@@ -85,8 +87,12 @@ export interface SeriesColors {
   accentGlow: string;
   /** Hero gradient stops */
   heroGradient: readonly [string, string, string];
-  /** Asphalt texture color (for MotoGP vibe) */
-  asphalt?: string;
+  /** Card corner radius (F1 = rounded, MotoGP = angular) */
+  cardRadius: number;
+  /** Badge/button corner radius */
+  badgeRadius: number;
+  /** Whether this series uses angular/sharp design language */
+  angular: boolean;
 }
 
 export interface SeriesConfig {
@@ -109,6 +115,7 @@ const F1_COLORS: SeriesColors = {
   primary: '#E10600',
   primaryLight: '#FF2D2D',
   primaryDark: '#B30500',
+  highlight: '#FFD700',
   background: '#0B0E11',
   surface: '#141820',
   surfaceElevated: '#1A1F2A',
@@ -118,6 +125,9 @@ const F1_COLORS: SeriesColors = {
   tabBarBackground: '#0B0E11',
   accentGlow: 'rgba(225, 6, 0, 0.15)',
   heroGradient: ['#1A0204', '#10060C', '#0B0E11'] as const,
+  cardRadius: 16,
+  badgeRadius: 12,
+  angular: false,
 };
 
 const F1_CONFIG: SeriesConfig = {
@@ -155,11 +165,11 @@ const F1_CONFIG: SeriesConfig = {
 // ── MotoGP ──────────────────────────────────────────────────────────────────
 
 const MOTOGP_COLORS: SeriesColors = {
-  // MotoGP 2025 rebrand inspired: dark carbon slate + electric cyan + hot yellow.
-  // Neutral, flexible masterbrand with high-contrast accents that feels nothing like F1 red.
+  // MotoGP 2025 rebrand: dark carbon slate + electric cyan + hot yellow.
   primary: '#00E5FF',
   primaryLight: '#4DEEFF',
   primaryDark: '#00A8CC',
+  highlight: '#FFF000',
   background: '#0A0C0E',
   surface: '#121418',
   surfaceElevated: '#1A1E24',
@@ -169,6 +179,9 @@ const MOTOGP_COLORS: SeriesColors = {
   tabBarBackground: '#0A0C0E',
   accentGlow: 'rgba(0, 229, 255, 0.15)',
   heroGradient: ['#0A1E26', '#0E141A', '#0A0C0E'] as const,
+  cardRadius: 4,
+  badgeRadius: 2,
+  angular: true,
 };
 
 const MOTOGP_CONFIG: SeriesConfig = {

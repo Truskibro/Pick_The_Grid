@@ -23,8 +23,9 @@ interface RaceCardProps {
 }
 
 export default React.memo(function RaceCard({ race, onPress, showStatus = true, pointsEarned, sprintPointsEarned, hasPrediction = false, pickNames, fastestLapPickName, dnfPickName }: RaceCardProps) {
-  const { config } = useSeries();
+  const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     weekday: 'short',
@@ -39,7 +40,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
 
   const statusColor =
     race.status === 'completed' ? Colors.success :
-    race.status === 'live' ? Colors.f1Red :
+    race.status === 'live' ? seriesColors.primary :
     race.status === 'cancelled' ? Colors.textMuted :
     Colors.info;
 
@@ -51,6 +52,12 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
 
   const totalPoints = (pointsEarned ?? 0) + (sprintPointsEarned ?? 0);
   const shouldShowPoints = race.status === 'completed' && pointsEarned !== undefined;
+  // MotoGP uses yellow highlight, F1 uses amber/warning
+  const pointsColor = isMotoGP ? seriesColors.highlight : Colors.warning;
+  // Angular corners for MotoGP cards
+  const angularCorners = isMotoGP
+    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: seriesColors.cardRadius }
+    : {};
   const hasPicks = (pickNames && pickNames.length > 0) || !!fastestLapPickName || !!dnfPickName;
   const shouldShowPicks = race.status === 'completed' && hasPicks;
   const shouldShowPredictionSaved = hasPrediction && !shouldShowPoints && !shouldShowPicks;
@@ -71,7 +78,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
   }, []);
 
   return (
-    <AnimatedPressable onPress={onPress} style={[styles.card, race.hasSprint && styles.cardSprint]}>
+    <AnimatedPressable onPress={onPress} style={[styles.card, angularCorners, race.hasSprint && styles.cardSprint]}>
       {race.hasSprint && (
         <View style={styles.sprintRibbon}>
           <Flame size={11} color={Colors.background} fill={Colors.background} />
@@ -114,8 +121,8 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
 
         {race.status === 'completed' && race.winner && (
           <View style={styles.winnerRow}>
-            <Trophy size={11} color={Colors.warning} />
-            <Text style={styles.winnerText}>{race.winner}</Text>
+            <Trophy size={11} color={pointsColor} />
+            <Text style={[styles.winnerText, { color: pointsColor }]}>{race.winner}</Text>
           </View>
         )}
 
@@ -123,8 +130,8 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
           <View style={styles.picksSection}>
             {/* Points header */}
             <View style={styles.picksHeader}>
-              <Trophy size={11} color={Colors.warning} />
-              <Text style={styles.picksHeaderText}>
+              <Trophy size={11} color={pointsColor} />
+              <Text style={[styles.picksHeaderText, { color: pointsColor }]}>
                 {totalPoints > 0 ? `+${totalPoints} pts` : '0 pts'}
               </Text>
             </View>
@@ -149,7 +156,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
               <View style={styles.bonusPicksRow}>
                 {fastestLapPickName && (
                   <View style={styles.bonusChip}>
-                    <Zap size={9} color={Colors.warning} />
+                    <Zap size={9} color={pointsColor} />
                     <Text style={styles.bonusChipLabel}>FL</Text>
                     <Text style={styles.bonusChipName} numberOfLines={1}>{fastestLapPickName}</Text>
                   </View>
@@ -168,8 +175,8 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
 
         {shouldShowPoints && !shouldShowPicks && (
           <View style={styles.pointsRow}>
-            <Zap size={11} color={Colors.warning} />
-            <Text style={styles.pointsText}>{totalPoints > 0 ? `+${totalPoints} pts earned` : '0 pts earned'}</Text>
+            <Zap size={11} color={pointsColor} />
+            <Text style={[styles.pointsText, { color: pointsColor }]}>{totalPoints > 0 ? `+${totalPoints} pts earned` : '0 pts earned'}</Text>
           </View>
         )}
 
@@ -183,9 +190,9 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
         )}
 
         {race.status === 'live' && (
-          <AnimatedPressable onPress={handleWatchLive} style={styles.watchButton} testID="watch-live-button">
+          <AnimatedPressable onPress={handleWatchLive} style={[styles.watchButton, { backgroundColor: seriesColors.primary }, isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }]} testID="watch-live-button">
             <PlayCircle size={14} color={Colors.text} />
-            <Text style={styles.watchText}>Watch Live on F1 TV</Text>
+            <Text style={styles.watchText}>{isMotoGP ? 'Watch Live on MotoGP VideoPass' : 'Watch Live on F1 TV'}</Text>
           </AnimatedPressable>
         )}
       </View>

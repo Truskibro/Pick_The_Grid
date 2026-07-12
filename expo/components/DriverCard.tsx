@@ -39,24 +39,34 @@ export default React.memo(function DriverCard({
   selected,
 }: DriverCardProps) {
   const { getTeamById } = useSeriesData();
-  const { config } = useSeries();
+  const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const team = getTeamById(driver.teamId);
+
+  // Angular corners for MotoGP
+  const angularCorners = isMotoGP
+    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: seriesColors.cardRadius }
+    : {};
+  const angularBadge = isMotoGP
+    ? { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }
+    : {};
+  const pointsColor = isMotoGP ? seriesColors.highlight : Colors.warning;
 
   if (compact) {
     return (
       <AnimatedPressable
         onPress={onPress}
         disabled={disabled}
-        style={[styles.compactCard, disabled && styles.disabledCard]}
+        style={[styles.compactCard, disabled && styles.disabledCard, angularCorners]}
       >
-        <View style={[styles.teamStripeCompact, { backgroundColor: team?.color || '#666' }]} />
+        <View style={[styles.teamStripeCompact, { backgroundColor: team?.color || '#666' }, isMotoGP && { borderTopLeftRadius: 0 }]} />
         <View style={styles.compactInfo}>
           <Text style={styles.compactName} numberOfLines={1}>{driver.name}</Text>
           <Text style={styles.compactTeam} numberOfLines={1}>{team?.shortName || ''}</Text>
         </View>
-        <Text style={styles.compactPoints}>{driver.championshipPoints} pts</Text>
-        <View style={styles.addIcon}>
+        <Text style={[styles.compactPoints, isMotoGP && { color: seriesColors.highlight }]}>{driver.championshipPoints} pts</Text>
+        <View style={[styles.addIcon, { backgroundColor: seriesColors.primary }, angularBadge]}>
           <Plus size={16} color="#FFF" />
         </View>
       </AnimatedPressable>
@@ -64,7 +74,7 @@ export default React.memo(function DriverCard({
   }
 
   return (
-    <View style={[styles.card, selected && styles.cardSelected]}>
+    <View style={[styles.card, selected && styles.cardSelected, angularCorners, selected && isMotoGP && { borderColor: seriesColors.primary }]}>
       <View style={[styles.teamStripe, { backgroundColor: team?.color || '#666' }]} />
 
       {onMoveUp && onMoveDown && !disabled && (
@@ -110,9 +120,9 @@ export default React.memo(function DriverCard({
 
         <View style={styles.badges}>
           {isFastestLap && (
-            <View style={[styles.chip, styles.fastestLapChip]}>
-              <Zap size={10} color={Colors.warning} />
-              <Text style={styles.chipText}>FL</Text>
+            <View style={[styles.chip, styles.fastestLapChip, isMotoGP && { backgroundColor: `${seriesColors.highlight}26` }]}>
+              <Zap size={10} color={pointsColor} />
+              <Text style={[styles.chipText, { color: pointsColor }]}>FL</Text>
             </View>
           )}
           {isDnf && (
@@ -127,11 +137,11 @@ export default React.memo(function DriverCard({
       {onToggleFastestLap && !disabled && (
         <AnimatedPressable
           onPress={onToggleFastestLap}
-          style={[styles.flBtn, { backgroundColor: seriesColors.surfaceHighlight }, isFastestLap && styles.flBtnActive]}
+          style={[styles.flBtn, { backgroundColor: seriesColors.surfaceHighlight }, isFastestLap && styles.flBtnActive, isMotoGP && { borderTopLeftRadius: 0, borderBottomRightRadius: 0, borderRadius: 2 }]}
           scaleDown={0.85}
           hitSlop={{ top: 10, bottom: 10, left: 6, right: 10 }}
         >
-          <Zap size={16} color={isFastestLap ? Colors.warning : Colors.textMuted} />
+          <Zap size={16} color={isFastestLap ? pointsColor : Colors.textMuted} />
         </AnimatedPressable>
       )}
     </View>

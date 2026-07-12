@@ -141,7 +141,7 @@ export default function HomeScreen() {
               </View>
 
               <AnimatedPressable
-                style={styles.spotlightCard}
+                style={[styles.spotlightCard, isMotoGP && styles.spotlightCardMotoGP]}
                 onPress={() => router.push('/calendar' as any)}
                 scaleDown={0.98}
               >
@@ -191,31 +191,35 @@ export default function HomeScreen() {
 
           {/* ── STATS DASHBOARD ── */}
           <View style={styles.statsSection}>
-            <Text style={styles.sectionLabel}>YOUR PADDOCK</Text>
+            <Text style={styles.sectionLabel}>{isMotoGP ? 'YOUR GARAGE' : 'YOUR PADDOCK'}</Text>
             <View style={styles.statsGrid}>
               <StatsCard
-                icon={<Trophy size={18} color={Colors.warning} />}
+                icon={<Trophy size={18} color={isMotoGP ? seriesColors.highlight : Colors.warning} />}
                 value={totalPoints}
                 label="Points"
-                color={Colors.warning}
+                color={isMotoGP ? seriesColors.highlight : Colors.warning}
+                isMotoGP={isMotoGP}
               />
               <StatsCard
                 icon={<Users size={18} color={Colors.info} />}
                 value={leagues.length}
                 label="Leagues"
                 color={Colors.info}
+                isMotoGP={isMotoGP}
               />
               <StatsCard
                 icon={<Target size={18} color={seriesColors.primary} />}
                 value={predictionsMade}
                 label="Picks Made"
                 color={seriesColors.primary}
+                isMotoGP={isMotoGP}
               />
               <StatsCard
                 icon={<Flag size={18} color={Colors.success} />}
                 value={drivers.length}
                 label={seriesLabels.competitors}
                 color={Colors.success}
+                isMotoGP={isMotoGP}
               />
             </View>
           </View>
@@ -223,7 +227,7 @@ export default function HomeScreen() {
           {/* ── LEAGUE ACTIONS ── */}
           <View style={styles.actionsSection}>
             <AnimatedPressable
-              style={styles.actionCard}
+              style={[styles.actionCard, isMotoGP && styles.actionCardMotoGP]}
               onPress={() => router.push('/create-league' as any)}
             >
               <View style={[styles.actionIconCircle, { backgroundColor: `${seriesColors.primary}1F` }]}>
@@ -234,7 +238,7 @@ export default function HomeScreen() {
             </AnimatedPressable>
 
             <AnimatedPressable
-              style={styles.actionCard}
+              style={[styles.actionCard, isMotoGP && styles.actionCardMotoGP]}
               onPress={() => router.push('/join-league' as any)}
             >
               <View style={[styles.actionIconCircle, { backgroundColor: 'rgba(10, 132, 255, 0.12)' }]}>
@@ -293,7 +297,7 @@ export default function HomeScreen() {
           {/* ── HOW IT WORKS ── */}
           <View style={styles.howSection}>
             <Text style={styles.sectionLabel}>HOW IT WORKS</Text>
-            <View style={styles.howCard}>
+            <View style={[styles.howCard, isMotoGP && styles.howCardMotoGP]}>
               <HowStep
                 step="1"
                 icon={<Target size={16} color={seriesColors.primary} />}
@@ -327,11 +331,12 @@ export default function HomeScreen() {
 
 /* ── Sub-components ── */
 
-function StatsCard({ icon, value, label, color }: {
+function StatsCard({ icon, value, label, color, isMotoGP }: {
   icon: React.ReactNode;
   value: number;
   label: string;
   color: string;
+  isMotoGP?: boolean;
 }) {
   const animatedValue = useRef(new Animated.Value(0)).current;
 
@@ -345,7 +350,7 @@ function StatsCard({ icon, value, label, color }: {
   }, [animatedValue]);
 
   return (
-    <View style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 3 }]}>
+    <View style={[styles.statCard, { borderLeftColor: color, borderLeftWidth: 3 }, isMotoGP && styles.statCardMotoGP]}>
       <View style={[styles.statIconWrap, { backgroundColor: `${color}14` }]}>
         {icon}
       </View>
@@ -358,8 +363,9 @@ function StatsCard({ icon, value, label, color }: {
 }
 
 function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }) {
-  const { config } = useSeries();
+  const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
+  const isMotoGP = currentSeries === 'motogp';
   const raceDate = new Date(`${race.raceDate}T${race.raceTime}:00Z`);
   const dateStr = raceDate.toLocaleDateString('en-US', {
     month: 'short',
@@ -367,7 +373,7 @@ function UpcomingRaceCard({ race, onPress }: { race: Race; onPress: () => void }
   });
 
   return (
-    <AnimatedPressable onPress={onPress} style={[styles.upcomingCard, { borderColor: seriesColors.border }]}>
+    <AnimatedPressable onPress={onPress} style={[styles.upcomingCard, { borderColor: seriesColors.border }, isMotoGP && styles.upcomingCardMotoGP]}>
       <LinearGradient
         colors={[seriesColors.surface, seriesColors.surfaceElevated]}
         style={styles.upcomingCardInner}
@@ -583,6 +589,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  spotlightCardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   spotlightCardInner: {
     padding: 20,
   },
@@ -677,6 +688,11 @@ const styles = StyleSheet.create({
     borderColor: Colors.border,
     borderLeftWidth: 3,
   },
+  statCardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   statIconWrap: {
     width: 32,
     height: 32,
@@ -711,6 +727,11 @@ const styles = StyleSheet.create({
     padding: 16,
     borderWidth: 1,
     borderColor: Colors.border,
+  },
+  actionCardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
   },
   actionIconCircle: {
     width: 40,
@@ -780,6 +801,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  upcomingCardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   upcomingCardInner: {
     padding: 14,
     height: 130,
@@ -830,6 +856,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: Colors.border,
   },
+  howCardMotoGP: {
+    borderRadius: 4,
+    borderTopLeftRadius: 0,
+    borderBottomRightRadius: 0,
+  },
   howStep: {
     flexDirection: 'row',
     gap: 14,
@@ -854,10 +885,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   howStepNumMotoGP: {
-    borderRadius: 6,
+    borderRadius: 2,
     transform: [{ rotate: '-12deg' }],
-    backgroundColor: 'rgba(0, 229, 255, 0.1)',
-    borderColor: 'rgba(0, 229, 255, 0.25)',
+    backgroundColor: 'rgba(255, 240, 0, 0.1)',
+    borderColor: 'rgba(255, 240, 0, 0.3)',
   },
   howStepNumText: {
     color: Colors.f1Red,
@@ -865,7 +896,7 @@ const styles = StyleSheet.create({
     fontWeight: '700' as const,
   },
   howStepNumTextMotoGP: {
-    color: '#00E5FF',
+    color: '#FFF000',
     transform: [{ rotate: '12deg' }],
   },
   howStepContent: {
