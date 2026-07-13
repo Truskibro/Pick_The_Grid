@@ -43,6 +43,7 @@ type PredictionRow = {
   sprint_points_earned: number;
   created_at: string;
   updated_at: string;
+  series_id?: string | null;
 };
 
 function generateId(): string {
@@ -86,6 +87,7 @@ function mapPredictionRow(row: PredictionRow): Prediction {
     updatedAt: row.updated_at ?? new Date().toISOString(),
     username: row.username ?? null,
     displayName: row.display_name ?? null,
+    seriesId: row.series_id ?? 'f1',
   });
 }
 
@@ -103,6 +105,11 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
   // regardless of timestamp. This prevents stale local AsyncStorage data from
   // shadowing the correct picks that were saved to Supabase.
   // Local is only kept when the cloud row has no picks (safety net).
+  //
+  // IMPORTANT: Even when cloud wins on picks, we preserve the higher
+  // pointsEarned/sprintPointsEarned between local and cloud. This prevents
+  // stale cloud rows (points_earned=0, not yet re-scored) from wiping out
+  // locally-computed scores that were calculated by scorePredictions.
   for (const prediction of cloudPredictions) {
     const normalized = normalizePrediction(prediction);
     const existing = byRaceId.get(normalized.raceId);
@@ -114,6 +121,17 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
       normalized.dnf != null;
 
     if (!existing || cloudHasPicks) {
+      // Preserve the higher points from local if cloud has a stale zero.
+      if (existing) {
+        normalized.pointsEarned = Math.max(
+          normalized.pointsEarned ?? 0,
+          existing.pointsEarned ?? 0,
+        );
+        normalized.sprintPointsEarned = Math.max(
+          normalized.sprintPointsEarned ?? 0,
+          existing.sprintPointsEarned ?? 0,
+        );
+      }
       byRaceId.set(normalized.raceId, normalized);
     }
   }
@@ -211,6 +229,7 @@ async function ensureSupabaseProfileForPrediction(
 }
 
 async function writePredictionRow(payload: PredictionPayload): Promise<PredictionWriteResult> {
+  // Try the multiseries-aware RPC (accepts p_series_id) first.
   const { data, error } = await supabase.rpc('save_user_prediction', {
     p_race_id: payload.race_id,
     p_predicted_top10: payload.predicted_top10,
@@ -221,9 +240,43 @@ async function writePredictionRow(payload: PredictionPayload): Promise<Predictio
     p_sprint_points_earned: payload.sprint_points_earned,
     p_username: payload.username,
     p_display_name: payload.display_name,
+    p_series_id: payload.series_id,
   });
 
   if (error) {
+    // If the error is about p_series_id not existing (migration not run),
+    // retry without the series_id parameter so saves still work.
+    if (
+      error.message?.includes('p_series_id') ||
+      error.code === '42703' // undefined_column
+    ) {
+      console.log('[savePrediction] p_series_id not supported, retrying without it');
+      const { data: fallbackData, error: fallbackError } = await supabase.rpc(
+        'save_user_prediction',
+        {
+          p_race_id: payload.race_id,
+          p_predicted_top10: payload.predicted_top10,
+          p_predicted_fastest_lap: payload.predicted_fastest_lap,
+          p_predicted_dnf: payload.predicted_dnf,
+          p_points_earned: payload.points_earned,
+          p_predicted_sprint_top8: payload.predicted_sprint_top8,
+          p_sprint_points_earned: payload.sprint_points_earned,
+          p_username: payload.username,
+          p_display_name: payload.display_name,
+        },
+      );
+
+      if (fallbackError) {
+        console.log('[savePrediction] Fallback RPC save also failed:', {
+          code: fallbackError.code,
+          message: fallbackError.message,
+        });
+        return { synced: false, row: null, errorMessage: fallbackError.message };
+      }
+
+      return { synced: true, row: fallbackData as PredictionRow };
+    }
+
     console.log('[savePrediction] Supabase RPC save failed:', {
       code: error.code,
       message: error.message,
