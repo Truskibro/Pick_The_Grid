@@ -743,15 +743,40 @@ export const [GameProvider, useGame] = createContextHook(() => {
     try {
       // Query BOTH profiles and user_predictions so we include every registered
       // user — not just the ones who happen to have prediction rows.
-      // Filter predictions by series_id when a series is specified.
-      let predictionsQuery = supabase.from('user_predictions').select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at, series_id');
+      //
+      // We try the series_id-filtered query first. If the series_id column
+      // doesn't exist yet (migration not run) or the query fails, we fall back
+      // to the original query without the series filter so points still show.
+      const profilesPromise = supabase
+        .from('profiles')
+        .select('id, username, display_name, total_points');
+
+      // Try the series_id-filtered query first. If the series_id column
+      // doesn't exist yet (migration not run) or the query fails, fall back
+      // to the unfiltered query so points still show.
+      let predictionsRes;
+      let usingSeriesFilter = false;
+
       if (seriesId) {
-        predictionsQuery = predictionsQuery.eq('series_id', seriesId);
+        predictionsRes = await supabase
+          .from('user_predictions')
+          .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at, series_id')
+          .eq('series_id', seriesId);
+        usingSeriesFilter = true;
+
+        if (predictionsRes.error) {
+          console.log('[GameProvider] series_id query failed, falling back to unfiltered:', predictionsRes.error.message);
+          predictionsRes = await supabase
+            .from('user_predictions')
+            .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
+        }
+      } else {
+        predictionsRes = await supabase
+          .from('user_predictions')
+          .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
       }
-      const [profilesRes, predictionsRes] = await Promise.all([
-        supabase.from('profiles').select('id, username, display_name, total_points'),
-        predictionsQuery,
-      ]);
+
+      const profilesRes = await profilesPromise;
 
       const allProfiles = (profilesRes.data ?? []) as Array<{
         id: string;
@@ -767,7 +792,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         points_earned: number | null;
         sprint_points_earned: number | null;
         updated_at: string | null;
-        series_id: string | null;
+        series_id?: string | null;
       }>;
 
       if (predictionsRes.error) {

@@ -19,9 +19,7 @@ import {
 } from 'lucide-react-native';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
-import ChamferOverlay from '@/components/ChamferOverlay';
 import Colors from '@/constants/colors';
-import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { LeaderboardEntry, League } from '@/types';
@@ -37,9 +35,6 @@ interface LeagueRanking {
 
 export default function LeaderboardsScreen() {
   const router = useRouter();
-  const { config, currentSeries } = useSeries();
-  const seriesColors = config.colors;
-  const isMotoGP = currentSeries === 'motogp';
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
@@ -61,7 +56,7 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(true);
 
     try {
-      let data = await fetchGlobalLeaderboard(currentSeries);
+      let data = await fetchGlobalLeaderboard();
 
       // Ensure the currently logged-in user always appears on the leaderboard.
       const currentUserId = session?.user?.id;
@@ -92,7 +87,7 @@ export default function LeaderboardsScreen() {
     }
 
     setLoadingLeaderboard(false);
-  }, [fetchGlobalLeaderboard, session, profile, totalPoints, currentSeries]);
+  }, [fetchGlobalLeaderboard, session, profile, totalPoints]);
 
   // Refresh leaderboard whenever the tab is focused.
   useFocusEffect(
@@ -129,10 +124,7 @@ export default function LeaderboardsScreen() {
   const leagueTop3 = leagueRankings.slice(0, 3);
   const leagueRest = leagueRankings.slice(3);
 
-  // Series-aware podium colors: MotoGP uses yellow + cyan shades, F1 uses gold/silver/bronze.
-  const podiumColors = isMotoGP
-    ? [seriesColors.highlight, seriesColors.primary, seriesColors.primaryLight]
-    : ['#FFD700', '#C0C0C0', '#CD7F32'];
+  const podiumColors = ['#FFD700', '#C0C0C0', '#CD7F32'];
   const podiumSizes = [72, 60, 56];
   const podiumHeights = [100, 80, 64];
 
@@ -146,14 +138,6 @@ export default function LeaderboardsScreen() {
 
   const leaguePodiumOrder =
     leagueTop3.length >= 3 ? [leagueTop3[1], leagueTop3[0], leagueTop3[2]] : leagueTop3;
-
-  // MotoGP cards: remove borderRadius/borderWidth so ChamferOverlay can draw true 45° chamfers
-  const motogpCardOverrides = isMotoGP
-    ? { borderRadius: 0, borderWidth: 0 }
-    : {};
-  const motogpBadgeOverrides = isMotoGP
-    ? { borderRadius: 0, borderWidth: 0 }
-    : {};
 
   const renderTrendIcon = (entry: LeaderboardEntry) => {
     if (!entry.previousRank) {
@@ -179,13 +163,12 @@ export default function LeaderboardsScreen() {
       <AnimatedPressable
         style={[
           styles.rankRow,
-          { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          motogpCardOverrides,
+          { backgroundColor: Colors.surface, borderColor: Colors.border },
           accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/profile/${item.userId}` as any)}
       >
-        {accentColor && !isMotoGP && (
+        {accentColor && (
           <>
             <LinearGradient
               colors={[`${accentColor}14`, 'transparent']}
@@ -203,10 +186,9 @@ export default function LeaderboardsScreen() {
             style={[
               styles.rankBadge,
               {
-                backgroundColor: seriesColors.surfaceHighlight,
-                borderColor: seriesColors.border,
+                backgroundColor: Colors.surfaceHighlight,
+                borderColor: Colors.border,
               },
-              motogpBadgeOverrides,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -216,9 +198,6 @@ export default function LeaderboardsScreen() {
             <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{actualRank}
             </Text>
-            {isMotoGP && (
-              <ChamferOverlay chamferSize={8} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.surface} />
-            )}
           </View>
         </View>
 
@@ -243,9 +222,7 @@ export default function LeaderboardsScreen() {
               <Text
                 style={[
                   styles.pointsText,
-                  accentColor
-                    ? { color: accentColor }
-                    : isMotoGP && { color: seriesColors.highlight },
+                  accentColor && { color: accentColor },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
@@ -253,12 +230,7 @@ export default function LeaderboardsScreen() {
               >
                 {item.totalPoints.toLocaleString()}
               </Text>
-              <Text
-                style={[
-                  styles.pointsLabel,
-                  isMotoGP && !accentColor && { color: `${seriesColors.highlight}99` },
-                ]}
-              >
+              <Text style={styles.pointsLabel}>
                 PTS
               </Text>
             </View>
@@ -268,8 +240,7 @@ export default function LeaderboardsScreen() {
             <View
               style={[
                 styles.trendPill,
-                { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
-                isMotoGP && { borderRadius: 2 },
+                { backgroundColor: `${Colors.f1Red}0A`, borderColor: `${Colors.borderLight}` },
               ]}
             >
               {renderTrendIcon(item)}
@@ -283,9 +254,6 @@ export default function LeaderboardsScreen() {
             </Text>
           </View>
         </View>
-        {isMotoGP && (
-          <ChamferOverlay chamferSize={12} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.background} />
-        )}
       </AnimatedPressable>
     );
   };
@@ -297,13 +265,12 @@ export default function LeaderboardsScreen() {
       <AnimatedPressable
         style={[
           styles.rankRow,
-          { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-          motogpCardOverrides,
+          { backgroundColor: Colors.surface, borderColor: Colors.border },
           accentColor && { borderColor: `${accentColor}40` },
         ]}
         onPress={() => router.push(`/league-detail/${item.league.id}` as any)}
       >
-        {accentColor && !isMotoGP && (
+        {accentColor && (
           <>
             <LinearGradient
               colors={[`${accentColor}14`, 'transparent']}
@@ -321,10 +288,9 @@ export default function LeaderboardsScreen() {
             style={[
               styles.rankBadge,
               {
-                backgroundColor: seriesColors.surfaceHighlight,
-                borderColor: seriesColors.border,
+                backgroundColor: Colors.surfaceHighlight,
+                borderColor: Colors.border,
               },
-              motogpBadgeOverrides,
               accentColor && {
                 backgroundColor: `${accentColor}18`,
                 borderColor: `${accentColor}55`,
@@ -334,9 +300,6 @@ export default function LeaderboardsScreen() {
             <Text style={[styles.rankBadgeText, accentColor && { color: accentColor }]}>
               #{item.rank}
             </Text>
-            {isMotoGP && (
-              <ChamferOverlay chamferSize={8} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.surface} />
-            )}
           </View>
         </View>
 
@@ -364,9 +327,7 @@ export default function LeaderboardsScreen() {
               <Text
                 style={[
                   styles.pointsText,
-                  accentColor
-                    ? { color: accentColor }
-                    : isMotoGP && { color: seriesColors.highlight },
+                  accentColor && { color: accentColor },
                 ]}
                 numberOfLines={1}
                 adjustsFontSizeToFit
@@ -374,12 +335,7 @@ export default function LeaderboardsScreen() {
               >
                 {item.combinedPoints.toLocaleString()}
               </Text>
-              <Text
-                style={[
-                  styles.pointsLabel,
-                  isMotoGP && !accentColor && { color: `${seriesColors.highlight}99` },
-                ]}
-              >
+              <Text style={styles.pointsLabel}>
                 PTS
               </Text>
             </View>
@@ -389,8 +345,7 @@ export default function LeaderboardsScreen() {
             <View
               style={[
                 styles.trendPill,
-                { backgroundColor: `${seriesColors.primary}0A`, borderColor: `${seriesColors.borderLight}` },
-                isMotoGP && { borderRadius: 2 },
+                { backgroundColor: `${Colors.f1Red}0A`, borderColor: `${Colors.borderLight}` },
               ]}
             >
               <Shield size={13} color={Colors.textSecondary} />
@@ -404,9 +359,6 @@ export default function LeaderboardsScreen() {
             </Text>
           </View>
         </View>
-        {isMotoGP && (
-          <ChamferOverlay chamferSize={12} borderColor={accentColor ?? seriesColors.border} borderWidth={accentColor ? 1.5 : 1} surroundingColor={seriesColors.background} />
-        )}
       </AnimatedPressable>
     );
   };
@@ -433,10 +385,8 @@ export default function LeaderboardsScreen() {
           {
             borderColor: `${color}35`,
             backgroundColor: `${color}0D`,
+            borderRadius: 18,
           },
-          isMotoGP
-            ? { borderRadius: 0, borderWidth: 0 }
-            : { borderRadius: 18 },
         ]}
       >
         <View style={styles.avatarSlot}>
@@ -447,7 +397,7 @@ export default function LeaderboardsScreen() {
                 {
                   width: size + 10,
                   height: size + 10,
-                  borderRadius: isMotoGP ? 4 : (size + 10) / 2,
+                  borderRadius: (size + 10) / 2,
                   backgroundColor: `${color}10`,
                 },
               ]}
@@ -460,8 +410,8 @@ export default function LeaderboardsScreen() {
                   width: size,
                   height: size,
                   borderColor: color,
-                  backgroundColor: seriesColors.surfaceHighlight,
-                  borderRadius: isMotoGP ? 2 : 999,
+                  backgroundColor: Colors.surfaceHighlight,
+                  borderRadius: 999,
                 },
               ]}
             >
@@ -474,7 +424,6 @@ export default function LeaderboardsScreen() {
               style={[
                 styles.podiumRankBubble,
                 { backgroundColor: color },
-                isMotoGP && { borderRadius: 2 },
               ]}
             >
               <Text style={styles.podiumRankBubbleText}>#{rank}</Text>
@@ -494,9 +443,6 @@ export default function LeaderboardsScreen() {
         <Text style={[styles.podiumPoints, { color }]} numberOfLines={1}>
           {points.toLocaleString()} pts
         </Text>
-        {isMotoGP && (
-          <ChamferOverlay chamferSize={12} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
-        )}
       </View>
     );
   };
@@ -512,7 +458,7 @@ export default function LeaderboardsScreen() {
     if (loadingLeaderboard) {
       return (
         <View style={styles.loadingContainer}>
-          <ActivityIndicator color={seriesColors.primary} />
+          <ActivityIndicator color={Colors.f1Red} />
           <Text style={styles.loadingText}>Loading leaderboard...</Text>
         </View>
       );
@@ -558,16 +504,11 @@ export default function LeaderboardsScreen() {
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
+                    borderRadius: 12,
                   },
-                  isMotoGP
-                    ? { borderRadius: 0, borderWidth: 0 }
-                    : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                {isMotoGP && (
-                  <ChamferOverlay chamferSize={10} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
-                )}
               </View>
             </AnimatedPressable>
           );
@@ -617,16 +558,11 @@ export default function LeaderboardsScreen() {
                     height,
                     backgroundColor: `${color}22`,
                     borderColor: `${color}55`,
+                    borderRadius: 12,
                   },
-                  isMotoGP
-                    ? { borderRadius: 0, borderWidth: 0 }
-                    : { borderRadius: 12 },
                 ]}
               >
                 <Text style={[styles.podiumRank, { color }]}>#{entry.rank}</Text>
-                {isMotoGP && (
-                  <ChamferOverlay chamferSize={10} borderColor={`${color}55`} borderWidth={1} surroundingColor={seriesColors.background} />
-                )}
               </View>
             </AnimatedPressable>
           );
@@ -636,16 +572,15 @@ export default function LeaderboardsScreen() {
   };
 
   return (
-    <Animated.View style={[styles.container, { opacity: fadeAnim, backgroundColor: seriesColors.background }]}>
+    <Animated.View style={[styles.container, { opacity: fadeAnim, backgroundColor: Colors.background }]}>
       <View style={styles.tabRow}>
         <AnimatedPressable
           style={[
             styles.tab,
-            { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            isMotoGP && { borderRadius: 2 },
+            { backgroundColor: Colors.surface, borderColor: Colors.border },
             activeTab === 'global' && {
-              backgroundColor: seriesColors.primary,
-              borderColor: seriesColors.primary,
+              backgroundColor: Colors.f1Red,
+              borderColor: Colors.f1Red,
             },
           ]}
           onPress={() => setActiveTab('global')}
@@ -658,11 +593,10 @@ export default function LeaderboardsScreen() {
         <AnimatedPressable
           style={[
             styles.tab,
-            { backgroundColor: seriesColors.surface, borderColor: seriesColors.border },
-            isMotoGP && { borderRadius: 2 },
+            { backgroundColor: Colors.surface, borderColor: Colors.border },
             activeTab === 'league' && {
-              backgroundColor: seriesColors.primary,
-              borderColor: seriesColors.primary,
+              backgroundColor: Colors.f1Red,
+              borderColor: Colors.f1Red,
             },
           ]}
           onPress={() => setActiveTab('league')}
