@@ -22,6 +22,7 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
+import { useSeries } from '@/providers/SeriesProvider';
 import { LeaderboardEntry, League } from '@/types';
 
 type TabType = 'global' | 'league';
@@ -39,6 +40,7 @@ export default function LeaderboardsScreen() {
 
   const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
   const { profile, session } = useUser();
+  const { currentSeries } = useSeries();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -56,11 +58,13 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(true);
 
     try {
-      let data = await fetchGlobalLeaderboard();
+      // Always pass currentSeries so the Supabase query filters by series_id.
+      // This prevents F1 points from leaking into the MotoGP leaderboard.
+      let data = await fetchGlobalLeaderboard(currentSeries);
 
       // Ensure the current user always appears on the leaderboard with their
-      // locally-computed points — even if they're a guest (not logged in) or
-      // their Supabase row has stale zeros.
+      // locally-computed points for the CURRENT SERIES ONLY.
+      // totalPoints is already series-specific (filtered in GameProvider).
       const currentUserId = session?.user?.id ?? profile?.id ?? 'local-user';
       if (profile && totalPoints > 0) {
         const existingIdx = data.findIndex(
@@ -68,14 +72,14 @@ export default function LeaderboardsScreen() {
                     (profile.id !== 'guest' && entry.userId === profile.id)
         );
         if (existingIdx >= 0) {
-          // Override stale Supabase points with local totalPoints.
+          // Override stale Supabase points with local series-specific totalPoints.
           if (totalPoints > data[existingIdx].totalPoints) {
             data[existingIdx].totalPoints = totalPoints;
             data[existingIdx].displayName = profile.displayName;
             data[existingIdx].username = profile.username;
           }
         } else {
-          // User not in Supabase yet — inject them.
+          // User not in Supabase yet — inject them with series-specific points.
           data = [
             ...data,
             {
@@ -100,7 +104,7 @@ export default function LeaderboardsScreen() {
     }
 
     setLoadingLeaderboard(false);
-  }, [fetchGlobalLeaderboard, session, profile, totalPoints]);
+  }, [fetchGlobalLeaderboard, session, profile, totalPoints, currentSeries]);
 
   // Refresh leaderboard whenever the tab is focused.
   useFocusEffect(
@@ -115,7 +119,9 @@ export default function LeaderboardsScreen() {
   }, [totalPoints, loadLeaderboard]);
 
   const leagueRankings: LeagueRanking[] = useMemo(() => {
+    // Only show leagues belonging to the current series.
     return leagues
+      .filter((league) => (league.seriesId ?? 'f1') === currentSeries)
       .map((league) => {
         const members = getLeagueMembers(league.id);
         const combinedPoints = members.reduce((sum, m) => sum + m.points, 0);
@@ -129,7 +135,7 @@ export default function LeaderboardsScreen() {
       })
       .sort((a, b) => b.combinedPoints - a.combinedPoints)
       .map((item, index) => ({ ...item, rank: index + 1 }));
-  }, [leagues, getLeagueMembers]);
+  }, [leagues, getLeagueMembers, currentSeries]);
 
   const top3 = globalLeaderboard.slice(0, 3);
   const rest = globalLeaderboard.slice(3);

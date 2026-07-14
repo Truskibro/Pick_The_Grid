@@ -45,13 +45,18 @@ export default function LeagueDetailScreen() {
     getLeagueMembers,
     fetchLeagueMembers,
     deleteLeague,
-    totalPoints,
+    getSeriesTotalPoints,
   } = useGame();
 
   const { profile } = useUser();
 
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
+
+  // Use the league's own seriesId for points — not the currently-selected
+  // series. This prevents MotoGP league members from showing F1 points.
+  const leagueSeriesId = league?.seriesId ?? 'f1';
+  const seriesTotalPoints = getSeriesTotalPoints(leagueSeriesId);
 
   // Score seed users against canonical mock race results.
   // Build a map so we can override real members' points as well as
@@ -64,14 +69,15 @@ export default function LeagueDetailScreen() {
     return scored;
   });
 
-  // Always override current user with live profile data.
+  // Always override current user with live profile data, using the
+  // league's series-specific points.
   const members: LeagueMember[] = rawMembers.map((m) =>
     m.userId === profile.id
       ? {
           ...m,
           displayName: profile.displayName,
           username: profile.username,
-          points: totalPoints,
+          points: seriesTotalPoints,
         }
       : m
   );
@@ -87,7 +93,7 @@ export default function LeagueDetailScreen() {
           username: profile.username,
           displayName: profile.displayName,
           role: 'member' as const,
-          points: totalPoints,
+          points: seriesTotalPoints,
           joinedAt: new Date().toISOString(),
         },
       ];
@@ -150,9 +156,9 @@ export default function LeagueDetailScreen() {
       clearTimeout(timeout);
     };
   // Re-fetch from Supabase whenever the league identity changes OR scoring
-  // just happened (totalPoints change).  This keeps the member list current
+  // just happened (seriesTotalPoints change).  This keeps the member list current
   // when a race completes and the current user's points are recalculated.
-  }, [leagueId, profile.displayName, profile.username, totalPoints]);
+  }, [leagueId, profile.displayName, profile.username, seriesTotalPoints]);
 
   if (!league) {
     return (

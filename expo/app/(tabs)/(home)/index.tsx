@@ -39,7 +39,7 @@ export default function HomeScreen() {
     return races.filter(r => r.status === 'upcoming').slice(0, 3);
   }, [races]);
 
-  const predictionsMade = predictions.filter(p => p.top10.length > 0).length;
+  const predictionsMade = predictions.filter(p => p.top10.length > 0 && (p.seriesId ?? 'f1') === currentSeries).length;
   const displayName = profile.displayName || 'Player';
   const initials = displayName
     .split(' ')

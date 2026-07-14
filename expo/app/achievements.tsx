@@ -122,7 +122,10 @@ export default function AchievementsScreen() {
     unlockedTiersCount,
   } = useAchievements();
 
-  const { totalPoints } = useGame();
+  const { getSeriesTotalPoints } = useGame();
+
+  // Achievements are F1-only — always use F1 points regardless of selected series.
+  const totalPoints = getSeriesTotalPoints('f1');
 
   const [activeFilter, setActiveFilter] = useState<FilterTab>('all');
   const [selectedDef, setSelectedDef] = useState<AchievementDefinition | null>(null);

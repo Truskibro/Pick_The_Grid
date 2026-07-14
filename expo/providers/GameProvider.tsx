@@ -91,13 +91,18 @@ function mapPredictionRow(row: PredictionRow): Prediction {
   });
 }
 
+function predictionKey(prediction: Prediction): string {
+  return `${prediction.seriesId ?? 'f1'}:${prediction.raceId}`;
+}
+
 function mergePredictions(localPredictions: Prediction[], cloudPredictions: Prediction[]): Prediction[] {
-  const byRaceId = new Map<string, Prediction>();
+  const byKey = new Map<string, Prediction>();
 
   // Seed with local predictions first (fallback only).
+  // Keyed by seriesId + raceId so F1 and MotoGP predictions never collide.
   for (const prediction of localPredictions) {
     const normalized = normalizePrediction(prediction);
-    byRaceId.set(normalized.raceId, normalized);
+    byKey.set(predictionKey(normalized), normalized);
   }
 
   // Cloud (Supabase) is the authoritative source of truth for logged-in users.
@@ -110,9 +115,13 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
   // pointsEarned/sprintPointsEarned between local and cloud. This prevents
   // stale cloud rows (points_earned=0, not yet re-scored) from wiping out
   // locally-computed scores that were calculated by scorePredictions.
+  //
+  // Keying by seriesId + raceId ensures F1 and MotoGP predictions never
+  // overwrite each other.
   for (const prediction of cloudPredictions) {
     const normalized = normalizePrediction(prediction);
-    const existing = byRaceId.get(normalized.raceId);
+    const key = predictionKey(normalized);
+    const existing = byKey.get(key);
 
     const cloudHasPicks =
       normalized.top10.length > 0 ||
@@ -132,11 +141,11 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
           existing.sprintPointsEarned ?? 0,
         );
       }
-      byRaceId.set(normalized.raceId, normalized);
+      byKey.set(key, normalized);
     }
   }
 
-  return Array.from(byRaceId.values()).sort((a, b) => a.raceId.localeCompare(b.raceId));
+  return Array.from(byKey.values()).sort((a, b) => a.raceId.localeCompare(b.raceId));
 }
 
 async function persistPredictions(predictions: Prediction[]): Promise<void> {
@@ -411,16 +420,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
         return localPredictions;
       }
 
-      // Merge local + cloud — local picks that were never synced to Supabase
-      // are preserved, and cloud picks that are newer win on conflict.
+      // Merge local + cloud, keyed by seriesId + raceId so F1 and MotoGP
+      // predictions never overwrite each other.
       let mergedPredictions = mergePredictions(localPredictions, cloudPredictions);
 
       // Safety net: never let an empty cloud prediction overwrite a local
-      // prediction that has actual picks. This guards against stale/partial
-      // Supabase rows from failed syncs or trigger-induced timestamp mismatches.
-      const localByRace = new Map(localPredictions.map((p) => [p.raceId, p]));
+      // prediction that has actual picks. Keyed by seriesId + raceId.
+      const localByRace = new Map(localPredictions.map((p) => [predictionKey(p), p]));
       mergedPredictions = mergedPredictions.map((mp) => {
-        const local = localByRace.get(mp.raceId);
+        const local = localByRace.get(predictionKey(mp));
         if (!local) return mp;
         const localHasPicks = local.top10.length > 0 || local.sprintTop8.length > 0 || local.fastestLap || local.dnf;
         const mergedHasPicks = mp.top10.length > 0 || mp.sprintTop8.length > 0 || mp.fastestLap || mp.dnf;
@@ -432,9 +440,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
       });
 
       // Identify local-only predictions (never synced) and upload them now.
-      const cloudRaceIds = new Set(cloudPredictions.map((p) => p.raceId));
+      const cloudKeys = new Set(cloudPredictions.map((p) => predictionKey(p)));
       const unsyncedPredictions = localPredictions.filter(
-        (p) => !cloudRaceIds.has(p.raceId) && p.top10.length > 0
+        (p) => !cloudKeys.has(predictionKey(p)) && p.top10.length > 0
       );
 
       if (unsyncedPredictions.length > 0) {
@@ -462,9 +470,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
         let finalMerged = mergePredictions(localPredictions, reloadedCloud);
 
         // Same safety net: never let empty cloud data overwrite local picks.
-        const finalLocalByRace = new Map(localPredictions.map((p) => [p.raceId, p]));
+        const finalLocalByRace = new Map(localPredictions.map((p) => [predictionKey(p), p]));
         finalMerged = finalMerged.map((mp) => {
-          const local = finalLocalByRace.get(mp.raceId);
+          const local = finalLocalByRace.get(predictionKey(mp));
           if (!local) return mp;
           const localHasPicks = local.top10.length > 0 || local.sprintTop8.length > 0 || local.fastestLap || local.dnf;
           const mergedHasPicks = mp.top10.length > 0 || mp.sprintTop8.length > 0 || mp.fastestLap || mp.dnf;
@@ -538,12 +546,16 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const savePrediction = useCallback(
     async (prediction: PredictionInput): Promise<{ synced: boolean; errorMessage?: string }> => {
       const now = new Date().toISOString();
-      const existingPrediction = predictionsRef.current.find((p) => p.raceId === prediction.raceId);
+      const predictionSeriesId = prediction.seriesId ?? currentSeries;
+      const existingPrediction = predictionsRef.current.find(
+        (p) => p.raceId === prediction.raceId && (p.seriesId ?? 'f1') === predictionSeriesId,
+      );
       const isEdit = !!existingPrediction;
-      const prevMeta = editCountsRef.current[prediction.raceId];
+      const editCountKey = `${predictionSeriesId}:${prediction.raceId}`;
+      const prevMeta = editCountsRef.current[editCountKey];
       const newCount = isEdit ? (prevMeta?.count ?? 1) + 1 : 1;
       const newEditMeta = { count: newCount, lastEditAt: now };
-      const nextEditCounts = { ...editCountsRef.current, [prediction.raceId]: newEditMeta };
+      const nextEditCounts = { ...editCountsRef.current, [editCountKey]: newEditMeta };
       const names = profileNames(profile);
       const fallbackUsername = cleanText(prediction.username) ?? existingPrediction?.username ?? null;
       const fallbackDisplayName = cleanText(prediction.displayName) ?? existingPrediction?.displayName ?? fallbackUsername;
@@ -566,10 +578,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
         updatedAt: now,
         username: currentUsername,
         displayName: currentDisplayName,
+        seriesId: predictionSeriesId,
       });
 
       const optimisticPredictions = [
-        ...predictionsRef.current.filter((p) => p.raceId !== prediction.raceId),
+        ...predictionsRef.current.filter(
+          (p) => !(p.raceId === prediction.raceId && (p.seriesId ?? 'f1') === predictionSeriesId),
+        ),
         savedPrediction,
       ].sort((a, b) => a.raceId.localeCompare(b.raceId));
 
@@ -602,6 +617,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
         ...savedPrediction,
         username: syncUsername,
         displayName: syncDisplayName,
+        seriesId: predictionSeriesId,
       });
       const payload = buildPredictionPayload(predictionForSync, userId, syncUsername, syncDisplayName);
       const writeResult = await writePredictionRow(payload);
@@ -619,8 +635,11 @@ export const [GameProvider, useGame] = createContextHook(() => {
 
       if (writeResult.row) {
         const confirmedPrediction = mapPredictionRow(writeResult.row);
+        const confirmedSeriesId = confirmedPrediction.seriesId ?? predictionSeriesId;
         const confirmedPredictions = [
-          ...predictionsRef.current.filter((p) => p.raceId !== confirmedPrediction.raceId),
+          ...predictionsRef.current.filter(
+            (p) => !(p.raceId === confirmedPrediction.raceId && (p.seriesId ?? 'f1') === confirmedSeriesId),
+          ),
           confirmedPrediction,
         ].sort((a, b) => a.raceId.localeCompare(b.raceId));
 
@@ -643,9 +662,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
     [profile, resolveUserId, loadCloudPredictionsForUser],
   );
 
-  const getPrediction = useCallback((raceId: string): Prediction | undefined => {
-    return predictions.find((p) => p.raceId === raceId);
-  }, [predictions]);
+  const getPrediction = useCallback((raceId: string, seriesId?: string): Prediction | undefined => {
+    const targetSeries = seriesId ?? currentSeries;
+    return predictions.find(
+      (p) => p.raceId === raceId && (p.seriesId ?? 'f1') === targetSeries,
+    );
+  }, [predictions, currentSeries]);
 
   const createLeague = useCallback(async (
     name: string,
@@ -825,10 +847,21 @@ export const [GameProvider, useGame] = createContextHook(() => {
         usingSeriesFilter = true;
 
         if (predictionsRes.error) {
-          console.log('[GameProvider] series_id query failed, falling back to unfiltered:', predictionsRes.error.message);
-          predictionsRes = await supabase
-            .from('user_predictions')
-            .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
+          // The series_id column or migration has not been applied yet.
+          // DO NOT fall back to an unfiltered query — that would leak
+          // F1 points into the MotoGP leaderboard (and vice versa).
+          // Return a safe, series-appropriate leaderboard instead.
+          console.warn(
+            `[GameProvider] series_id query failed for "${seriesId}". ` +
+            `Migration not applied? Returning safe leaderboard to prevent cross-series point leakage. ` +
+            `Error: ${predictionsRes.error.message}`
+          );
+
+          // Seed users only appear on the F1 leaderboard.
+          if (seriesId === 'f1') {
+            return seedLeaderboard;
+          }
+          return [];
         }
       } else {
         predictionsRes = await supabase
@@ -904,12 +937,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
         }
       }
 
-      // When filtering by series, zero out non-seed users who have no
-      // predictions in that series (they shouldn't appear with F1 points).
+      // When filtering by series, exclude non-seed users who have no
+      // predictions in that series (they should not appear with 0 or leaked
+      // points from another series).
       if (seriesId) {
         for (const [userId, info] of userMap) {
           if (!info.isSeedUser && !nonSeedPoints.has(userId)) {
-            info.totalPoints = 0;
+            userMap.delete(userId);
           }
         }
       }
@@ -1057,10 +1091,15 @@ export const [GameProvider, useGame] = createContextHook(() => {
       }
     }));
 
-    const total = scoredPredictions.reduce(
-      (sum, prediction) => sum + (prediction.pointsEarned ?? 0) + (prediction.sprintPointsEarned ?? 0),
-      0,
-    );
+      // Only update profiles.total_points with F1 predictions — that column
+      // is the F1 total. MotoGP totals are tracked separately (per-series) so
+      // they must not be written to total_points.
+      const total = scoredPredictions
+        .filter((p) => (p.seriesId ?? 'f1') === 'f1')
+        .reduce(
+          (sum, prediction) => sum + (prediction.pointsEarned ?? 0) + (prediction.sprintPointsEarned ?? 0),
+          0,
+        );
 
     const { error: profileError } = await supabase
       .from('profiles')
@@ -1124,10 +1163,23 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [leagueMembers]);
 
   const totalPoints = useMemo(() => {
-    return predictions.reduce(
-      (sum, prediction) => sum + (prediction.pointsEarned || 0) + (prediction.sprintPointsEarned || 0),
-      0,
-    );
+    // Only sum predictions for the currently-selected series.
+    return predictions
+      .filter((p) => (p.seriesId ?? 'f1') === currentSeries)
+      .reduce(
+        (sum, prediction) => sum + (prediction.pointsEarned || 0) + (prediction.sprintPointsEarned || 0),
+        0,
+      );
+  }, [predictions, currentSeries]);
+
+  /** Series-specific total points (sums only predictions matching seriesId). */
+  const getSeriesTotalPoints = useCallback((seriesId: string): number => {
+    return predictions
+      .filter((p) => (p.seriesId ?? 'f1') === seriesId)
+      .reduce(
+        (sum, prediction) => sum + (prediction.pointsEarned || 0) + (prediction.sprintPointsEarned || 0),
+        0,
+      );
   }, [predictions]);
 
   return {
@@ -1137,6 +1189,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
     editCounts,
     isLoading,
     totalPoints,
+    getSeriesTotalPoints,
     session: userSession as Session | null,
     savePrediction,
     getPrediction,
