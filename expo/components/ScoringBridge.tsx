@@ -25,7 +25,11 @@ export default function ScoringBridge() {
   const { scorePredictions, predictions, refreshPredictions } = useGame();
 
   // Stable identity of what we've already scored — avoids infinite loops.
-  const lastScoringId = useRef<string>('');
+  // We track seed scoring and current-user scoring separately so that
+  // a late-loading prediction list doesn't get skipped because seed
+  // scoring already claimed the scoringId.
+  const lastSeedScoringId = useRef<string>('');
+  const lastUserScoringId = useRef<string>('');
 
   /**
    * Persist seed-user total points to Supabase profiles.
@@ -70,13 +74,18 @@ export default function ScoringBridge() {
   );
 
   useEffect(() => {
+    console.log('[ScoringBridge] Effect fired. raceResults:', raceResults?.length ?? 0, 'races:', races?.length ?? 0, 'predictions:', predictions.length);
+
     if (!raceResults || raceResults.length === 0) return;
 
     // Determine which races have scorable results (classification data present).
     const resultsWithData = raceResults.filter(
       (r) => r.classification && r.classification.length > 0
     );
-    if (resultsWithData.length === 0) return;
+    if (resultsWithData.length === 0) {
+      console.log('[ScoringBridge] No results with classification data');
+      return;
+    }
 
     // Find races that are in the past (or marked completed) and have results.
     const today = new Date().toISOString().split('T')[0];
@@ -91,44 +100,39 @@ export default function ScoringBridge() {
         .map((race) => race.id)
     );
 
-    if (scorableRaceIds.size === 0) return;
+    if (scorableRaceIds.size === 0) {
+      console.log('[ScoringBridge] No scorable race IDs. resultsWithData:', resultsWithData.map(r => r.raceId), 'race dates:', races.map(r => `${r.id}:${r.raceDate}:${r.status}`));
+      return;
+    }
 
     // Build a stable scoring identity: sorted race IDs + result count.
     const sortedIds = [...scorableRaceIds].sort().join(',');
     const scoringId = `${resultsWithData.length}:${sortedIds}`;
 
-    if (scoringId === lastScoringId.current) {
-      // Already scored this exact result set.
-      return;
-    }
-
-    lastScoringId.current = scoringId;
-
-    console.log(
-      '[ScoringBridge] Race results detected for:',
-      sortedIds,
-      '— triggering scoring pipeline'
-    );
-
     // ── 1. Score the current user's predictions ──────────────────────────
-    //    This MUST complete before any refresh, otherwise refreshPredictions
-    //    pulls stale (points_earned=0) rows from Supabase and overwrites the
-    //    just-computed scores via mergePredictions.
+    //    Tracked separately from seed scoring so that a late-loading
+    //    prediction list (from AsyncStorage) isn't skipped just because
+    //    seed scoring already claimed the scoringId.
     let didScoreCurrentUser = false;
-    if (predictions.length > 0) {
-      const hasUnscoredPredictions = predictions.some((p) => {
-        if (p.top10.length === 0) return false;
+    const shouldScoreUser =
+      predictions.length > 0 &&
+      scoringId !== lastUserScoringId.current &&
+      predictions.some((p) => {
+        if (p.top10.length === 0 && p.sprintTop8.length === 0) return false;
         if (!scorableRaceIds.has(p.raceId)) return false;
         return true;
       });
 
-      if (hasUnscoredPredictions) {
-        console.log('[ScoringBridge] Scoring current user predictions');
-        // Use an async IIFE so we can await scoring before deciding to refresh.
-        void (async () => {
-          await scorePredictions(raceResults);
+    if (shouldScoreUser) {
+      lastUserScoringId.current = scoringId;
+      console.log('[ScoringBridge] Scoring current user predictions for:', sortedIds);
+      // Use an async IIFE so we can await scoring before deciding to refresh.
+      void (async () => {
+        await scorePredictions(raceResults);
 
-          // ── 2. Score seed users and persist to Supabase ──────────────────
+        // ── 2. Score seed users and persist to Supabase ──────────────────
+        if (scoringId !== lastSeedScoringId.current) {
+          lastSeedScoringId.current = scoringId;
           const seedScores = new Map<string, number>();
           for (const seedUser of SEED_USERS) {
             const points = scoreSeededPredictions(seedUser.userId, raceResults);
@@ -136,29 +140,32 @@ export default function ScoringBridge() {
             console.log(`[ScoringBridge] Seed user ${seedUser.displayName}: ${points} pts`);
           }
           void persistSeedScores(seedScores);
+        }
 
-          // ── 3. Do NOT refresh from Supabase here ─────────────────────────
-          //    scorePredictions already synced the updated points to Supabase.
-          //    Refreshing would risk pulling stale rows that haven't propagated
-          //    yet and overwriting the correct local scores via mergePredictions.
-        })();
-        didScoreCurrentUser = true;
-      }
+        // ── 3. Do NOT refresh from Supabase here ─────────────────────────
+        //    scorePredictions already synced the updated points to Supabase.
+        //    Refreshing would risk pulling stale rows that haven't propagated
+        //    yet and overwriting the correct local scores via mergePredictions.
+      })();
+      didScoreCurrentUser = true;
     }
 
     if (!didScoreCurrentUser) {
       // ── 2. Score seed users and persist to Supabase ──────────────────────
-      const seedScores = new Map<string, number>();
-      for (const seedUser of SEED_USERS) {
-        const points = scoreSeededPredictions(seedUser.userId, raceResults);
-        seedScores.set(seedUser.userId, points);
-        console.log(`[ScoringBridge] Seed user ${seedUser.displayName}: ${points} pts`);
+      if (scoringId !== lastSeedScoringId.current) {
+        lastSeedScoringId.current = scoringId;
+        const seedScores = new Map<string, number>();
+        for (const seedUser of SEED_USERS) {
+          const points = scoreSeededPredictions(seedUser.userId, raceResults);
+          seedScores.set(seedUser.userId, points);
+          console.log(`[ScoringBridge] Seed user ${seedUser.displayName}: ${points} pts`);
+        }
+        void persistSeedScores(seedScores);
       }
-      void persistSeedScores(seedScores);
 
       // ── 3. Refresh predictions from Supabase ──────────────────────────────
       //    Safe to refresh here because we didn't score anything locally.
-      if (isSupabaseConfigured) {
+      if (isSupabaseConfigured && scoringId === lastSeedScoringId.current) {
         void refreshPredictions();
       }
     }

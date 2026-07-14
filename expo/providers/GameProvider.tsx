@@ -244,12 +244,17 @@ async function writePredictionRow(payload: PredictionPayload): Promise<Predictio
   });
 
   if (error) {
-    // If the error is about p_series_id not existing (migration not run),
-    // retry without the series_id parameter so saves still work.
-    if (
+    // If the multiseries migration hasn't been applied yet, the RPC
+    // won't accept p_series_id. Postgres throws 42883 (function signature
+    // mismatch) or PostgREST returns PGRST202 (schema cache miss).
+    // Retry without the series_id parameter so saves still work.
+    const isMissingParam =
       error.message?.includes('p_series_id') ||
-      error.code === '42703' // undefined_column
-    ) {
+      error.code === '42703' || // undefined_column
+      error.code === '42883' || // undefined_function (signature mismatch)
+      error.code === 'PGRST202'; // schema cache miss
+
+    if (isMissingParam) {
       console.log('[savePrediction] p_series_id not supported, retrying without it');
       const { data: fallbackData, error: fallbackError } = await supabase.rpc(
         'save_user_prediction',
@@ -306,6 +311,8 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const cloudLoadedForUserRef = useRef<string | null>(null);
 
   const activeUserId = userSession?.user?.id ?? null;
+  const activeUserIdRef = useRef<string | null>(null);
+  activeUserIdRef.current = activeUserId;
 
   useEffect(() => {
     predictionsRef.current = predictions;
@@ -933,6 +940,26 @@ export const [GameProvider, useGame] = createContextHook(() => {
           if (!existingUserIds.has(seedEntry.userId)) {
             entries.push(seedEntry);
           }
+        }
+      }
+
+      // Override the current user's points with locally-computed values.
+      // Local predictions are scored by scorePredictions() and are always
+      // more up-to-date than Supabase rows (which may be stale due to
+      // sync failures, migration not applied, etc.).
+      // Uses activeUserIdRef (not activeUserId) because this callback has
+      // empty deps — a direct reference would capture the initial null value.
+      const currentUserId = activeUserIdRef.current;
+      if (currentUserId) {
+        const localUserPoints = predictionsRef.current
+          .filter((p) => !seriesId || (p.seriesId ?? 'f1') === seriesId)
+          .reduce(
+            (sum, p) => sum + (p.pointsEarned || 0) + (p.sprintPointsEarned || 0),
+            0,
+          );
+        const localEntry = entries.find((e) => e.userId === currentUserId);
+        if (localEntry && localUserPoints > localEntry.totalPoints) {
+          localEntry.totalPoints = localUserPoints;
         }
       }
 

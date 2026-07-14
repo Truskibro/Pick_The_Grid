@@ -58,11 +58,24 @@ export default function LeaderboardsScreen() {
     try {
       let data = await fetchGlobalLeaderboard();
 
-      // Ensure the currently logged-in user always appears on the leaderboard.
-      const currentUserId = session?.user?.id;
-      if (currentUserId && profile && profile.id !== 'guest') {
-        const isInList = data.some((entry) => entry.userId === currentUserId);
-        if (!isInList) {
+      // Ensure the current user always appears on the leaderboard with their
+      // locally-computed points — even if they're a guest (not logged in) or
+      // their Supabase row has stale zeros.
+      const currentUserId = session?.user?.id ?? profile?.id ?? 'local-user';
+      if (profile && totalPoints > 0) {
+        const existingIdx = data.findIndex(
+          (entry) => entry.userId === currentUserId ||
+                    (profile.id !== 'guest' && entry.userId === profile.id)
+        );
+        if (existingIdx >= 0) {
+          // Override stale Supabase points with local totalPoints.
+          if (totalPoints > data[existingIdx].totalPoints) {
+            data[existingIdx].totalPoints = totalPoints;
+            data[existingIdx].displayName = profile.displayName;
+            data[existingIdx].username = profile.username;
+          }
+        } else {
+          // User not in Supabase yet — inject them.
           data = [
             ...data,
             {
@@ -73,12 +86,12 @@ export default function LeaderboardsScreen() {
               totalPoints,
             },
           ];
-          // Re-sort and re-rank after adding the current user.
-          data.sort((a, b) => b.totalPoints - a.totalPoints);
-          data.forEach((entry, index) => {
-            entry.rank = index + 1;
-          });
         }
+        // Always re-sort and re-rank after potential changes.
+        data.sort((a, b) => b.totalPoints - a.totalPoints);
+        data.forEach((entry, index) => {
+          entry.rank = index + 1;
+        });
       }
 
       setGlobalLeaderboard(data);
