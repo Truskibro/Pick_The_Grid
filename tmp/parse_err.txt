@@ -1,0 +1,7 @@
+Sheet names: ['<numbers_parser.document.Sheet object at 0x7f8a90f1c6e0>', '<numbers_parser.document.Sheet object at 0x7f8a9001b610>']
+
+=== Sheet: 2026 ===
+--- Table: Table 1 (rows=636, cols=24) ---
+
+=== Sheet: Sheet1 ===
+--- Table: Table 1 (rows=10, cols=5) ---
