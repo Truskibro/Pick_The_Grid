@@ -13,7 +13,6 @@ import { F1DataProvider } from "@/providers/F1DataProvider";
 import { MotoGPDataProvider } from "@/providers/MotoGPDataProvider";
 import { SeriesProvider, useSeries } from "@/providers/SeriesProvider";
 import { AchievementProvider } from "@/providers/AchievementProvider";
-import ScoringBridge from "@/components/ScoringBridge";
 import AchievementCelebrationOverlay from "@/components/AchievementCelebrationOverlay";
 
 void SplashScreen.preventAutoHideAsync();
@@ -180,7 +179,6 @@ export default function RootLayout() {
               <MotoGPDataProvider>
                 <GameProvider>
                   <AchievementProvider>
-                    <ScoringBridge />
                     <NotificationTapHandler />
                     <StatusBar style="light" />
                     <RootLayoutNav />

@@ -1,15 +1,13 @@
 import { useEffect, useState, useCallback, useMemo, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import createContextHook from '@nkzw/create-context-hook';
-import { Prediction, League, LeagueMember, LeaderboardEntry, RaceResult } from '@/types';
+import { Prediction, League, LeagueMember, LeaderboardEntry } from '@/types';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 import { useUser } from '@/providers/UserProvider';
 import { useSeries } from '@/providers/SeriesProvider';
-import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 import { Session } from '@supabase/supabase-js';
 import { SEED_USERS, scoreSeededPredictions, getCompletedRaceIds } from '@/constants/seed-predictions';
 import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
-import type { SeriesId } from '@/constants/series';
 
 const STORAGE_KEYS = {
   predictions: 'apex_draft_predictions_rebuilt_v2',
@@ -111,10 +109,12 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
   // shadowing the correct picks that were saved to Supabase.
   // Local is only kept when the cloud row has no picks (safety net).
   //
-  // IMPORTANT: Even when cloud wins on picks, we preserve the higher
-  // pointsEarned/sprintPointsEarned between local and cloud. This prevents
-  // stale cloud rows (points_earned=0, not yet re-scored) from wiping out
-  // locally-computed scores that were calculated by scorePredictions.
+  // Points are now authored by the server (score_predictions_for_race).
+  // The cloud row's pointsEarned/sprintPointsEarned is authoritative when
+  // the server-scoring migration has been applied and the race has results.
+  // We still preserve the higher of (local, cloud) points as a transitional
+  // safety net so a freshly-deployed migration with unscored historical rows
+  // doesn't zero out points that were correct under the old client-side flow.
   //
   // Keying by seriesId + raceId ensures F1 and MotoGP predictions never
   // overwrite each other.
@@ -130,7 +130,8 @@ function mergePredictions(localPredictions: Prediction[], cloudPredictions: Pred
       normalized.dnf != null;
 
     if (!existing || cloudHasPicks) {
-      // Preserve the higher points from local if cloud has a stale zero.
+      // Preserve the higher points from local if cloud has a stale zero
+      // (e.g. results not yet inserted, or migration not yet applied).
       if (existing) {
         normalized.pointsEarned = Math.max(
           normalized.pointsEarned ?? 0,
@@ -320,8 +321,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
   const cloudLoadedForUserRef = useRef<string | null>(null);
 
   const activeUserId = userSession?.user?.id ?? null;
-  const activeUserIdRef = useRef<string | null>(null);
-  activeUserIdRef.current = activeUserId;
 
   useEffect(() => {
     predictionsRef.current = predictions;
@@ -977,26 +976,9 @@ export const [GameProvider, useGame] = createContextHook(() => {
         }
       }
 
-      // Override the current user's points with locally-computed values.
-      // Local predictions are scored by scorePredictions() and are always
-      // more up-to-date than Supabase rows (which may be stale due to
-      // sync failures, migration not applied, etc.).
-      // Uses activeUserIdRef (not activeUserId) because this callback has
-      // empty deps — a direct reference would capture the initial null value.
-      const currentUserId = activeUserIdRef.current;
-      if (currentUserId) {
-        const localUserPoints = predictionsRef.current
-          .filter((p) => !seriesId || (p.seriesId ?? 'f1') === seriesId)
-          .reduce(
-            (sum, p) => sum + (p.pointsEarned || 0) + (p.sprintPointsEarned || 0),
-            0,
-          );
-        const localEntry = entries.find((e) => e.userId === currentUserId);
-        if (localEntry && localUserPoints > localEntry.totalPoints) {
-          localEntry.totalPoints = localUserPoints;
-        }
-      }
-
+      // Points are now authored by Supabase (score_predictions_for_race).
+      // No local-score override — the server's points_earned values are
+      // authoritative and read straight from user_predictions.
       entries.sort((a, b) => b.totalPoints - a.totalPoints);
       entries.forEach((entry, index) => {
         entry.rank = index + 1;
@@ -1008,108 +990,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return seedLeaderboard;
     }
   }, []);
-
-  const scorePredictions = useCallback(async (raceResults: RaceResult[]): Promise<void> => {
-    if (!raceResults || raceResults.length === 0) return;
-
-    const resultByRaceId = new Map<string, RaceResult>();
-    for (const result of raceResults) {
-      resultByRaceId.set(result.raceId, result);
-    }
-
-    const names = profileNames(profile);
-    let hasChanges = false;
-    const changedPredictions: Prediction[] = [];
-
-    const scoredPredictions = predictionsRef.current.map((prediction) => {
-      const result = resultByRaceId.get(prediction.raceId);
-      if (!result) return prediction;
-
-      const hasRaceResults = result.classification && result.classification.length > 0;
-      const hasSprintResults =
-        !!result.sprintClassification && result.sprintClassification.length > 0;
-
-      // No results at all yet — keep the prediction as-is.
-      if (!hasRaceResults && !hasSprintResults) return prediction;
-
-      // Race points only update when we actually have race results.
-      // Sprint points update independently as soon as sprint results land.
-      const predSeriesId = (prediction.seriesId ?? 'f1') as SeriesId;
-
-      const mainBreakdown =
-        hasRaceResults && prediction.top10.length > 0
-          ? calculatePoints(prediction, result, predSeriesId)
-          : null;
-
-      const sprintBreakdown =
-        hasSprintResults && prediction.sprintTop8.length > 0
-          ? calculateSprintPoints(prediction.sprintTop8, result.sprintClassification!, predSeriesId)
-          : null;
-
-      const nextPrediction = normalizePrediction({
-        ...prediction,
-        pointsEarned: mainBreakdown?.totalPoints ?? prediction.pointsEarned ?? 0,
-        sprintPointsEarned: sprintBreakdown?.totalPoints ?? prediction.sprintPointsEarned ?? 0,
-        username: names.username ?? prediction.username,
-        displayName: names.displayName ?? prediction.displayName,
-        updatedAt: prediction.updatedAt,
-      });
-
-      if (
-        nextPrediction.pointsEarned !== prediction.pointsEarned ||
-        nextPrediction.sprintPointsEarned !== prediction.sprintPointsEarned ||
-        nextPrediction.username !== prediction.username ||
-        nextPrediction.displayName !== prediction.displayName
-      ) {
-        hasChanges = true;
-        changedPredictions.push(nextPrediction);
-      }
-
-      return nextPrediction;
-    });
-
-    if (!hasChanges) return;
-
-    setPredictions(scoredPredictions);
-    predictionsRef.current = scoredPredictions;
-    await persistPredictions(scoredPredictions);
-
-    if (!isSupabaseConfigured) return;
-
-    const userId = await resolveUserId();
-    if (!userId) return;
-
-    await Promise.all(changedPredictions.map(async (prediction) => {
-      const syncUsername = names.username ?? prediction.username ?? `user_${userId.substring(0, 8)}`;
-      const syncDisplayName = names.displayName ?? prediction.displayName ?? syncUsername;
-      await ensureSupabaseProfileForPrediction(userId, syncUsername, syncDisplayName);
-      const payload = buildPredictionPayload(prediction, userId, syncUsername, syncDisplayName);
-      const writeResult = await writePredictionRow(payload);
-
-      if (!writeResult.synced) {
-        console.log('[GameProvider] Scored prediction sync failed:', writeResult.errorMessage ?? 'Unknown error');
-      }
-    }));
-
-      // Only update profiles.total_points with F1 predictions — that column
-      // is the F1 total. MotoGP totals are tracked separately (per-series) so
-      // they must not be written to total_points.
-      const total = scoredPredictions
-        .filter((p) => (p.seriesId ?? 'f1') === 'f1')
-        .reduce(
-          (sum, prediction) => sum + (prediction.pointsEarned ?? 0) + (prediction.sprintPointsEarned ?? 0),
-          0,
-        );
-
-    const { error: profileError } = await supabase
-      .from('profiles')
-      .update({ total_points: total })
-      .eq('id', userId);
-
-    if (profileError) {
-      console.log('[GameProvider] Profile total points update failed:', profileError.message);
-    }
-  }, [profile, resolveUserId]);
 
   const lockTimes = useMemo<Record<string, string>>(() => {
     return {};
@@ -1201,7 +1081,6 @@ export const [GameProvider, useGame] = createContextHook(() => {
     refreshLeagues,
     fetchPublicLeagues,
     fetchGlobalLeaderboard,
-    scorePredictions,
     updateLocalProfile,
     refreshPredictions,
     lockTimes,
