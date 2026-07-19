@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo } from 'react';
+import { useEffect, useCallback, useMemo, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -234,12 +234,17 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const { notifications } = useUser();
 
   // ---- polling gate -------------------------------------------------------
-  // Only poll when today IS a race day AND we are at least 1 hour past the
-  // race start (waiting for results to start appearing).  Computed inline —
-  // it's just date arithmetic so useMemo has no real benefit here.
-  // React Query restarts its refetch timer when refetchInterval changes,
-  // so the gate will flip on automatically once the hour passes.
+  // Recompute the time-based polling gates every minute so they flip on
+  // automatically once the race start + 1h / + 2h thresholds pass, even if
+  // the app was opened before the race. Without this ticking state the
+  // gates would be evaluated once at provider init and never re-checked.
   // -------------------------------------------------------------------------
+  const [tick, setTick] = useState(0);
+  useEffect(() => {
+    const interval = setInterval(() => setTick((t) => t + 1), 60_000);
+    return () => clearInterval(interval);
+  }, []);
+
   const now = new Date();
   const today = now.toISOString().split('T')[0];
 
@@ -264,6 +269,9 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     ? new Date(`${todaysRace.raceDate}T${todaysRace.raceTime}:00Z`).getTime() + 2 * 60 * 60 * 1000
     : 0;
   const pastTwoHoursAfterStart = now.getTime() >= resultsPollStartMs;
+  // tick is referenced to silence the unused-var lint and to document that
+  // this block re-runs every minute due to the ticking state above.
+  void tick;
 
   const teamsQuery = useQuery({
     queryKey: ['f1-teams'],
