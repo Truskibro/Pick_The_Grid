@@ -417,17 +417,10 @@ function AchievementCard({
         {hiddenLocked ? 'Complete a secret objective to reveal this badge.' : def.description}
       </Text>
 
-      {hiddenLocked && def.unlockHint && (
-        <View style={styles.hiddenHint}>
-          <icons.EyeOff size={13} color={HIDDEN_COLORS.red} />
-          <Text style={styles.hiddenHintText}>{def.unlockHint}</Text>
-        </View>
-      )}
-
       {hiddenUnlocked && (
         <View style={styles.hiddenRevealBox}>
           <Text style={styles.hiddenRevealLabel}>SECRET BADGE REVEALED</Text>
-          <Text style={styles.hiddenRevealText}>{def.unlockHint ?? def.description}</Text>
+          <Text style={styles.hiddenRevealText}>{def.description}</Text>
         </View>
       )}
 
@@ -626,16 +619,14 @@ function AchievementDetailModal({
               <View style={styles.hiddenUnlockedModalBox}>
                 <Text style={styles.hiddenUnlockedModalBoxLabel}>SECRET BADGE UNLOCKED</Text>
                 <Text style={styles.hiddenUnlockedModalBoxText}>
-                  {def.unlockHint ?? def.description}
+                  {def.description}
                 </Text>
               </View>
             ) : (
-              def.unlockHint && (
-                <View style={styles.hiddenConditionCard}>
-                  <icons.Lock size={18} color={HIDDEN_COLORS.red} />
-                  <Text style={styles.hiddenConditionText}>{def.unlockHint}</Text>
-                </View>
-              )
+              <View style={styles.hiddenConditionCard}>
+                <icons.Lock size={18} color={HIDDEN_COLORS.red} />
+                <Text style={styles.hiddenConditionText}>Complete a secret objective to reveal this badge.</Text>
+              </View>
             )}
           </ScrollView>
         </Pressable>
