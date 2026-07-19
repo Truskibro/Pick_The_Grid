@@ -1156,182 +1156,95 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }
 
   const fetchGlobalLeaderboard = useCallback(async (seriesId?: string): Promise<LeaderboardEntry[]> => {
-    // Always compute seed-user points from the verified spreadsheet predictions.
-    // These are the authoritative scores, immune to stale Supabase cached values.
+    // Pure server-sourced leaderboard. Every point value comes from
+    // user_predictions.points_earned + sprint_points_earned, which are
+    // written by the score_predictions_for_race Postgres function.
+    // No client-side scoring, no seed-override, no local-total override.
+    // This guarantees every device sees the exact same leaderboard.
+    const effectiveSeriesId = seriesId ?? 'f1';
     const seedUserIdSet = new Set(SEED_USERS.map((u) => u.userId));
     const seedLeaderboard = buildSeedLeaderboard();
-    const seedScoreMap = new Map<string, number>();
-    const seedNameMap = new Map<string, { username: string; displayName: string }>();
-
-    for (const entry of seedLeaderboard) {
-      seedScoreMap.set(entry.userId, entry.totalPoints);
-      seedNameMap.set(entry.userId, { username: entry.username, displayName: entry.displayName });
-    }
 
     if (!isSupabaseConfigured) {
-      // F1 seed users only appear on the F1 leaderboard.
-      if (seriesId && seriesId !== 'f1') return [];
+      if (effectiveSeriesId !== 'f1') return [];
       return seedLeaderboard;
     }
 
     try {
-      // Query BOTH profiles and user_predictions so we include every registered
-      // user — not just the ones who happen to have prediction rows.
-      //
-      // We try the series_id-filtered query first. If the series_id column
-      // doesn't exist yet (migration not run) or the query fails, we fall back
-      // to the original query without the series filter so points still show.
+      // Fetch profiles (for names) and server-scored predictions in parallel.
       const profilesPromise = supabase
         .from('profiles')
-        .select('id, username, display_name, total_points');
+        .select('id, username, display_name');
 
-      // Try the series_id-filtered query first. If the series_id column
-      // doesn't exist yet (migration not run) or the query fails, fall back
-      // to the unfiltered query so points still show.
-      let predictionsRes;
-      let usingSeriesFilter = false;
-
-      if (seriesId) {
-        predictionsRes = await supabase
-          .from('user_predictions')
-          .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at, series_id')
-          .eq('series_id', seriesId);
-        usingSeriesFilter = true;
-
-        if (predictionsRes.error) {
-          // The series_id column or migration has not been applied yet.
-          // DO NOT fall back to an unfiltered query — that would leak
-          // F1 points into the MotoGP leaderboard (and vice versa).
-          // Return a safe, series-appropriate leaderboard instead.
-          console.warn(
-            `[GameProvider] series_id query failed for "${seriesId}". ` +
-            `Migration not applied? Returning safe leaderboard to prevent cross-series point leakage. ` +
-            `Error: ${predictionsRes.error.message}`
-          );
-
-          // Seed users only appear on the F1 leaderboard.
-          if (seriesId === 'f1') {
-            return seedLeaderboard;
-          }
-          return [];
-        }
-      } else {
-        predictionsRes = await supabase
-          .from('user_predictions')
-          .select('user_id, username, display_name, points_earned, sprint_points_earned, updated_at');
-      }
+      const predictionsRes = await supabase
+        .from('user_predictions')
+        .select('user_id, points_earned, sprint_points_earned')
+        .eq('series_id', effectiveSeriesId);
 
       const profilesRes = await profilesPromise;
 
-      const allProfiles = (profilesRes.data ?? []) as Array<{
-        id: string;
-        username: string | null;
-        display_name: string | null;
-        total_points: number | null;
-      }>;
-
-      const allPredictions = (predictionsRes.data ?? []) as Array<{
-        user_id: string;
-        username: string | null;
-        display_name: string | null;
-        points_earned: number | null;
-        sprint_points_earned: number | null;
-        updated_at: string | null;
-        series_id?: string | null;
-      }>;
-
       if (predictionsRes.error) {
-        console.log('[GameProvider] Predictions query error:', predictionsRes.error.message);
+        console.warn(
+          `[GameProvider] series_id query failed for "${effectiveSeriesId}". ` +
+          `Returning safe leaderboard to prevent cross-series point leakage. ` +
+          `Error: ${predictionsRes.error.message}`
+        );
+        return effectiveSeriesId === 'f1' ? seedLeaderboard : [];
       }
       if (profilesRes.error) {
         console.log('[GameProvider] Profiles query error:', profilesRes.error.message);
       }
 
-      // Build a map of every user from profiles.
-      const userMap = new Map<string, {
-        username: string;
-        displayName: string;
-        totalPoints: number;
-        isSeedUser: boolean;
-      }>();
+      const allProfiles = (profilesRes.data ?? []) as Array<{
+        id: string;
+        username: string | null;
+        display_name: string | null;
+      }>;
 
-      for (const profile of allProfiles) {
-        const isSeed = seedUserIdSet.has(profile.id);
-        userMap.set(profile.id, {
-          username: cleanText(profile.username) ?? 'Unknown',
-          displayName: cleanText(profile.display_name) ?? cleanText(profile.username) ?? 'Unknown',
-          totalPoints: isSeed ? (seedScoreMap.get(profile.id) ?? 0) : (profile.total_points ?? 0),
-          isSeedUser: isSeed,
-        });
-      }
+      const allPredictions = (predictionsRes.data ?? []) as Array<{
+        user_id: string;
+        points_earned: number | null;
+        sprint_points_earned: number | null;
+      }>;
 
-      // For non-seed users, compute points from their prediction rows (more
-      // accurate than profiles.total_points, which may be stale).
-      // When a series filter is active, only predictions for that series
-      // are counted, so the leaderboard is series-specific.
-      const nonSeedPoints = new Map<string, number>();
+      // Sum server-scored points per user for this series.
+      const pointsMap = new Map<string, number>();
       for (const row of allPredictions) {
-        if (seedUserIdSet.has(row.user_id)) continue;
-        const current = nonSeedPoints.get(row.user_id) ?? 0;
-        nonSeedPoints.set(
+        if (!row.user_id) continue;
+        const current = pointsMap.get(row.user_id) ?? 0;
+        pointsMap.set(
           row.user_id,
           current + (row.points_earned ?? 0) + (row.sprint_points_earned ?? 0),
         );
       }
 
-      // Override non-seed user points with the sum from predictions.
-      // When filtering by series, users with no predictions in that series
-      // keep a 0 score (set via the map default below).
-      for (const [userId, points] of nonSeedPoints) {
-        const existing = userMap.get(userId);
-        if (existing && !existing.isSeedUser) {
-          existing.totalPoints = points;
-        }
+      // Build name lookup from profiles.
+      const nameMap = new Map<string, { username: string; displayName: string }>();
+      for (const profile of allProfiles) {
+        nameMap.set(profile.id, {
+          username: cleanText(profile.username) ?? 'Unknown',
+          displayName: cleanText(profile.display_name) ?? cleanText(profile.username) ?? 'Unknown',
+        });
       }
 
-      // When filtering by series, exclude non-seed users who have no
-      // predictions in that series (they should not appear with 0 or leaked
-      // points from another series).
-      if (seriesId) {
-        for (const [userId, info] of userMap) {
-          if (!info.isSeedUser && !nonSeedPoints.has(userId)) {
-            userMap.delete(userId);
-          }
-        }
-      }
-
-      // Build the entries, excluding only truly bogus placeholder accounts.
-      // We no longer exclude by user ID — real users with low points should
-      // still appear. Only filter out entries that have no meaningful name.
-      const entries: LeaderboardEntry[] = Array.from(userMap.entries())
-        .filter(([_userId, info]) => {
-          const name = info.displayName || info.username || '';
-          // Keep any entry that looks like a real person.
-          return name.length > 0 && name !== 'Unknown';
-        })
-        .map(([userId, info]) => ({
+      // Build entries from users who have scored predictions in this series.
+      const entries: LeaderboardEntry[] = [];
+      for (const [userId, points] of pointsMap) {
+        const name = nameMap.get(userId);
+        const username = name?.username ?? (seedUserIdSet.has(userId) ? (seedLeaderboard.find((s) => s.userId === userId)?.username ?? 'Unknown') : 'Unknown');
+        const displayName = name?.displayName ?? (seedUserIdSet.has(userId) ? (seedLeaderboard.find((s) => s.userId === userId)?.displayName ?? 'Unknown') : 'Unknown');
+        if (!displayName || displayName === 'Unknown') continue;
+        entries.push({
           rank: 0,
           userId,
-          username: info.isSeedUser ? (seedNameMap.get(userId)?.username ?? info.username) : info.username,
-          displayName: info.isSeedUser ? (seedNameMap.get(userId)?.displayName ?? info.displayName) : info.displayName,
-          totalPoints: info.isSeedUser ? (seedScoreMap.get(userId) ?? info.totalPoints) : info.totalPoints,
-          seriesId: seriesId ?? undefined,
-        }));
-
-      // Ensure seed users always appear, even if their profile is missing.
-      // But only include seed users on the F1 leaderboard (they have F1 data only).
-      if (!seriesId || seriesId === 'f1') {
-        const existingUserIds = new Set(entries.map((e) => e.userId));
-        for (const seedEntry of seedLeaderboard) {
-          if (!existingUserIds.has(seedEntry.userId)) {
-            entries.push(seedEntry);
-          }
-        }
+          username,
+          displayName,
+          totalPoints: points,
+          seriesId: effectiveSeriesId,
+        });
       }
 
-      // Points are now authored by Supabase (score_predictions_for_race).
-      // No local-score override — the server's points_earned values are
-      // authoritative and read straight from user_predictions.
+      // Sort + assign ranks.
       entries.sort((a, b) => b.totalPoints - a.totalPoints);
       entries.forEach((entry, index) => {
         entry.rank = index + 1;
@@ -1340,7 +1253,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return entries;
     } catch (e: any) {
       console.log('[GameProvider] Leaderboard load threw:', e?.message || e);
-      return seedLeaderboard;
+      return effectiveSeriesId === 'f1' ? seedLeaderboard : [];
     }
   }, []);
 
