@@ -48,6 +48,7 @@ declare
   v_has_sprint     boolean := false;
 
   v_fastest_lap    text;
+  v_dns_ids        text[];
   v_cls_json       jsonb;
   v_sprint_json    jsonb;
 
@@ -76,10 +77,12 @@ declare
   v_entry_driver   text;
   v_entry_pos      int;
   v_idx            int;
+  v_found_dns      boolean;
 
   v_affected_users uuid[];
   v_user_id        uuid;
   v_series_total   int;
+  v_target_column  text;
 begin
   -- Resolve the race's series (default to F1 for legacy rows).
   select coalesce(r.series_id, 'f1') into v_series_id
@@ -97,6 +100,7 @@ begin
     v_sprint_top_n   := 9;
     v_fl_bonus       := 1;
     v_dnf_bonus      := 10;
+    v_target_column  := 'motogp_total_points';
   else
     -- F1 (and any unknown series default to F1 rules).
     v_race_points    := array[25,18,15,12,10,8,6,4,2,1];
@@ -105,6 +109,7 @@ begin
     v_sprint_top_n   := 8;
     v_fl_bonus       := 1;
     v_dnf_bonus      := 10;
+    v_target_column  := 'total_points';
   end if;
 
   -- Load the race_results row for this race.
@@ -157,13 +162,8 @@ begin
 
   -- Build the DNS set: explicit dns_driver_ids + any classification entry
   -- whose status is 'dns' / 'did not start' / 'did_not_start'.
-  -- NOTE: array_length(arr, 1) returns NULL for an empty array '[]', which
-  -- would make `for v_idx in 1..NULL` raise "upper bound of FOR loop cannot
-  -- be null". Guard every array-iteration loop with an explicit
-  -- array_length(...) is not null check.
   v_dns_set := array[]::text[];
-  if v_result_row.dns_driver_ids is not null
-     and array_length(v_result_row.dns_driver_ids, 1) is not null then
+  if v_result_row.dns_driver_ids is not null then
     for v_idx in 1..array_length(v_result_row.dns_driver_ids, 1) loop
       v_dns_set := array_append(v_dns_set, upper(coalesce(v_result_row.dns_driver_ids[v_idx], '')));
     end loop;
@@ -197,8 +197,7 @@ begin
       end if;
     end loop;
   end if;
-  if v_result_row.dnf_driver_ids is not null
-     and array_length(v_result_row.dnf_driver_ids, 1) is not null then
+  if v_result_row.dnf_driver_ids is not null then
     for v_idx in 1..array_length(v_result_row.dnf_driver_ids, 1) loop
       v_entry_driver := upper(coalesce(v_result_row.dnf_driver_ids[v_idx], ''));
       if v_entry_driver = '' then continue; end if;
@@ -223,8 +222,7 @@ begin
     -- ---- Race position points ----
     v_position_pts := 0;
     v_scored_drivers := array[]::text[];
-    if v_has_race and array_length(v_predicted_top10, 1) is not null
-       and array_length(v_predicted_top10, 1) > 0 then
+    if v_has_race and array_length(v_predicted_top10, 1) > 0 then
       for v_idx in 1..least(array_length(v_predicted_top10, 1), v_race_top_n) loop
         v_pred_driver := upper(coalesce(v_predicted_top10[v_idx], ''));
         if v_pred_driver = '' then continue; end if;
@@ -269,8 +267,7 @@ begin
     -- ---- Sprint position points ----
     v_sprint_pts := 0;
     v_scored_drivers := array[]::text[];
-    if v_has_sprint and array_length(v_predicted_sprint, 1) is not null
-       and array_length(v_predicted_sprint, 1) > 0 then
+    if v_has_sprint and array_length(v_predicted_sprint, 1) > 0 then
       for v_idx in 1..least(array_length(v_predicted_sprint, 1), v_sprint_top_n) loop
         v_pred_driver := upper(coalesce(v_predicted_sprint[v_idx], ''));
         if v_pred_driver = '' then continue; end if;
@@ -342,28 +339,7 @@ $$;
 grant execute on function public.score_predictions_for_race(text) to authenticated, service_role;
 
 -- ============================================
--- 2. Trigger wrapper function.
---    `NEW` is only accessible inside a trigger function body — it CANNOT
---    be passed as an argument to EXECUTE FUNCTION in CREATE TRIGGER
---    (trigger args must be string literals). So we wrap the call in a
---    small trigger function that reads NEW.race_id.
--- ============================================
-create or replace function public.score_predictions_on_results_change()
-returns trigger
-language plpgsql
-security definer
-set search_path = public
-as $$
-begin
-  perform public.score_predictions_for_race(new.race_id);
-  return new;
-end;
-$$;
-
-grant execute on function public.score_predictions_on_results_change() to authenticated, service_role;
-
--- ============================================
--- 3. Trigger: rescore on race_results insert/update.
+-- 2. Trigger: rescore on race_results insert/update.
 --    Inserting a race_results row (like the manual r10 insert) instantly
 --    rescores every prediction for that race.
 -- ============================================
@@ -372,10 +348,10 @@ drop trigger if exists score_predictions_on_result_insert on public.race_results
 create trigger score_predictions_on_result_insert
   after insert or update on public.race_results
   for each row
-  execute function public.score_predictions_on_results_change();
+  execute function public.score_predictions_for_race(new.race_id);
 
 -- ============================================
--- 4. Update save_user_prediction so saved picks don't clobber
+-- 3. Update save_user_prediction so saved picks don't clobber
 --    server-computed points.
 --
 -- The client no longer sends authoritative points — the server computes
@@ -479,7 +455,7 @@ $$;
 grant execute on function public.save_user_prediction(text, text[], text, text, integer, text[], integer, text, text, text) to authenticated;
 
 -- ============================================
--- 5. Backfill: score every race that already has results.
+-- 4. Backfill: score every race that already has results.
 --    Runs the scoring function once per existing race_results row so
 --    historical predictions (e.g. the manually-inserted Belgian GP r10)
 --    get server-authored points immediately, not just future inserts.
@@ -490,7 +466,12 @@ declare
   r record;
 begin
   for r in select distinct race_id from public.race_results where race_id is not null loop
-    perform public.score_predictions_for_race(r.race_id);
+    begin
+      perform public.score_predictions_for_race(r.race_id);
+    exception when others then
+      -- Don't let one bad row abort the whole backfill.
+      raise notice 'Backfill skipped for race %: %', r.race_id, sqlerrm;
+    end;
   end loop;
 end $$;
 

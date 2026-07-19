@@ -94,6 +94,7 @@ export type Database = {
           join_code: string | null
           name: string
           owner_id: string | null
+          series_id: string | null
           visibility: string | null
         }
         Insert: {
@@ -103,6 +104,7 @@ export type Database = {
           join_code?: string | null
           name: string
           owner_id?: string | null
+          series_id?: string | null
           visibility?: string | null
         }
         Update: {
@@ -112,6 +114,7 @@ export type Database = {
           join_code?: string | null
           name?: string
           owner_id?: string | null
+          series_id?: string | null
           visibility?: string | null
         }
         Relationships: []
@@ -142,6 +145,7 @@ export type Database = {
           created_at: string | null
           display_name: string
           id: string
+          motogp_total_points: number | null
           total_points: number
           updated_at: string | null
           username: string | null
@@ -150,6 +154,7 @@ export type Database = {
           created_at?: string | null
           display_name: string
           id: string
+          motogp_total_points?: number | null
           total_points?: number
           updated_at?: string | null
           username?: string | null
@@ -158,6 +163,7 @@ export type Database = {
           created_at?: string | null
           display_name?: string
           id?: string
+          motogp_total_points?: number | null
           total_points?: number
           updated_at?: string | null
           username?: string | null
@@ -217,6 +223,7 @@ export type Database = {
           race_date: string
           race_time: string | null
           round: number
+          series_id: string | null
           status: string | null
           total_laps: number | null
           winner: string | null
@@ -232,6 +239,7 @@ export type Database = {
           race_date: string
           race_time?: string | null
           round: number
+          series_id?: string | null
           status?: string | null
           total_laps?: number | null
           winner?: string | null
@@ -247,6 +255,7 @@ export type Database = {
           race_date?: string
           race_time?: string | null
           round?: number
+          series_id?: string | null
           status?: string | null
           total_laps?: number | null
           winner?: string | null
@@ -306,6 +315,7 @@ export type Database = {
           predicted_sprint_top8: string[]
           predicted_top10: string[]
           race_id: string
+          series_id: string
           sprint_points_earned: number
           updated_at: string
           user_id: string
@@ -321,6 +331,7 @@ export type Database = {
           predicted_sprint_top8?: string[]
           predicted_top10?: string[]
           race_id: string
+          series_id?: string
           sprint_points_earned?: number
           updated_at?: string
           user_id: string
@@ -336,6 +347,7 @@ export type Database = {
           predicted_sprint_top8?: string[]
           predicted_top10?: string[]
           race_id?: string
+          series_id?: string
           sprint_points_earned?: number
           updated_at?: string
           user_id?: string
@@ -363,39 +375,81 @@ export type Database = {
           reason: string
         }[]
       }
-      save_user_prediction: {
-        Args: {
-          p_display_name?: string
-          p_points_earned?: number
-          p_predicted_dnf?: string
-          p_predicted_fastest_lap?: string
-          p_predicted_sprint_top8?: string[]
-          p_predicted_top10: string[]
-          p_race_id: string
-          p_sprint_points_earned?: number
-          p_username?: string
-        }
-        Returns: {
-          created_at: string
-          display_name: string
-          id: string
-          points_earned: number
-          predicted_dnf: string | null
-          predicted_fastest_lap: string | null
-          predicted_sprint_top8: string[]
-          predicted_top10: string[]
-          race_id: string
-          sprint_points_earned: number
-          updated_at: string
-          user_id: string
-          username: string
-        }
-        SetofOptions: {
-          from: "*"
-          to: "user_predictions"
-          isOneToOne: true
-          isSetofReturn: false
-        }
+      save_user_prediction:
+        | {
+            Args: {
+              p_display_name?: string
+              p_points_earned?: number
+              p_predicted_dnf?: string
+              p_predicted_fastest_lap?: string
+              p_predicted_sprint_top8?: string[]
+              p_predicted_top10: string[]
+              p_race_id: string
+              p_sprint_points_earned?: number
+              p_username?: string
+            }
+            Returns: {
+              created_at: string
+              display_name: string
+              id: string
+              points_earned: number
+              predicted_dnf: string | null
+              predicted_fastest_lap: string | null
+              predicted_sprint_top8: string[]
+              predicted_top10: string[]
+              race_id: string
+              series_id: string
+              sprint_points_earned: number
+              updated_at: string
+              user_id: string
+              username: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "user_predictions"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+        | {
+            Args: {
+              p_display_name?: string
+              p_points_earned?: number
+              p_predicted_dnf?: string
+              p_predicted_fastest_lap?: string
+              p_predicted_sprint_top8?: string[]
+              p_predicted_top10: string[]
+              p_race_id: string
+              p_series_id?: string
+              p_sprint_points_earned?: number
+              p_username?: string
+            }
+            Returns: {
+              created_at: string
+              display_name: string
+              id: string
+              points_earned: number
+              predicted_dnf: string | null
+              predicted_fastest_lap: string | null
+              predicted_sprint_top8: string[]
+              predicted_top10: string[]
+              race_id: string
+              series_id: string
+              sprint_points_earned: number
+              updated_at: string
+              user_id: string
+              username: string
+            }
+            SetofOptions: {
+              from: "*"
+              to: "user_predictions"
+              isOneToOne: true
+              isSetofReturn: false
+            }
+          }
+      score_predictions_for_race: {
+        Args: { p_race_id: string }
+        Returns: undefined
       }
     }
     Enums: {
