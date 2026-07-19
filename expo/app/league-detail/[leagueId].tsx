@@ -24,11 +24,6 @@ import * as Haptics from 'expo-haptics';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
-import {
-  MOCK_LEAGUE_MEMBERS,
-  scoreMockMember,
-} from '@/constants/mock-members';
-import { MOCK_RACE_RESULTS } from '@/constants/f1-data';
 import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
@@ -45,7 +40,6 @@ export default function LeagueDetailScreen() {
     getLeagueMembers,
     fetchLeagueMembers,
     deleteLeague,
-    getSeriesTotalPoints,
   } = useGame();
 
   const { profile } = useUser();
@@ -53,66 +47,38 @@ export default function LeagueDetailScreen() {
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
 
-  // Use the league's own seriesId for points — not the currently-selected
-  // series. This prevents MotoGP league members from showing F1 points.
-  const leagueSeriesId = league?.seriesId ?? 'f1';
-  const seriesTotalPoints = getSeriesTotalPoints(leagueSeriesId);
-
-  // Score seed users against canonical mock race results.
-  // Build a map so we can override real members' points as well as
-  // inject missing mock members.  All IDs are normalized to lowercase
-  // for consistent matching regardless of Supabase UUID casing.
-  const seedPointMap = new Map<string, number>();
-  const mockMembers: LeagueMember[] = MOCK_LEAGUE_MEMBERS.map((mock) => {
-    const scored = scoreMockMember(mock, MOCK_RACE_RESULTS);
-    seedPointMap.set(mock.userId.toLowerCase(), scored.points);
-    return scored;
-  });
-
-  // Always override current user with live profile data, using the
-  // league's series-specific points.
+  // Members come straight from Supabase (real league_members rows) with
+  // server-scored points computed in GameProvider. We do NOT inject mock
+  // seed members into every league anymore — each league shows only the
+  // users who actually joined it.
   const members: LeagueMember[] = rawMembers.map((m) =>
     m.userId === profile.id
       ? {
           ...m,
           displayName: profile.displayName,
           username: profile.username,
-          points: seriesTotalPoints,
         }
       : m
   );
 
+  // Make sure the current user always sees themselves on their own league
+  // detail page even before fetchLeagueMembers resolves (optimistic).
   const hasCurrentUser = members.some((m) => m.userId === profile.id);
-
-  const baseMembers: LeagueMember[] = hasCurrentUser
+  const finalMembers: LeagueMember[] = hasCurrentUser
     ? members
-    : [
-        ...members,
-        {
-          userId: profile.id,
-          username: profile.username,
-          displayName: profile.displayName,
-          role: 'member' as const,
-          points: seriesTotalPoints,
-          joinedAt: new Date().toISOString(),
-        },
-      ];
-
-  const existingIds = new Set(baseMembers.map((m) => m.userId.toLowerCase()));
-
-  // Always override seed users' points with canonical mock-scored values.
-  // Never trust Supabase profile data for seed users — it may contain stale
-  // or zero points from before the seed predictions were loaded.
-  const finalMembers: LeagueMember[] = [
-    ...baseMembers.map((m) => {
-      const seedPts = seedPointMap.get(m.userId.toLowerCase());
-      if (seedPts != null && seedPts > 0) {
-        return { ...m, points: seedPts };
-      }
-      return m;
-    }),
-    ...mockMembers.filter((m) => !existingIds.has(m.userId.toLowerCase())),
-  ];
+    : league
+      ? [
+          ...members,
+          {
+            userId: profile.id,
+            username: profile.username,
+            displayName: profile.displayName,
+            role: league.ownerId === profile.id ? ('owner' as const) : ('member' as const),
+            points: 0,
+            joinedAt: new Date().toISOString(),
+          },
+        ]
+      : members;
 
   const isOwner = league?.ownerId === profile.id;
   const [isFetchingMembers, setIsFetchingMembers] = useState(true);
@@ -155,10 +121,9 @@ export default function LeagueDetailScreen() {
       cancelled = true;
       clearTimeout(timeout);
     };
-  // Re-fetch from Supabase whenever the league identity changes OR scoring
-  // just happened (seriesTotalPoints change).  This keeps the member list current
-  // when a race completes and the current user's points are recalculated.
-  }, [leagueId, profile.displayName, profile.username, seriesTotalPoints]);
+  // Re-fetch from Supabase whenever the league identity changes OR the user
+  // switches profiles (so the current-user row stays accurate).
+  }, [leagueId, profile.displayName, profile.username]);
 
   if (!league) {
     return (
@@ -205,8 +170,7 @@ export default function LeagueDetailScreen() {
 
   const top3Accents = [Colors.warning, '#A0A0A8', '#CD7F32'] as const;
 
-  const isMockMember = (userId: string) =>
-    MOCK_LEAGUE_MEMBERS.some((m) => m.userId === userId);
+  const isMockMember = (_userId: string) => false;
 
   const renderMember = ({ item, index }: { item: LeagueMember; index: number }) => {
     const rank = index + 1;

@@ -93,6 +93,147 @@ function predictionKey(prediction: Prediction): string {
   return `${prediction.seriesId ?? 'f1'}:${prediction.raceId}`;
 }
 
+// ── League helpers ───────────────────────────────────────────────────────
+
+type LeagueRow = {
+  id: string;
+  name: string;
+  description: string | null;
+  visibility: string | null;
+  join_code: string | null;
+  owner_id: string | null;
+  created_at: string | null;
+  series_id: string | null;
+};
+
+function mapLeagueRow(row: LeagueRow, memberCount = 0): League {
+  return {
+    id: row.id,
+    name: row.name,
+    description: row.description ?? '',
+    visibility: row.visibility === 'private' ? 'private' : 'public',
+    joinCode: row.join_code ?? '',
+    ownerId: row.owner_id ?? '',
+    memberCount,
+    createdAt: row.created_at ?? new Date().toISOString(),
+    seriesId: row.series_id ?? 'f1',
+  };
+}
+
+/** Compute per-user series-specific points from server-scored user_predictions. */
+async function fetchSeriesPointsForUsers(
+  userIds: string[],
+  seriesId: string,
+): Promise<Map<string, number>> {
+  if (userIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('user_predictions')
+    .select('user_id, points_earned, sprint_points_earned')
+    .in('user_id', userIds)
+    .eq('series_id', seriesId);
+  if (error) {
+    console.log('[fetchSeriesPointsForUsers] error:', error.message);
+    return new Map();
+  }
+  const map = new Map<string, number>();
+  for (const row of data ?? []) {
+    const current = map.get(row.user_id) ?? 0;
+    map.set(row.user_id, current + (row.points_earned ?? 0) + (row.sprint_points_earned ?? 0));
+  }
+  return map;
+}
+
+/** Count members per league from league_members table. */
+async function fetchMemberCounts(leagueIds: string[]): Promise<Map<string, number>> {
+  if (leagueIds.length === 0) return new Map();
+  const { data, error } = await supabase
+    .from('league_members')
+    .select('league_id')
+    .in('league_id', leagueIds);
+  if (error) {
+    console.log('[fetchMemberCounts] error:', error.message);
+    return new Map();
+  }
+  const counts = new Map<string, number>();
+  for (const row of data ?? []) {
+    if (row.league_id) {
+      counts.set(row.league_id, (counts.get(row.league_id) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
+/**
+ * Fetch members for a batch of leagues in one round-trip, computing each
+ * member's points from server-scored user_predictions filtered by the
+ * league's series. Returns a map keyed by league_id.
+ */
+async function fetchLeagueMembersBatch(
+  leagueIds: string[],
+): Promise<Record<string, LeagueMember[]> | null> {
+  if (leagueIds.length === 0) return null;
+  const { data: memberRows, error } = await supabase
+    .from('league_members')
+    .select('league_id, user_id, role, joined_at, profiles!league_members_user_id_fkey(username, display_name)')
+    .in('league_id', leagueIds);
+  if (error) {
+    console.log('[fetchLeagueMembersBatch] error:', error.message);
+    return null;
+  }
+
+  // Group raw member rows by league.
+  const grouped = new Map<string, Array<{ row: any }>>();
+  const allUserIds = new Set<string>();
+  for (const row of memberRows ?? []) {
+    if (!row.league_id || !row.user_id) continue;
+    const arr = grouped.get(row.league_id) ?? [];
+    arr.push({ row });
+    grouped.set(row.league_id, arr);
+    allUserIds.add(row.user_id);
+  }
+
+  // Look up the series for each league so we filter points correctly.
+  const { data: leagueRows } = await supabase
+    .from('leagues')
+    .select('id, series_id')
+    .in('id', leagueIds);
+  const leagueSeries = new Map<string, string>();
+  for (const lr of leagueRows ?? []) {
+    leagueSeries.set(lr.id, lr.series_id ?? 'f1');
+  }
+
+  // Compute per-user points for each series present.
+  const seriesToUsers = new Map<string, Set<string>>();
+  for (const [lid, members] of grouped) {
+    const sid = leagueSeries.get(lid) ?? 'f1';
+    const set = seriesToUsers.get(sid) ?? new Set<string>();
+    for (const m of members) allUserIds.has(m.row.user_id) && set.add(m.row.user_id);
+    seriesToUsers.set(sid, set);
+  }
+  const seriesPoints = new Map<string, Map<string, number>>();
+  for (const [sid, users] of seriesToUsers) {
+    seriesPoints.set(sid, await fetchSeriesPointsForUsers(Array.from(users), sid));
+  }
+
+  const result: Record<string, LeagueMember[]> = {};
+  for (const [lid, members] of grouped) {
+    const sid = leagueSeries.get(lid) ?? 'f1';
+    const ptsMap = seriesPoints.get(sid) ?? new Map<string, number>();
+    result[lid] = members.map(({ row }) => {
+      const profileData = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
+      return {
+        userId: row.user_id,
+        username: profileData?.username ?? 'Unknown',
+        displayName: profileData?.display_name ?? profileData?.username ?? 'Unknown',
+        role: row.role === 'owner' ? 'owner' : 'member',
+        points: ptsMap.get(row.user_id) ?? 0,
+        joinedAt: row.joined_at ?? new Date().toISOString(),
+      } as LeagueMember;
+    });
+  }
+  return result;
+}
+
 function mergePredictions(localPredictions: Prediction[], cloudPredictions: Prediction[]): Prediction[] {
   const byKey = new Map<string, Prediction>();
 
@@ -668,6 +809,25 @@ export const [GameProvider, useGame] = createContextHook(() => {
     );
   }, [predictions, currentSeries]);
 
+  // ── Leagues: Supabase-backed ──────────────────────────────────────────
+  //
+  // Leagues and league_members live in Supabase. AsyncStorage is used only as
+  // a read-through cache so the UI can render immediately on focus; every
+  // mutation writes to Supabase first, then refreshes from Supabase so all
+  // users see the same data.
+
+  const persistLeaguesLocal = useCallback(async (
+    nextLeagues: League[],
+    nextMembers: Record<string, LeagueMember[]>,
+  ) => {
+    try {
+      await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(nextLeagues));
+      await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(nextMembers));
+    } catch (e) {
+      console.log('[persistLeaguesLocal] error:', e);
+    }
+  }, []);
+
   const createLeague = useCallback(async (
     name: string,
     description: string,
@@ -677,17 +837,80 @@ export const [GameProvider, useGame] = createContextHook(() => {
     ownerDisplayName: string,
     seriesId?: string,
   ): Promise<League> => {
-    const league: League = {
-      id: generateId(),
-      name,
-      description,
-      visibility,
-      joinCode: generateJoinCode(),
-      ownerId,
-      memberCount: 1,
-      createdAt: new Date().toISOString(),
-      seriesId: seriesId ?? 'f1',
-    };
+    const finalSeriesId = seriesId ?? 'f1';
+
+    // Local-only fast path (guest / Supabase not configured).
+    if (!isSupabaseConfigured || !ownerId || ownerId === 'guest') {
+      const localLeague: League = {
+        id: generateId(),
+        name,
+        description,
+        visibility,
+        joinCode: generateJoinCode(),
+        ownerId,
+        memberCount: 1,
+        createdAt: new Date().toISOString(),
+        seriesId: finalSeriesId,
+      };
+      const ownerMember: LeagueMember = {
+        userId: ownerId,
+        username: ownerName,
+        displayName: ownerDisplayName,
+        role: 'owner',
+        points: 0,
+        joinedAt: new Date().toISOString(),
+      };
+      const nextLeagues = [...leagues, localLeague];
+      const nextMembers = { ...leagueMembers, [localLeague.id]: [ownerMember] };
+      setLeagues(nextLeagues);
+      setLeagueMembers(nextMembers);
+      await persistLeaguesLocal(nextLeagues, nextMembers);
+      return localLeague;
+    }
+
+    // Generate a unique join code (retry on rare collision).
+    let joinCode = generateJoinCode();
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { data: existing } = await supabase
+        .from('leagues')
+        .select('id')
+        .eq('join_code', joinCode)
+        .maybeSingle();
+      if (!existing) break;
+      joinCode = generateJoinCode();
+    }
+
+    const { data: leagueRow, error: leagueError } = await supabase
+      .from('leagues')
+      .insert({
+        name,
+        description,
+        visibility,
+        join_code: joinCode,
+        owner_id: ownerId,
+        series_id: finalSeriesId,
+      })
+      .select('*')
+      .single();
+
+    if (leagueError || !leagueRow) {
+      console.log('[createLeague] insert failed:', leagueError?.message);
+      throw new Error(leagueError?.message ?? 'Failed to create league');
+    }
+
+    const newLeague = mapLeagueRow(leagueRow as LeagueRow, 1);
+
+    const { error: memberError } = await supabase
+      .from('league_members')
+      .insert({
+        league_id: newLeague.id,
+        user_id: ownerId,
+        role: 'owner',
+      });
+
+    if (memberError) {
+      console.log('[createLeague] owner member insert failed:', memberError.message);
+    }
 
     const ownerMember: LeagueMember = {
       userId: ownerId,
@@ -698,16 +921,14 @@ export const [GameProvider, useGame] = createContextHook(() => {
       joinedAt: new Date().toISOString(),
     };
 
-    const updatedLeagues = [...leagues, league];
-    const updatedMembers = { ...leagueMembers, [league.id]: [ownerMember] };
+    const nextLeagues = [...leagues, newLeague];
+    const nextMembers = { ...leagueMembers, [newLeague.id]: [ownerMember] };
+    setLeagues(nextLeagues);
+    setLeagueMembers(nextMembers);
+    await persistLeaguesLocal(nextLeagues, nextMembers);
 
-    setLeagues(updatedLeagues);
-    setLeagueMembers(updatedMembers);
-    await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updatedLeagues));
-    await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updatedMembers));
-
-    return league;
-  }, [leagues, leagueMembers]);
+    return newLeague;
+  }, [leagues, leagueMembers, persistLeaguesLocal]);
 
   const joinLeague = useCallback(async (
     leagueId: string,
@@ -721,6 +942,42 @@ export const [GameProvider, useGame] = createContextHook(() => {
     const members = leagueMembers[leagueId] || [];
     if (members.some((m) => m.userId === userId)) return false;
 
+    // Local-only fast path.
+    if (!isSupabaseConfigured || !userId || userId === 'guest') {
+      const newMember: LeagueMember = {
+        userId,
+        username,
+        displayName,
+        role: 'member',
+        points: 0,
+        joinedAt: new Date().toISOString(),
+      };
+      const nextMembers = { ...leagueMembers, [leagueId]: [...members, newMember] };
+      const nextLeagues = leagues.map((l) =>
+        l.id === leagueId ? { ...l, memberCount: l.memberCount + 1 } : l,
+      );
+      setLeagueMembers(nextMembers);
+      setLeagues(nextLeagues);
+      await persistLeaguesLocal(nextLeagues, nextMembers);
+      return true;
+    }
+
+    const { error } = await supabase
+      .from('league_members')
+      .insert({
+        league_id: leagueId,
+        user_id: userId,
+        role: 'member',
+      });
+
+    if (error) {
+      // 23505 = unique_violation — already a member.
+      if (error.code === '23505') return false;
+      console.log('[joinLeague] insert failed:', error.message);
+      return false;
+    }
+
+    // Optimistically add locally; refresh will reconcile counts.
     const newMember: LeagueMember = {
       userId,
       username,
@@ -729,22 +986,34 @@ export const [GameProvider, useGame] = createContextHook(() => {
       points: 0,
       joinedAt: new Date().toISOString(),
     };
-
-    const updatedMembers = { ...leagueMembers, [leagueId]: [...members, newMember] };
-    const updatedLeagues = leagues.map((l) =>
+    const nextMembers = { ...leagueMembers, [leagueId]: [...members, newMember] };
+    const nextLeagues = leagues.map((l) =>
       l.id === leagueId ? { ...l, memberCount: l.memberCount + 1 } : l,
     );
-
-    setLeagueMembers(updatedMembers);
-    setLeagues(updatedLeagues);
-    await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updatedMembers));
-    await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updatedLeagues));
+    setLeagueMembers(nextMembers);
+    setLeagues(nextLeagues);
+    await persistLeaguesLocal(nextLeagues, nextMembers);
 
     return true;
-  }, [leagues, leagueMembers]);
+  }, [leagues, leagueMembers, persistLeaguesLocal]);
 
-  const findLeagueByCode = useCallback((code: string): League | undefined => {
-    return leagues.find((l) => l.joinCode === code.toUpperCase());
+  const findLeagueByCode = useCallback(async (code: string): Promise<League | undefined> => {
+    const upper = code.toUpperCase();
+    // Check local cache first (covers the local-only fast path).
+    const local = leagues.find((l) => l.joinCode === upper);
+    if (local) return local;
+
+    if (!isSupabaseConfigured) return undefined;
+
+    const { data, error } = await supabase
+      .from('leagues')
+      .select('*')
+      .eq('join_code', upper)
+      .maybeSingle();
+
+    if (error || !data) return undefined;
+    const counts = await fetchMemberCounts([data.id]);
+    return mapLeagueRow(data as LeagueRow, counts.get(data.id) ?? 0);
   }, [leagues]);
 
   const getLeagueMembers = useCallback((leagueId: string): LeagueMember[] => {
@@ -752,27 +1021,111 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, [leagueMembers]);
 
   const deleteLeague = useCallback(async (leagueId: string): Promise<void> => {
-    const updatedLeagues = leagues.filter((l) => l.id !== leagueId);
-    const updatedMembers = { ...leagueMembers };
-    delete updatedMembers[leagueId];
+    // Local-only fast path.
+    if (!isSupabaseConfigured) {
+      const nextLeagues = leagues.filter((l) => l.id !== leagueId);
+      const nextMembers = { ...leagueMembers };
+      delete nextMembers[leagueId];
+      setLeagues(nextLeagues);
+      setLeagueMembers(nextMembers);
+      await persistLeaguesLocal(nextLeagues, nextMembers);
+      return;
+    }
 
-    setLeagues(updatedLeagues);
-    setLeagueMembers(updatedMembers);
-    await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(updatedLeagues));
-    await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updatedMembers));
-  }, [leagues, leagueMembers]);
+    const { error } = await supabase.from('leagues').delete().eq('id', leagueId);
+    if (error) {
+      console.log('[deleteLeague] failed:', error.message);
+      // Still update local state so the UI reflects intent.
+    }
+
+    const nextLeagues = leagues.filter((l) => l.id !== leagueId);
+    const nextMembers = { ...leagueMembers };
+    delete nextMembers[leagueId];
+    setLeagues(nextLeagues);
+    setLeagueMembers(nextMembers);
+    await persistLeaguesLocal(nextLeagues, nextMembers);
+  }, [leagues, leagueMembers, persistLeaguesLocal]);
 
   const refreshLeagues = useCallback(async (): Promise<void> => {
+    if (!isSupabaseConfigured || !activeUserId) {
+      // Keep whatever's in AsyncStorage (local-only leagues).
+      try {
+        const leagueData = await AsyncStorage.getItem(STORAGE_KEYS.leagues);
+        const memberData = await AsyncStorage.getItem(STORAGE_KEYS.leagueMembers);
+        if (leagueData) setLeagues(JSON.parse(leagueData) as League[]);
+        if (memberData) setLeagueMembers(JSON.parse(memberData) as Record<string, LeagueMember[]>);
+      } catch {}
+      return;
+    }
+
     try {
-      const leagueData = await AsyncStorage.getItem(STORAGE_KEYS.leagues);
-      const memberData = await AsyncStorage.getItem(STORAGE_KEYS.leagueMembers);
-      if (leagueData) setLeagues(JSON.parse(leagueData) as League[]);
-      if (memberData) setLeagueMembers(JSON.parse(memberData) as Record<string, LeagueMember[]>);
-    } catch {}
-  }, []);
+      // Fetch every league the current user is a member of, plus public
+      // leagues so Browse still works. This is the authoritative view.
+      const { data: memberRows, error: memberError } = await supabase
+        .from('league_members')
+        .select('league_id')
+        .eq('user_id', activeUserId);
+
+      if (memberError) {
+        console.log('[refreshLeagues] member lookup failed:', memberError.message);
+        return;
+      }
+
+      const memberLeagueIds = (memberRows ?? []).map((r) => r.league_id).filter(Boolean) as string[];
+
+      let leaguesQuery = supabase.from('leagues').select('*');
+      if (memberLeagueIds.length > 0) {
+        // Leagues the user belongs to OR any public league.
+        leaguesQuery = leaguesQuery.or(`id.in.(${memberLeagueIds.join(',')}),visibility.eq.public`);
+      } else {
+        leaguesQuery = leaguesQuery.eq('visibility', 'public');
+      }
+
+      const { data: leagueRows, error: leagueError } = await leaguesQuery;
+      if (leagueError || !leagueRows) {
+        console.log('[refreshLeagues] league fetch failed:', leagueError?.message);
+        return;
+      }
+
+      const allIds = leagueRows.map((r) => r.id);
+      const counts = await fetchMemberCounts(allIds);
+
+      const nextLeagues: League[] = leagueRows.map((row) =>
+        mapLeagueRow(row as LeagueRow, counts.get(row.id) ?? 0),
+      );
+
+      setLeagues(nextLeagues);
+      await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(nextLeagues));
+
+      // Warm member caches for the user's own leagues so the leagues list +
+      // detail render without a flash. Member points are computed from
+      // server-scored user_predictions (series-filtered per league).
+      if (memberLeagueIds.length > 0) {
+        const warmed = await fetchLeagueMembersBatch(memberLeagueIds);
+        if (warmed) {
+          await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(warmed));
+        }
+      }
+    } catch (e: any) {
+      console.log('[refreshLeagues] threw:', e?.message || e);
+    }
+  }, [activeUserId]);
 
   const fetchPublicLeagues = useCallback(async (): Promise<League[]> => {
-    return leagues.filter((l) => l.visibility === 'public');
+    if (!isSupabaseConfigured) {
+      return leagues.filter((l) => l.visibility === 'public');
+    }
+    const { data, error } = await supabase
+      .from('leagues')
+      .select('*')
+      .eq('visibility', 'public');
+    if (error || !data) {
+      console.log('[fetchPublicLeagues] failed:', error?.message);
+      return leagues.filter((l) => l.visibility === 'public');
+    }
+    const ids = data.map((r) => r.id);
+    const counts = await fetchMemberCounts(ids);
+    return data.map((row) => mapLeagueRow(row as LeagueRow, counts.get(row.id) ?? 0));
   }, [leagues]);
 
   function buildSeedLeaderboard(): LeaderboardEntry[] {
@@ -996,40 +1349,45 @@ export const [GameProvider, useGame] = createContextHook(() => {
   }, []);
 
   const fetchLeagueMembers = useCallback(async (leagueId: string): Promise<LeagueMember[]> => {
-    const cached = leagueMembers[leagueId];
-    if (cached && cached.length > 0) return cached;
-
-    if (!isSupabaseConfigured) return [];
+    // Always re-fetch from Supabase when configured so every user sees the
+    // same real membership (no per-device divergence). Cache only as a
+    // read-through fallback for offline / guest use.
+    if (!isSupabaseConfigured) {
+      return leagueMembers[leagueId] ?? [];
+    }
 
     try {
+      // Look up the league's series so we filter points correctly.
+      const { data: leagueRow } = await supabase
+        .from('leagues')
+        .select('series_id')
+        .eq('id', leagueId)
+        .maybeSingle();
+      const seriesId = (leagueRow as any)?.series_id ?? 'f1';
+
       const { data, error } = await supabase
         .from('league_members')
-        .select('user_id, role, joined_at, profiles(username, display_name, total_points)')
+        .select('user_id, role, joined_at, profiles!league_members_user_id_fkey(username, display_name)')
         .eq('league_id', leagueId);
 
       if (error || !data) {
         if (error) console.log('[GameProvider] League members load failed:', error.message);
-        return [];
+        return leagueMembers[leagueId] ?? [];
       }
 
-      // Compute member points from verified seed scores where available,
-      // falling back to profiles.total_points for non-seed users.
-      const seedScoreMap = new Map<string, number>();
-      for (const entry of buildSeedLeaderboard()) {
-        seedScoreMap.set(entry.userId, entry.totalPoints);
-      }
+      const userIds = (data as any[]).map((r) => r.user_id).filter(Boolean) as string[];
+      const pointsMap = await fetchSeriesPointsForUsers(userIds, seriesId);
 
       const members: LeagueMember[] = (data as any[]).map((row) => {
         const profileData = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
-        const computedPoints = seedScoreMap.get(row.user_id) ?? (profileData?.total_points || 0);
         return {
           userId: row.user_id,
-          username: profileData?.username || 'Unknown',
-          displayName: profileData?.display_name || profileData?.username || 'Unknown',
-          role: row.role || 'member',
-          points: computedPoints,
-          joinedAt: row.joined_at || new Date().toISOString(),
-        };
+          username: profileData?.username ?? 'Unknown',
+          displayName: profileData?.display_name ?? profileData?.username ?? 'Unknown',
+          role: row.role === 'owner' ? 'owner' : 'member',
+          points: pointsMap.get(row.user_id) ?? 0,
+          joinedAt: row.joined_at ?? new Date().toISOString(),
+        } as LeagueMember;
       });
 
       const updatedMembers = { ...leagueMembers, [leagueId]: members };
@@ -1038,7 +1396,7 @@ export const [GameProvider, useGame] = createContextHook(() => {
       return members;
     } catch (e: any) {
       console.log('[GameProvider] League members load threw:', e?.message || e);
-      return [];
+      return leagueMembers[leagueId] ?? [];
     }
   }, [leagueMembers]);
 

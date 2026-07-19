@@ -38,7 +38,7 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
-  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, totalPoints } = useGame();
+  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions } = useGame();
   const { profile, session } = useUser();
   const { currentSeries } = useSeries();
 
@@ -58,53 +58,19 @@ export default function LeaderboardsScreen() {
     setLoadingLeaderboard(true);
 
     try {
-      // Always pass currentSeries so the Supabase query filters by series_id.
-      // This prevents F1 points from leaking into the MotoGP leaderboard.
-      let data = await fetchGlobalLeaderboard(currentSeries);
-
-      // Ensure the current user always appears on the leaderboard with their
-      // locally-computed points for the CURRENT SERIES ONLY.
-      // totalPoints is already series-specific (filtered in GameProvider).
-      const currentUserId = session?.user?.id ?? profile?.id ?? 'local-user';
-      if (profile && totalPoints > 0) {
-        const existingIdx = data.findIndex(
-          (entry) => entry.userId === currentUserId ||
-                    (profile.id !== 'guest' && entry.userId === profile.id)
-        );
-        if (existingIdx >= 0) {
-          // Override stale Supabase points with local series-specific totalPoints.
-          if (totalPoints > data[existingIdx].totalPoints) {
-            data[existingIdx].totalPoints = totalPoints;
-            data[existingIdx].displayName = profile.displayName;
-            data[existingIdx].username = profile.username;
-          }
-        } else {
-          // User not in Supabase yet — inject them with series-specific points.
-          data = [
-            ...data,
-            {
-              rank: 0,
-              userId: currentUserId,
-              username: profile.username,
-              displayName: profile.displayName,
-              totalPoints,
-            },
-          ];
-        }
-        // Always re-sort and re-rank after potential changes.
-        data.sort((a, b) => b.totalPoints - a.totalPoints);
-        data.forEach((entry, index) => {
-          entry.rank = index + 1;
-        });
-      }
-
+      // Pull straight from Supabase — server-authored points are the single
+      // source of truth. We do NOT override with local totalPoints and we do
+      // NOT inject the current user, because that would make every device see
+      // a different leaderboard. The current user appears on the board iff
+      // they have a profiles row (created on signup) and scored predictions.
+      const data = await fetchGlobalLeaderboard(currentSeries);
       setGlobalLeaderboard(data);
     } catch (e) {
       console.log('Leaderboard load error:', e);
+    } finally {
+      setLoadingLeaderboard(false);
     }
-
-    setLoadingLeaderboard(false);
-  }, [fetchGlobalLeaderboard, session, profile, totalPoints, currentSeries]);
+  }, [fetchGlobalLeaderboard, currentSeries]);
 
   // Refresh leaderboard whenever the tab is focused.
   useFocusEffect(
@@ -113,10 +79,15 @@ export default function LeaderboardsScreen() {
     }, [loadLeaderboard])
   );
 
-  // Also refresh when local totalPoints changes (scoring completed).
-  useEffect(() => {
-    void loadLeaderboard();
-  }, [totalPoints, loadLeaderboard]);
+  // Refresh predictions on focus so the user's own rows are current, then
+  // the leaderboard load below will reflect any freshly-scored predictions.
+  useFocusEffect(
+    useCallback(() => {
+      if (session?.user?.id) {
+        void refreshPredictions();
+      }
+    }, [session, refreshPredictions])
+  );
 
   const leagueRankings: LeagueRanking[] = useMemo(() => {
     // Only show leagues belonging to the current series.
