@@ -181,6 +181,114 @@ export default function RaceResultsScreen() {
           </View>
         )}
 
+        {/* ── Race Predictions (above race results) ── */}
+        {prediction && prediction.top10.length > 0 && result && result.classification.length > 0 && (
+          <View style={styles.predictionSection}>
+            <View style={styles.resultsHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Target size={14} color={seriesColors.primary} />
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Your Race Picks</Text>
+              </View>
+              {breakdown && breakdown.totalPoints > 0 && (
+                <View style={styles.matchBadge}>
+                  <Trophy size={10} color={Colors.success} />
+                  <Text style={styles.matchBadgeText}>+{breakdown.totalPoints}</Text>
+                </View>
+              )}
+            </View>
+            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
+              {prediction.top10.map((driverId, index) => {
+                const driver = getDriverById(driverId);
+                const team = driver ? getTeamById(driver.teamId) : undefined;
+                if (!driver) return null;
+
+                const actualPos = result?.classification.find(r => r.driverId === driverId);
+                const isExactMatch = actualPos && actualPos.position === index + 1;
+                const isInTop10 = !!actualPos;
+
+                return (
+                  <View key={driverId} style={[
+                    styles.predictionRow,
+                    isExactMatch && styles.predictionRowCorrect,
+                  ]}>
+                    <View style={[styles.teamDot, { backgroundColor: team?.color || '#666' }]} />
+                    <Text style={styles.predictionPos}>P{index + 1}</Text>
+                    <Text style={styles.predictionDriver}>{driver.name}</Text>
+                    {result && result.classification.length > 0 && (
+                      <>
+                        {isExactMatch && (
+                          <View style={styles.matchBadge}>
+                            <Check size={10} color={Colors.success} />
+                            <Text style={styles.matchBadgeText}>+{F1_POINTS[index]}</Text>
+                          </View>
+                        )}
+                        {!isExactMatch && isInTop10 && actualPos && (
+                          <Text style={styles.actualPosText}>Actual: P{actualPos.position}</Text>
+                        )}
+                        {!isInTop10 && (
+                          <View style={styles.missBadge}>
+                            <X size={10} color={Colors.error} />
+                          </View>
+                        )}
+                      </>
+                    )}
+                    {prediction.fastestLap === driverId && (
+                      <View style={styles.flBadge}>
+                        <Text style={styles.flBadgeText}>FL</Text>
+                      </View>
+                    )}
+                    {prediction.dnf === driverId && (
+                      <View style={styles.dnfBadge}>
+                        <Text style={styles.dnfBadgeText}>DNF</Text>
+                      </View>
+                    )}
+                  </View>
+                );
+              })}
+
+              {prediction.fastestLap && result && result.fastestLapDriverId && (
+                <View style={styles.bonusRow}>
+                  <Zap size={14} color={prediction.fastestLap === result.fastestLapDriverId ? Colors.warning : Colors.textMuted} />
+                  <Text style={styles.bonusLabel}>Fastest Lap</Text>
+                  <Text style={styles.bonusDriver}>
+                    {getDriverById(prediction.fastestLap)?.name || prediction.fastestLap}
+                  </Text>
+                  {prediction.fastestLap === result.fastestLapDriverId ? (
+                    <View style={styles.matchBadge}>
+                      <Check size={10} color={Colors.success} />
+                      <Text style={styles.matchBadgeText}>+{FASTEST_LAP_BONUS}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.missBadge}>
+                      <X size={10} color={Colors.error} />
+                    </View>
+                  )}
+                </View>
+              )}
+
+              {prediction.dnf && result && result.classification.length > 0 && (
+                <View style={styles.bonusRow}>
+                  <AlertTriangle size={14} color={getTrueDnfDriverIds(result).has(prediction.dnf) ? Colors.error : Colors.textMuted} />
+                  <Text style={styles.bonusLabel}>DNF Pick</Text>
+                  <Text style={styles.bonusDriver}>
+                    {getDriverById(prediction.dnf)?.name || prediction.dnf}
+                  </Text>
+                  {getTrueDnfDriverIds(result).has(prediction.dnf) ? (
+                    <View style={styles.matchBadge}>
+                      <Check size={10} color={Colors.success} />
+                      <Text style={styles.matchBadgeText}>+{DNF_BONUS}</Text>
+                    </View>
+                  ) : (
+                    <View style={styles.missBadge}>
+                      <X size={10} color={Colors.error} />
+                    </View>
+                  )}
+                </View>
+              )}
+            </View>
+          </View>
+        )}
+
         {result && result.classification.length > 0 && (
           <View style={styles.resultsSection}>
             <View style={styles.resultsHeaderRow}>
@@ -309,6 +417,63 @@ export default function RaceResultsScreen() {
           </View>
         )}
 
+        {/* ── Sprint Predictions (above sprint results) ── */}
+        {prediction && prediction.sprintTop8 && prediction.sprintTop8.length > 0 && race.hasSprint && sprintResults.length > 0 && (
+          <View style={styles.predictionSection}>
+            <View style={styles.resultsHeaderRow}>
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                <Zap size={14} color={Colors.info} />
+                <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Your Sprint Picks</Text>
+              </View>
+              {sprintBreakdown && sprintBreakdown.totalPoints > 0 && (
+                <View style={styles.matchBadge}>
+                  <Trophy size={10} color={Colors.success} />
+                  <Text style={styles.matchBadgeText}>+{sprintBreakdown.totalPoints}</Text>
+                </View>
+              )}
+            </View>
+            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
+              {prediction.sprintTop8.map((driverId, index) => {
+                const driver = getDriverById(driverId);
+                const team = driver ? getTeamById(driver.teamId) : undefined;
+                if (!driver) return null;
+                const actualPos = sprintResults.find(r => r.driverId === driverId);
+                const isExactMatch = actualPos && actualPos.position === index + 1;
+                const isInTop8 = !!actualPos && actualPos.position <= 8;
+
+                return (
+                  <View key={`sprint-pick-${driverId}`} style={[
+                    styles.predictionRow,
+                    isExactMatch && styles.predictionRowCorrect,
+                  ]}>
+                    <View style={[styles.teamDot, { backgroundColor: team?.color || '#666' }]} />
+                    <Text style={styles.predictionPos}>S{index + 1}</Text>
+                    <Text style={styles.predictionDriver}>{driver.name}</Text>
+                    {sprintResults.length > 0 && (
+                      <>
+                        {isExactMatch && (
+                          <View style={styles.matchBadge}>
+                            <Check size={10} color={Colors.success} />
+                            <Text style={styles.matchBadgeText}>+{SPRINT_POINTS[index]}</Text>
+                          </View>
+                        )}
+                        {!isExactMatch && isInTop8 && actualPos && (
+                          <Text style={styles.actualPosText}>Actual: S{actualPos.position}</Text>
+                        )}
+                        {!isInTop8 && (
+                          <View style={styles.missBadge}>
+                            <X size={10} color={Colors.error} />
+                          </View>
+                        )}
+                      </>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Sprint results section */}
         {race.hasSprint && sprintResults.length > 0 && (
           <View style={styles.resultsSection}>
@@ -378,163 +543,6 @@ export default function RaceResultsScreen() {
                   </View>
                 );
               })}
-            </View>
-          </View>
-        )}
-
-        {/* Sprint pick breakdown */}
-        {prediction && prediction.sprintTop8 && prediction.sprintTop8.length > 0 && race.hasSprint && (
-          <View style={styles.predictionSection}>
-            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, marginBottom: 12 }}>
-              <Zap size={14} color={Colors.info} />
-              <Text style={[styles.sectionTitle, { marginBottom: 0 }]}>Your Sprint Picks</Text>
-              {sprintBreakdown && sprintBreakdown.totalPoints > 0 && (
-                <View style={[styles.matchBadge, { marginLeft: 'auto' }]}>
-                  <Trophy size={10} color={Colors.success} />
-                  <Text style={styles.matchBadgeText}>+{sprintBreakdown.totalPoints}</Text>
-                </View>
-              )}
-            </View>
-            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
-              {prediction.sprintTop8.map((driverId, index) => {
-                const driver = getDriverById(driverId);
-                const team = driver ? getTeamById(driver.teamId) : undefined;
-                if (!driver) return null;
-                const actualPos = sprintResults.find(r => r.driverId === driverId);
-                const isExactMatch = actualPos && actualPos.position === index + 1;
-                const isInTop8 = !!actualPos && actualPos.position <= 8;
-
-                return (
-                  <View key={`sprint-pick-${driverId}`} style={[
-                    styles.predictionRow,
-                    isExactMatch && styles.predictionRowCorrect,
-                  ]}>
-                    <View style={[styles.teamDot, { backgroundColor: team?.color || '#666' }]} />
-                    <Text style={styles.predictionPos}>S{index + 1}</Text>
-                    <Text style={styles.predictionDriver}>{driver.name}</Text>
-                    {sprintResults.length > 0 && (
-                      <>
-                        {isExactMatch && (
-                          <View style={styles.matchBadge}>
-                            <Check size={10} color={Colors.success} />
-                            <Text style={styles.matchBadgeText}>+{SPRINT_POINTS[index]}</Text>
-                          </View>
-                        )}
-                        {!isExactMatch && isInTop8 && actualPos && (
-                          <Text style={styles.actualPosText}>Actual: S{actualPos.position}</Text>
-                        )}
-                        {!isInTop8 && (
-                          <View style={styles.missBadge}>
-                            <X size={10} color={Colors.error} />
-                          </View>
-                        )}
-                      </>
-                    )}
-                  </View>
-                );
-              })}
-            </View>
-          </View>
-        )}
-
-        {prediction && (
-          <View style={styles.predictionSection}>
-            <Text style={styles.sectionTitle}>
-              {prediction.displayName
-                ? `${prediction.displayName}${prediction.username ? ` (@${prediction.username})` : ''}`
-                : prediction.username
-                  ? `Prediction by @${prediction.username}`
-                  : 'Your Prediction'}
-            </Text>
-            <View style={[styles.predictionCard, { backgroundColor: seriesColors.surface, borderColor: seriesColors.border }]}>
-              {prediction.top10.map((driverId, index) => {
-                const driver = getDriverById(driverId);
-                const team = driver ? getTeamById(driver.teamId) : undefined;
-                if (!driver) return null;
-
-                const actualPos = result?.classification.find(r => r.driverId === driverId);
-                const isExactMatch = actualPos && actualPos.position === index + 1;
-                const isInTop10 = !!actualPos;
-
-                return (
-                  <View key={driverId} style={[
-                    styles.predictionRow,
-                    isExactMatch && styles.predictionRowCorrect,
-                  ]}>
-                    <View style={[styles.teamDot, { backgroundColor: team?.color || '#666' }]} />
-                    <Text style={styles.predictionPos}>P{index + 1}</Text>
-                    <Text style={styles.predictionDriver}>{driver.name}</Text>
-                    {result && result.classification.length > 0 && (
-                      <>
-                        {isExactMatch && (
-                          <View style={styles.matchBadge}>
-                            <Check size={10} color={Colors.success} />
-                            <Text style={styles.matchBadgeText}>+{F1_POINTS[index]}</Text>
-                          </View>
-                        )}
-                        {!isExactMatch && isInTop10 && actualPos && (
-                          <Text style={styles.actualPosText}>Actual: P{actualPos.position}</Text>
-                        )}
-                        {!isInTop10 && (
-                          <View style={styles.missBadge}>
-                            <X size={10} color={Colors.error} />
-                          </View>
-                        )}
-                      </>
-                    )}
-                    {prediction.fastestLap === driverId && (
-                      <View style={styles.flBadge}>
-                        <Text style={styles.flBadgeText}>FL</Text>
-                      </View>
-                    )}
-                    {prediction.dnf === driverId && (
-                      <View style={styles.dnfBadge}>
-                        <Text style={styles.dnfBadgeText}>DNF</Text>
-                      </View>
-                    )}
-                  </View>
-                );
-              })}
-
-              {prediction.fastestLap && result && result.fastestLapDriverId && (
-                <View style={styles.bonusRow}>
-                  <Zap size={14} color={prediction.fastestLap === result.fastestLapDriverId ? Colors.warning : Colors.textMuted} />
-                  <Text style={styles.bonusLabel}>Fastest Lap</Text>
-                  <Text style={styles.bonusDriver}>
-                    {getDriverById(prediction.fastestLap)?.name || prediction.fastestLap}
-                  </Text>
-                  {prediction.fastestLap === result.fastestLapDriverId ? (
-                    <View style={styles.matchBadge}>
-                      <Check size={10} color={Colors.success} />
-                      <Text style={styles.matchBadgeText}>+{FASTEST_LAP_BONUS}</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.missBadge}>
-                      <X size={10} color={Colors.error} />
-                    </View>
-                  )}
-                </View>
-              )}
-
-              {prediction.dnf && result && result.classification.length > 0 && (
-                <View style={styles.bonusRow}>
-                  <AlertTriangle size={14} color={getTrueDnfDriverIds(result).has(prediction.dnf) ? Colors.error : Colors.textMuted} />
-                  <Text style={styles.bonusLabel}>DNF Pick</Text>
-                  <Text style={styles.bonusDriver}>
-                    {getDriverById(prediction.dnf)?.name || prediction.dnf}
-                  </Text>
-                  {getTrueDnfDriverIds(result).has(prediction.dnf) ? (
-                    <View style={styles.matchBadge}>
-                      <Check size={10} color={Colors.success} />
-                      <Text style={styles.matchBadgeText}>+{DNF_BONUS}</Text>
-                    </View>
-                  ) : (
-                    <View style={styles.missBadge}>
-                      <X size={10} color={Colors.error} />
-                    </View>
-                  )}
-                </View>
-              )}
             </View>
           </View>
         )}
