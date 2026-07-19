@@ -256,6 +256,15 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     shouldPoll = now.getTime() >= oneHourAfterStart;
   }
 
+  // Results polling gate: start checking 2 hours after the race start.
+  // If no results have arrived yet, retry every 5 minutes until they do.
+  // Once results for today's race are present, polling stops automatically.
+  const RESULTS_POLL_INTERVAL = 5 * 60_000; // 5 minutes
+  const resultsPollStartMs = todaysRace
+    ? new Date(`${todaysRace.raceDate}T${todaysRace.raceTime}:00Z`).getTime() + 2 * 60 * 60 * 1000
+    : 0;
+  const pastTwoHoursAfterStart = now.getTime() >= resultsPollStartMs;
+
   const teamsQuery = useQuery({
     queryKey: ['f1-teams'],
     queryFn: fetchTeams,
@@ -284,7 +293,23 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
     queryKey: ['f1-results'],
     queryFn: fetchRaceResults,
     staleTime: 60_000,
-    refetchInterval: shouldPoll ? POLL_INTERVAL * 2 : false,
+    // Start checking 2 hours after the race start. If today's race has no
+    // results yet, retry every 5 minutes. Stop polling once results arrive.
+    refetchInterval: (query) => {
+      if (!pastTwoHoursAfterStart || !todaysRace) return false;
+      const data = query.state.data as RaceResult[] | undefined;
+      if (data) {
+        const todaysResult = data.find((r) => r.raceId === todaysRace.id);
+        if (
+          todaysResult &&
+          todaysResult.classification &&
+          todaysResult.classification.length > 0
+        ) {
+          return false; // results arrived — stop polling
+        }
+      }
+      return RESULTS_POLL_INTERVAL; // no results yet — check again in 5 min
+    },
     retry: 1,
   });
 
