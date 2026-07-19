@@ -1,0 +1,503 @@
+R5: [3]2026 F1 Driver Jambaroo
+R9: [2]Round 1 - Australian Grand Prix 2026
+R10: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R11: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R13: [3]1 | [4]G. Russell | [5]25 | [6]M. Verstappen | [7]0 | [8]K. Antonelli | [9]0 | [10]G. Russell | [11]25 | [12]G. Russell | [13]25
+R14: [3]2 | [4]K. Antonelli | [5]18 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]K. Antonelli | [11]18 | [12]K. Antonelli | [13]18
+R15: [3]3 | [4]C. Leclerc | [5]15 | [6]K. Antonelli | [7]0 | [8]C. Leclerc | [9]15 | [10]O. Piastri | [11]0 | [12]C. Leclerc | [13]15
+R16: [3]4 | [4]L. Hamilton | [5]12 | [6]O. Piastri | [7]0 | [8]O. Piastri | [9]0 | [10]C. Leclerc | [11]0 | [12]O. Piastri | [13]0
+R17: [3]5 | [4]L. Norris | [5]10 | [6]C. Leclerc | [7]0 | [8]I. Hadjar | [9]0 | [10]L. Norris | [11]10 | [12]I. Hadjar | [13]0
+R18: [3]6 | [4]M. Verstappen | [5]8 | [6]L. Norris | [7]0 | [8]M. Verstappen | [9]8 | [10]L. Hamillton | [11]0 | [12]L. Hamilton | [13]0
+R19: [3]7 | [4]O. Bearman | [5]6 | [6]L. Hamilton | [7]0 | [8]L. Norris | [9]0 | [10]I. Hadjar | [11]0 | [12]L. Norris | [13]0
+R20: [3]8 | [4]A. Lindbald | [5]4 | [6]I. Hadjar | [7]0 | [8]L. Hamilton | [9]0 | [10]M. Verstappen | [11]0 | [12]M. Verstappen | [13]0
+R21: [3]9 | [4]G. Bartoleto | [5]2 | [6]L. Lawson | [7]0 | [8]L. Lawson | [9]0 | [10]L. Lawson | [11]0 | [12]L. Lawson | [13]0
+R22: [3]10 | [4]P. Gasly | [5]1 | [6]C. Sainz | [7]0 | [8]N. Hulkenberg | [9]0 | [10]A. Lindbald | [11]0 | [12]N. Hulkenberg | [13]0
+R23: [3]Fastest Lap | [4]M. Verstappen | [5]1 | [6]M. Verstappen | [7]1 | [8]M. Verstappen | [9]1 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R24: [3]DNF | [4]Alonso, Bottas, Hadjar, Piastri, Nico | [5]10 | [6]Stroll | [7]0 | [8]Stroll | [9]0 | [10]Alonso | [11]10 | [12]Alonso | [13]10
+R26: [4]Current Round Points | [7]1 | [9]24 | [11]63 | [13]68
+R27: [4]Total Points | [7]1 | [9]24 | [11]63 | [13]68
+R29: [2]Round 2 - China 2026 - Sprint
+R30: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R31: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R33: [3]1 | [4]G. Russell | [5]8 | [6]G. Russell | [7]8 | [8]K. Antonelli | [9]0 | [10]G. Russell | [11]8 | [12]G. Russell | [13]8
+R34: [3]2 | [4]C. Leclerc | [5]7 | [6]K. Antonelli | [7]0 | [8]G. Russell | [9]0 | [10]K. Antonelli | [11]0 | [12]K. Antonelli | [13]0
+R35: [3]3 | [4]L. Hamilton | [5]6 | [6]L. Hamilton | [7]6 | [8]L. Norris | [9]0 | [10]L. Hamilton | [11]6 | [12]L. Hamilton | [13]6
+R36: [3]4 | [4]L. Norris | [5]5 | [6]L. Norris | [7]5 | [8]L. Hamilton | [9]0 | [10]C. Leclerc | [11]0 | [12]L. Norris | [13]5
+R37: [3]5 | [4]K. Antonelli | [5]4 | [6]C. Leclerc | [7]0 | [8]M. Verstappen | [9]0 | [10]C. Leclerc | [11]0 | [12]C. Leclerc | [13]0
+R38: [3]6 | [4]O. Piastri | [5]3 | [6]O. Piastri | [7]3 | [8]O. Piastri | [9]3 | [10]M. Verstappen | [11]0 | [12]M. Verstappen | [13]0
+R39: [3]7 | [4]L. Lawson | [5]2 | [6]M. Verstappen | [7]0 | [8]C. Leclerc | [9]0 | [10]L. Norris | [11]0 | [12]O. Piastri | [13]0
+R40: [3]8 | [4]O. Bearman | [5]1 | [6]I. Hadjar | [7]0 | [8]I. Hadjar | [9]0 | [10]I. Hadjar | [11]0 | [12]P. Gasly | [13]0
+R46: [4]Current Round Points | [7]22 | [9]3 | [11]14 | [13]19
+R47: [4]Total Points | [7]23 | [9]27 | [11]77 | [13]87
+R49: [2]Round 2 - China 2026 - Grand Prix
+R50: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R51: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R53: [3]1 | [4]K. Antonelli | [5]25 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R54: [3]2 | [4]G. Russell | [5]18 | [6]K. Antonelli | [7]0 | [8]K. Antonelli | [9]0 | [10]K. Antonelli | [11]0 | [12]K. Antonelli | [13]0
+R55: [3]3 | [4]L. Hamilton | [5]15 | [6]C. Leclerc | [7]0 | [8]C. Leclerc | [9]0 | [10]C. Leclerc | [11]0 | [12]L. Hamilton | [13]15
+R56: [3]4 | [4]C. Leclerc | [5]12 | [6]L. Hamilton | [7]0 | [8]L. Hamilton | [9]0 | [10]L. Hamilton | [11]0 | [12]C. Leclerc | [13]12
+R57: [3]5 | [4]O. Bearman | [5]10 | [6]M. Verstappen | [7]0 | [8]O. Piastri | [9]0 | [10]O. Piastri | [11]0 | [12]L. Norris | [13]0
+R58: [3]6 | [4]P. Gasly | [5]8 | [6]O. Piastri | [7]0 | [8]M. Verstappen | [9]0 | [10]L. Norris | [11]0 | [12]O. Piastri | [13]0
+R59: [3]7 | [4]L. Lawson | [5]6 | [6]L. Norris | [7]0 | [8]L. Norris | [9]0 | [10]M. Verstappen | [11]0 | [12]M. Verstappen | [13]0
+R60: [3]8 | [4]I. Hadjar | [5]4 | [6]I. Hadjar | [7]4 | [8]I. Hadjar | [9]4 | [10]I. Hadjar | [11]4 | [12]I. Hadjar | [13]4
+R61: [3]9 | [4]C. Sainz | [5]2 | [6]O. Bearman | [7]0 | [8]N. Hulkenberg | [9]0 | [10]O. Bearman | [11]0 | [12]P. Gasly | [13]0
+R62: [3]10 | [4]F. Colapinto | [5]1 | [6]P. Gasly | [7]0 | [8]O. Bearman | [9]0 | [10]P. Gasly | [11]0 | [12]N. Hulkenberg | [13]0
+R63: [3]Fastest Lap | [4]K. Antonelli | [5]1 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R64: [3]DNF | [5]10 | [6]F. Alonso | [7]10 | [8]L. Stroll | [9]10 | [10]S. Perez | [11]0 | [12]A. Albon | [13]0
+R66: [4]Current Round Points | [7]14 | [9]14 | [11]4 | [13]31
+R67: [4]Total Points | [7]37 | [9]41 | [11]81 | [13]118
+R69: [2]Round 3 - Japanese Grand Prix 2026
+R70: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R71: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R73: [3]1 | [4]K. Antonelli | [5]25 | [6]K. Antonelli | [7]25 | [8]K. Antonelli | [9]25 | [10]G. Russell | [11]0 | [12]K. Antonelli | [13]25
+R74: [3]2 | [4]O. Piastri | [5]18 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]K. Antonelli | [11]0 | [12]G. Russell | [13]0
+R75: [3]3 | [4]C. Leclerc | [5]15 | [6]C. Leclerc | [7]15 | [8]C. Leclerc | [9]15 | [10]C. Leclerc | [11]15 | [12]C. Leclerc | [13]15
+R76: [3]4 | [4]G. Russell | [5]12 | [6]O. Piastri | [7]0 | [8]O. Piastri | [9]0 | [10]L. Hamilton | [11]0 | [12]L. Hamilton | [13]0
+R77: [3]5 | [4]L. Norris | [5]10 | [6]L. Hamilton | [7]0 | [8]L. Norris | [9]10 | [10]M. Verstappen | [11]0 | [12]O. Piastri | [13]0
+R78: [3]6 | [4]L. Hamilton | [5]8 | [6]L. Norris | [7]0 | [8]M. Verstappen | [9]0 | [10]O. Piastri | [11]0 | [12]L. Norris | [13]0
+R79: [3]7 | [4]P. Gasly | [5]6 | [6]M. Verstappen | [7]0 | [8]L. Hamilton | [9]0 | [10]L. Norris | [11]0 | [12]I. Hadjar | [13]0
+R80: [3]8 | [4]M. Verstappen | [5]4 | [6]I. Hadjar | [7]0 | [8]P. Gasly | [9]0 | [10]I. Hadjar | [11]0 | [12]M. Verstappen | [13]4
+R81: [3]9 | [4]L. Lawson | [5]2 | [6]P. Gasly | [7]0 | [8]I. Hadjar | [9]0 | [10]P. Gasly | [11]0 | [12]P. Gasly | [13]0
+R82: [3]10 | [4]E. Ocon | [5]1 | [6]A. Lindblad | [7]0 | [8]N. Hulkenberg | [9]0 | [10]A. Lindblad | [11]0 | [12]A. Lindblad | [13]0
+R83: [3]Fastest Lap | [4]K. Antonelli | [5]1 | [6]K. Antonelli | [7]1 | [8]O. Piastri | [9]0 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R84: [3]DNF | [5]10 | [6]V. Bottas | [7]0 | [8]S. Perez | [9]0 | [10]L. Stroll | [11]10 | [12]L. Stroll | [13]10
+R86: [4]Current Round Points | [7]41 | [9]50 | [11]25 | [13]54
+R87: [4]Total Points | [7]78 | [9]91 | [11]106 | [13]172
+R89: [2]Round 4 - Bahrain Grand Prix 2026
+R90: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R91: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R93: [3]1 | [4]g | [5]25 | [7]0 | [9]0 | [11]0 | [13]0
+R94: [3]2 | [4]g | [5]18 | [7]0 | [9]0 | [11]0 | [13]0
+R95: [3]3 | [4]g | [5]15 | [7]0 | [9]0 | [11]0 | [13]0
+R96: [3]4 | [4]g | [5]12 | [7]0 | [9]0 | [11]0 | [13]0
+R97: [3]5 | [4]g | [5]10 | [7]0 | [9]0 | [11]0 | [13]0
+R98: [3]6 | [4]g | [5]8 | [7]0 | [9]0 | [11]0 | [13]0
+R99: [3]7 | [4]g | [5]6 | [7]0 | [9]0 | [11]0 | [13]0
+R100: [3]8 | [4]g | [5]4 | [7]0 | [9]0 | [11]0 | [13]0
+R101: [3]9 | [4]g | [5]2 | [7]0 | [9]0 | [11]0 | [13]0
+R102: [3]10 | [4]g | [5]1 | [7]0 | [9]0 | [11]0 | [13]0
+R103: [3]Fastest Lap | [4]g | [5]1 | [7]0 | [9]0 | [11]0 | [13]0
+R104: [3]DNF | [4]g | [5]10 | [7]0 | [9]0 | [11]0 | [13]0
+R106: [4]Current Round Points | [7]0 | [9]0 | [11]0 | [13]0
+R107: [4]Total Points | [7]78 | [9]91 | [11]106 | [13]172
+R109: [2]Round 5 - Saudi Arabian Grand Prix 2026
+R110: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R111: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R113: [3]1 | [4]f | [5]25 | [7]0 | [9]0 | [11]0 | [13]0
+R114: [3]2 | [4]f | [5]18 | [7]0 | [9]0 | [11]0 | [13]0
+R115: [3]3 | [4]f | [5]15 | [7]0 | [9]0 | [11]0 | [13]0
+R116: [3]4 | [4]f | [5]12 | [7]0 | [9]0 | [11]0 | [13]0
+R117: [3]5 | [4]f | [5]10 | [7]0 | [9]0 | [11]0 | [13]0
+R118: [3]6 | [4]f | [5]8 | [7]0 | [9]0 | [11]0 | [13]0
+R119: [3]7 | [4]f | [5]6 | [7]0 | [9]0 | [11]0 | [13]0
+R120: [3]8 | [4]f | [5]4 | [7]0 | [9]0 | [11]0 | [13]0
+R121: [3]9 | [4]f | [5]2 | [7]0 | [9]0 | [11]0 | [13]0
+R122: [3]10 | [4]f | [5]1 | [7]0 | [9]0 | [11]0 | [13]0
+R123: [3]Fastest Lap | [4]f | [5]1 | [7]0 | [9]0 | [11]0 | [13]0
+R124: [3]DNF | [4]f | [5]10 | [7]0 | [9]0 | [11]0 | [13]0
+R126: [4]Current Round Points | [7]0 | [9]0 | [11]0 | [13]0
+R127: [4]Total Points | [7]78 | [9]91 | [11]106 | [13]172
+R129: [2]Round 6 - Miami Grand Prix 2026 - Sprint
+R130: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R131: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R133: [3]1 | [4]L. Norris | [5]8 | [6]K. Antonelli | [7]0 | [8]L. Norris | [9]8 | [10]K. Antonelli | [11]0 | [12]L. Norris | [13]8
+R134: [3]2 | [4]O. Piastri | [5]7 | [6]L. Norris | [7]0 | [8]C. Leclerc | [9]0 | [10]L. Norris | [11]0 | [12]K. Antonelli | [13]0
+R135: [3]3 | [4]C. Leclerc | [5]6 | [6]O. Piastri | [7]0 | [8]K. Antonelli | [9]0 | [10]O. Piastri | [11]0 | [12]O. Piastri | [13]0
+R136: [3]4 | [4]G. Russell | [5]5 | [6]G. Russell | [7]5 | [8]O. Piastri | [9]0 | [10]C. Leclerc | [11]0 | [12]C. Leclerc | [13]0
+R137: [3]5 | [4]M. Verstappen | [5]4 | [6]C. Leclerc | [7]0 | [8]M. Verstappen | [9]4 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R138: [3]6 | [4]K. Antonelli | [5]3 | [6]M. Verstappen | [7]0 | [8]G. Russell | [9]0 | [10]M. Verstappen | [11]0 | [12]M. Verstappen | [13]0
+R139: [3]7 | [4]L. Hamilton | [5]2 | [6]L. Hamilton | [7]2 | [8]L. Hamilton | [9]2 | [10]L. Hamilton | [11]2 | [12]L. Hamilton | [13]2
+R140: [3]8 | [4]P. Gasly | [5]1 | [6]I. Hadjar | [7]0 | [8]F. Colapinto | [9]0 | [10]I. Hadjar | [11]0 | [12]I. Hadjar | [13]0
+R141: [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R142: [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R143: [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R146: [4]Current Round Points | [7]7 | [9]14 | [11]2 | [13]10
+R147: [4]Total Points | [7]85 | [9]105 | [11]108 | [13]182
+R149: [2]Round 6 - Miami Grand Prix 2026
+R150: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R151: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R153: [3]1 | [4]K. Antonelli | [5]25 | [6]M. Verstappen | [7]0 | [8]O. PIastri | [9]0 | [10]M. Verstappen | [11]0 | [12]M. Verstappen | [13]0
+R154: [3]2 | [4]L. Norris | [5]18 | [6]K. Antonelli | [7]0 | [8]M. Verstappen | [9]0 | [10]K. Antonelli | [11]0 | [12]K. Antonelli | [13]0
+R155: [3]3 | [4]O. Piastri | [5]15 | [6]L. Norris | [7]0 | [8]L. Norris | [9]0 | [10]L. Norris | [11]0 | [12]L. Norris | [13]0
+R156: [3]4 | [4]G. Russell | [5]12 | [6]C. Leclerc | [7]0 | [8]K. Antonelli | [9]0 | [10]C. Leclerc | [11]0 | [12]C. Leclerc | [13]0
+R157: [3]5 | [4]M. Verstappen | [5]10 | [6]G. Russell | [7]0 | [8]C. Leclerc | [9]0 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R158: [3]6 | [4]L. Hamilton | [5]8 | [6]L. Hamilton | [7]8 | [8]G. Russell | [9]0 | [10]O. Piastri | [11]0 | [12]C. Leclerc | [13]0
+R159: [3]7 | [4]F. Colapinto | [5]6 | [6]O. Piastri | [7]0 | [8]L. Hamilton | [9]0 | [10]L. Hamilton | [11]0 | [12]O. Piastri | [13]0
+R160: [3]8 | [4]C. Leclerc | [5]4 | [6]I. Hadjar | [7]0 | [8]F. Colapinto | [9]0 | [10]P. Gasly | [11]0 | [12]L. Hamilton | [13]0
+R161: [3]9 | [4]C. Sainz | [5]2 | [6]P. Gasly | [7]0 | [8]C. Sainz | [9]2 | [10]I. Hdjar | [11]0 | [12]P. Gasly | [13]0
+R162: [3]10 | [4]A. Albon | [5]1 | [6]O. Bearman | [7]0 | [8]P. Gasly | [9]0 | [10]F. Colapinto | [11]0 | [12]N. Hulkenberg | [13]0
+R163: [3]Fastest Lap | [4]L. Norris | [5]1 | [6]M. Verstappen | [7]0 | [9]0 | [10]K. Antonelli | [11]0 | [12]M. Verstappen | [13]0
+R164: [3]DNF | [5]10 | [6]F. Colapinto | [7]0 | [8]L. Stroll | [9]0 | [10]F. Alonso | [11]0 | [13]0
+R166: [4]Current Round Points | [7]8 | [9]2 | [11]0 | [13]0
+R167: [4]Total Points | [7]93 | [9]107 | [11]108 | [13]182
+R169: [2]Round 7 - Grand Prix du Canada 2026 - Sprint
+R170: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R171: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R173: [3]1 | [4]G. Russell | [5]8 | [6]K. Antonelli | [7]0 | [8]K. Antonelli | [9]0 | [10]G. Russell | [11]8 | [12]K. Antonelli | [13]0
+R174: [3]2 | [4]L. Norris | [5]7 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]K. Antonelli | [11]0 | [12]G. Russell | [13]0
+R175: [3]3 | [4]K. Antonelli | [5]6 | [6]L. Norris | [7]0 | [8]O. Piastri | [9]0 | [10]L. Norris | [11]0 | [12]O. Piastri | [13]0
+R176: [3]4 | [4]O. Piastri | [5]5 | [6]O. Piastri | [7]5 | [8]L. Norris | [9]0 | [10]O. Piastri | [11]5 | [12]L. Norris | [13]0
+R177: [3]5 | [4]C. Leclerc | [5]4 | [6]C. Leclerc | [7]4 | [8]M. Verstappen | [9]0 | [10]L. Hamilton | [11]0 | [12]M. Verstappen | [13]0
+R178: [3]6 | [4]L. Hamilton | [5]3 | [6]M. Verstappen | [7]0 | [8]C. Leclerc | [9]0 | [10]C. Leclerc | [11]0 | [12]C. Leclerc | [13]0
+R179: [3]7 | [4]M. Verstappen | [5]2 | [6]L. Hamilton | [7]0 | [8]L. Hamilton | [9]0 | [10]M. Verstappen | [11]2 | [12]L. Hamilton | [13]0
+R180: [3]8 | [4]A. Linblad | [5]1 | [6]I. Hadjar | [7]0 | [8]I. Hadjar | [9]0 | [10]I. Hadjar | [11]0 | [12]I. Hadjar | [13]0
+R183: [3]Fastest Lap | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R186: [4]Current Round Points | [7]9 | [9]0 | [11]15 | [13]0
+R187: [4]Total Points | [7]102 | [9]107 | [11]123 | [13]182
+R189: [2]Round 7 - Grand Prix du Canada 2026
+R190: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R191: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R193: [3]1 | [4]K. Antonelli | [5]25 | [6]G. Russell | [7]0 | [8]G. Russell | [9]0 | [10]G. Russell | [11]0 | [12]K. Antonelli | [13]25
+R194: [3]2 | [4]L. Hamilton | [5]18 | [6]K. Antonelli | [7]0 | [8]K. Antonelli | [9]0 | [10]K. Antonelli | [11]0 | [12]G. Russell | [13]0
+R195: [3]3 | [4]M. Verstappen | [5]15 | [6]O. Piastri | [7]0 | [8]L. Norris | [9]0 | [10]L. Norris | [11]0 | [12]L. Norris | [13]0
+R196: [3]4 | [4]C. Leclerc | [5]12 | [6]L. Norris | [7]0 | [8]O. Piastri | [9]0 | [10]O. Piastri | [11]0 | [12]O. Piastri | [13]0
+R197: [3]5 | [4]I. Hadjar | [5]10 | [6]L. Hamilton | [7]0 | [8]M. Verstappen | [9]0 | [10]L. Hamilton | [11]0 | [12]M. Verstappen | [13]0
+R198: [3]6 | [4]F. Colapinto | [5]8 | [6]C. Leclerc | [7]0 | [8]C. Leclerc | [9]0 | [10]C. Leclerc | [11]0 | [12]C. Leclerc | [13]0
+R199: [3]7 | [4]L. Lawson | [5]6 | [6]M. Verstappen | [7]0 | [8]L. Hamilton | [9]0 | [10]M. Verstappen | [11]0 | [12]L. Hamilton | [13]0
+R200: [3]8 | [4]P. Gasly | [5]4 | [6]I. Hadjar | [7]0 | [8]I. Hadjar | [9]0 | [10]I. Hadjar | [11]0 | [12]I. Hadjar | [13]0
+R201: [3]9 | [4]C. Sainz | [5]2 | [6]A. Lindblad | [7]0 | [8]A. Linblad | [9]0 | [10]A. Lindblad | [11]0 | [12]A. Linblad | [13]0
+R202: [3]10 | [4]O. Bearman | [5]1 | [6]L. Lawson | [7]0 | [8]F. Colapinto | [9]0 | [10]L. Lawson | [11]0 | [12]F. Colapinto | [13]0
+R203: [3]Fastest Lap | [5]1 | [6]K. Antonelli | [7]0 | [8]K. Antonelli | [9]0 | [10]L. Norris | [11]0 | [12]K. Antonelli | [13]0
+R204: [3]DNF | [5]10 | [6]F. Colapinto | [7]0 | [8]L. Stroll | [9]0 | [10]V. Bottas | [11]0 | [12]F. Alonso | [13]10
+R206: [4]Current Round Points | [7]0 | [9]0 | [11]0 | [13]35
+R207: [4]Total Points | [7]102 | [9]107 | [11]123 | [13]217
+R209: [2]Round 8 - Monaco Grand Prix 2026
+R210: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R211: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R213: [3]1 | [4]K. Antonelli | [5]25 | [6]K. Antonelli | [7]25 | [8]K. Antonelli | [9]25 | [10]K. Antonelli | [11]25 | [12]M. Verstappen | [13]0
+R214: [3]2 | [4]L. Hamilton | [5]18 | [6]M. Verstappen | [7]0 | [8]M. Verstappen | [9]0 | [10]M. Verstappen | [11]0 | [12]K. Antonelli | [13]0
+R215: [3]3 | [4]I. Hadjar | [5]15 | [6]G. Russell | [7]0 | [8]L. Hamilton | [9]0 | [10]C. Leclerc | [11]0 | [12]L. Hamilton | [13]0
+R216: [3]4 | [4]O. Piastri | [5]12 | [6]C. Leclerc | [7]0 | [8]C. Leclerc | [9]0 | [10]L. Hamilton | [11]0 | [12]C. Leclerc | [13]0
+R217: [3]5 | [4]L. Lawson | [5]10 | [6]L. Hamilton | [7]0 | [8]I. Hadjar | [9]0 | [10]G. Russell | [11]0 | [12]I. Hadjar | [13]0
+R218: [3]6 | [4]A. Linblad | [5]8 | [6]O. Piastri | [7]0 | [8]O. Piastri | [9]0 | [10]O. Piastri | [11]0 | [12]G. Russell | [13]0
+R219: [3]7 | [4]P. Gasly | [5]6 | [6]I. Hadjar | [7]0 | [8]G. Russell | [9]0 | [10]L. Norris | [11]0 | [12]O. Piastri | [13]0
+R220: [3]8 | [4]A. Albon | [5]4 | [6]L. Norris | [7]0 | [8]L. Norris | [9]0 | [10]P. Gasly | [11]0 | [12]L. Norris | [13]0
+R221: [3]9 | [4]E. Ocon | [5]2 | [6]P. Gasly | [7]0 | [8]P. Gasly | [9]0 | [10]L. Lawson | [11]0 | [12]P. Gasly | [13]0
+R222: [3]10 | [4]S. Perez | [5]1 | [6]F. Colapinto | [7]0 | [8]C. Sainz | [9]0 | [10]A. Albon | [11]0 | [12]L. Lawson | [13]0
+R223: [3]Fastest Lap | [4]K. Antonelli | [5]1 | [6]K. Antonelli | [7]1 | [8]K. Antonelli | [9]1 | [10]K. Antonelli | [11]1 | [12]M. Verstappen | [13]0
+R224: [3]DNF | [5]10 | [6]L. Lawson | [7]0 | [8]L. Stroll | [9]10 | [10]I. Hadjar | [11]0 | [12]G. Bortoleto | [13]0
+R226: [4]Current Round Points | [7]26 | [9]36 | [11]26 | [13]0
+R227: [4]Total Points | [7]128 | [9]143 | [11]149 | [13]217
+R229: [2]Round 9 - Spanish Grand Prix 2026
+R230: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R231: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R233: [3]1 | [4]L. Hamilton | [5]25 | [6]K. Antonelli | [7]0 | [8]L. Hamilton | [9]25 | [10]G. Russell | [11]0 | [12]G. Russell | [13]0
+R234: [3]2 | [4]G. Russell | [5]18 | [6]G. Russell | [7]18 | [8]K. Antonelli | [9]0 | [10]K. Antonelli | [11]0 | [12]L. Hamilton | [13]0
+R235: [3]3 | [4]L. Norris | [5]15 | [6]L. Hamilton | [7]0 | [8]G. Russell | [9]0 | [10]L. Hamilton | [11]0 | [12]K. Antonelli | [13]0
+R236: [3]4 | [4]M. Verstappen | [5]12 | [6]L. Norris | [7]0 | [8]M. Verstappen | [9]12 | [10]L. Norris | [11]0 | [12]M. Verstappen | [13]12
+R237: [3]5 | [4]O. Piastri | [5]10 | [6]M. Verstappen | [7]0 | [8]L. Norris | [9]0 | [10]M. Verstappen | [11]0 | [12]L. Norris | [13]0
+R238: [3]6 | [4]I. Hadjar | [5]8 | [6]O. Piastri  | [7]0 | [8]O. Piastri | [9]0 | [10]O. Piastri | [11]0 | [12]C. Leclerc | [13]0
+R239: [3]7 | [4]P. Gasly | [5]6 | [6]C. Leclerc | [7]0 | [8]I. Hadjar | [9]0 | [10]C. Leclerc | [11]0 | [12]I. Hadkar | [13]0
+R240: [3]8 | [4]L. Lawson | [5]4 | [6]I. Hadjar | [7]0 | [8]C. Leclerc | [9]0 | [10]I. Hadjar | [11]0 | [12]O. Piastri | [13]0
+R241: [3]9 | [4]A. Lindblad | [5]2 | [6]Hulkenberg | [7]0 | [8]N. Hulkenberg | [9]0 | [10]L. Lawson | [11]0 | [12]N. Hulkenberg | [13]0
+R242: [3]10 | [4]F. Colapinto | [5]1 | [6]P. Gasly | [7]0 | [8]L. Lawson | [9]0 | [10]C. Sainz | [11]0 | [12]L. Lawson | [13]0
+R243: [3]Fastest Lap | [4]L. Hamilton | [5]1 | [6]K. Antonelli | [7]0 | [8]K. Antonelli | [9]0 | [10]K. Antonelli | [11]0 | [12]G. Russell | [13]0
+R244: [3]DNF | [4]F. Alonso | [5]10 | [6]L. Lawson | [7]0 | [8]F. Alonso | [9]10 | [11]0 | [13]0
+R246: [4]Current Round Points | [7]18 | [9]47 | [11]0 | [13]12
+R247: [4]Total Points | [7]146 | [9]190 | [11]149 | [13]229
+R249: [2]Round 10 - Austrian Grand Prix 2026
+R250: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R251: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R253: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R254: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R255: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R256: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R257: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R258: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R259: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R260: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R261: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R262: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R263: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R264: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R266: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R267: [4]Total Points | [7]258 | [9]302 | [11]261 | [13]341
+R269: [2]Round 11 - British Grand Prix 2026 - Sprint
+R270: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R271: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R273: [3]1 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R274: [3]2 | [5]7 | [7]7 | [9]7 | [11]7 | [13]7
+R275: [3]3 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R276: [3]4 | [5]5 | [7]5 | [9]5 | [11]5 | [13]5
+R277: [3]5 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R278: [3]6 | [5]3 | [7]3 | [9]3 | [11]3 | [13]3
+R279: [3]7 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R280: [3]8 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R281: [3]9 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R282: [3]10 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R283: [3]Fastest Lap | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R284: [3]DNF | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R286: [4]Current Round Points | [7]36 | [9]36 | [11]36 | [13]36
+R287: [4]Total Points | [7]294 | [9]338 | [11]297 | [13]377
+R289: [2]Round 11 - British Grand Prix 2026
+R290: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R291: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R293: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R294: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R295: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R296: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R297: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R298: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R299: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R300: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R301: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R302: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R303: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R304: [3]DNF | [5]10 | [7]20 | [9]10 | [11]10 | [13]10
+R306: [4]Current Round Points | [7]122 | [9]112 | [11]112 | [13]112
+R307: [4]Total Points | [7]416 | [9]450 | [11]409 | [13]489
+R309: [2]Round 12 - Belgian Grand Prix 2026
+R310: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R311: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R313: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R314: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R315: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R316: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R317: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R318: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R319: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R320: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R321: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R322: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R323: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R324: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R326: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R327: [4]Total Points | [7]528 | [9]562 | [11]521 | [13]601
+R329: [2]Round 13 - Hungarian Grand Prix 2026
+R330: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R331: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R333: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R334: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R335: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R336: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R337: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R338: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R339: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R340: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R341: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R342: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R343: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R344: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R346: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R347: [4]Total Points | [7]640 | [9]674 | [11]633 | [13]713
+R349: [2]Round 14 - Dutch Grand Prix 2026 - Sprint
+R350: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R351: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R353: [3]1 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R354: [3]2 | [5]7 | [7]7 | [9]7 | [11]7 | [13]7
+R355: [3]3 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R356: [3]4 | [5]5 | [7]5 | [9]5 | [11]5 | [13]5
+R357: [3]5 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R358: [3]6 | [5]3 | [7]3 | [9]3 | [11]3 | [13]3
+R359: [3]7 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R360: [3]8 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R361: [3]9 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R362: [3]10 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R363: [3]Fastest Lap | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R364: [3]DNF | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R366: [4]Current Round Points | [7]36 | [9]36 | [11]36 | [13]36
+R367: [4]Total Points | [7]676 | [9]710 | [11]669 | [13]749
+R369: [2]Round 14 - Dutch Grand Prix 2026
+R370: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R371: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R373: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R374: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R375: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R376: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R377: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R378: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R379: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R380: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R381: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R382: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R383: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R384: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R386: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R387: [4]Total Points | [7]788 | [9]822 | [11]781 | [13]861
+R389: [2]Round 15 - Italian Grand Prix - Monza - 2026
+R390: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R391: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R393: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R394: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R395: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R396: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R397: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R398: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R399: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R400: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R401: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R402: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R403: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R404: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R406: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R407: [4]Total Points | [7]900 | [9]934 | [11]893 | [13]973
+R409: [2]Round 16 - Gran Premio de España - 2026
+R410: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R411: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R413: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R414: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R415: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R416: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R417: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R418: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R419: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R420: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R421: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R422: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R423: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R424: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R426: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R427: [4]Total Points | [7]1012 | [9]1046 | [11]1005 | [13]1085
+R429: [2]Round 17 - Azerbaijan Grand Prix 2026
+R430: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R431: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R433: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R434: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R435: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R436: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R437: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R438: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R439: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R440: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R441: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R442: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R443: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R444: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R446: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R447: [4]Total Points | [7]1124 | [9]1158 | [11]1117 | [13]1197
+R449: [2]Round 18 - Singapore Grand Prix 2026 - Sprint
+R450: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R451: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R453: [3]1 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R454: [3]2 | [5]7 | [7]7 | [9]7 | [11]7 | [13]7
+R455: [3]3 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R456: [3]4 | [5]5 | [7]5 | [9]5 | [11]5 | [13]5
+R457: [3]5 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R458: [3]6 | [5]3 | [7]3 | [9]3 | [11]3 | [13]3
+R459: [3]7 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R460: [3]8 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R461: [3]9 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R462: [3]10 | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R463: [3]Fastest Lap | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R464: [3]DNF | [5]0 | [7]0 | [9]0 | [11]0 | [13]0
+R466: [4]Current Round Points | [7]36 | [9]36 | [11]36 | [13]36
+R467: [4]Total Points | [7]1160 | [9]1194 | [11]1153 | [13]1233
+R469: [2]Round 18 - Singapore Grand Prix 2026
+R470: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R471: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R473: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R474: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R475: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R476: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R477: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R478: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R479: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R480: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R481: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R482: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R483: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R484: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R486: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R487: [4]Total Points | [7]1272 | [9]1306 | [11]1265 | [13]1345
+R489: [2]Round 19- COTA GP - Grand Prix 2025
+R490: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R491: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R493: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R494: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R495: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R496: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R497: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R498: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R499: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R500: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R501: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R502: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R503: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R504: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R506: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R507: [4]Total Points | [7]1384 | [9]1418 | [11]1377 | [13]1457
+R509: [2]Round 20 - Ciudad de Mexico - Grand Prix 2026
+R510: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R511: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R513: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R514: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R515: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R516: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R517: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R518: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R519: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R520: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R521: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R522: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R523: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R524: [3]DNF | [5]10 | [7]20 | [9]10 | [11]10 | [13]10
+R526: [4]Current Round Points | [7]122 | [9]112 | [11]112 | [13]112
+R527: [4]Total Points | [7]1506 | [9]1530 | [11]1489 | [13]1569
+R529: [2]Round 21 - Brazil  GP - Grand Prix 2026
+R530: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R531: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R533: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R534: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R535: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R536: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R537: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R538: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R539: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R540: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R541: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R542: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R543: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R544: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R546: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R547: [4]Total Points | [7]1618 | [9]1642 | [11]1601 | [13]1681
+R549: [2]Round 22 - Vegas Grand Prix - 2026
+R550: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R551: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R553: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R554: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R555: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R556: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R557: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R558: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R559: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R560: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R561: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R562: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R563: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R564: [3]DNF | [5]10 | [7]10 | [9]20 | [11]20 | [13]10
+R566: [4]Current Round Points | [7]112 | [9]122 | [11]122 | [13]112
+R567: [4]Total Points | [7]1730 | [9]1764 | [11]1723 | [13]1793
+R569: [2]Round 23 - Qatar  GP - Grand Prix 2026
+R570: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R571: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R573: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R574: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R575: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R576: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R577: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R578: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R579: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R580: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R581: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R582: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R583: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R584: [3]DNF | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R586: [4]Current Round Points | [7]112 | [9]112 | [11]112 | [13]112
+R587: [4]Total Points | [7]1842 | [9]1876 | [11]1835 | [13]1905
+R589: [2]Round 24 - Abu Dhabi Grand Prix 2026
+R590: [6]Skye Leach | [8]Whitney Trujillo | [10]Bryan Leach | [12]Carlos Trujillo
+R591: [2]Driver Finish | [5]Pts | [6]Driver Finish | [7]Pts | [8]Driver Finish | [9]Pts | [10]Driver Finish | [11]Pts | [12]Driver Finish | [13]Pts
+R593: [3]1 | [5]25 | [7]25 | [9]25 | [11]25 | [13]25
+R594: [3]2 | [5]18 | [7]18 | [9]18 | [11]18 | [13]18
+R595: [3]3 | [5]15 | [7]15 | [9]15 | [11]15 | [13]15
+R596: [3]4 | [5]12 | [7]12 | [9]12 | [11]12 | [13]12
+R597: [3]5 | [5]10 | [7]10 | [9]10 | [11]10 | [13]10
+R598: [3]6 | [5]8 | [7]8 | [9]8 | [11]8 | [13]8
+R599: [3]7 | [5]6 | [7]6 | [9]6 | [11]6 | [13]6
+R600: [3]8 | [5]4 | [7]4 | [9]4 | [11]4 | [13]4
+R601: [3]9 | [5]2 | [7]2 | [9]2 | [11]2 | [13]2
+R602: [3]10 | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R603: [3]Fastest Lap | [5]1 | [7]1 | [9]1 | [11]1 | [13]1
+R604: [3]DNF | [5]10 | [7]10 | [9]10 | [11]20 | [13]10
+R606: [4]Current Round Points | [7]112 | [9]112 | [11]122 | [13]112
+R607: [4]Total Points | [7]1954 | [9]1988 | [11]1957 | [13]2017
