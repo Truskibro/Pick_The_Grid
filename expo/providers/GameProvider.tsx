@@ -1227,21 +1227,51 @@ export const [GameProvider, useGame] = createContextHook(() => {
         });
       }
 
-      // Build entries from users who have scored predictions in this series.
+      // Build entries from EVERY user with a profile, so the leaderboard
+      // shows the full community even if a user hasn't scored predictions in
+      // this series yet. Users with no scored rows simply appear at 0.
+      // Seed users without a profile row are appended below (F1 only).
       const entries: LeaderboardEntry[] = [];
-      for (const [userId, points] of pointsMap) {
-        const name = nameMap.get(userId);
-        const username = name?.username ?? (seedUserIdSet.has(userId) ? (seedLeaderboard.find((s) => s.userId === userId)?.username ?? 'Unknown') : 'Unknown');
-        const displayName = name?.displayName ?? (seedUserIdSet.has(userId) ? (seedLeaderboard.find((s) => s.userId === userId)?.displayName ?? 'Unknown') : 'Unknown');
-        if (!displayName || displayName === 'Unknown') continue;
+      const seenUserIds = new Set<string>();
+
+      for (const [userId, name] of nameMap) {
+        if (!name.displayName || name.displayName === 'Unknown') continue;
+        seenUserIds.add(userId);
         entries.push({
           rank: 0,
           userId,
-          username,
+          username: name.username,
+          displayName: name.displayName,
+          totalPoints: pointsMap.get(userId) ?? 0,
+          seriesId: effectiveSeriesId,
+        });
+      }
+
+      // Add any user who has scored predictions in this series but is missing
+      // a profile row (shouldn't normally happen, but keeps the board complete).
+      for (const [userId, points] of pointsMap) {
+        if (seenUserIds.has(userId)) continue;
+        const seedEntry = seedLeaderboard.find((s) => s.userId === userId);
+        const displayName = seedEntry?.displayName ?? 'Unknown';
+        if (displayName === 'Unknown') continue;
+        seenUserIds.add(userId);
+        entries.push({
+          rank: 0,
+          userId,
+          username: seedEntry?.username ?? 'Unknown',
           displayName,
           totalPoints: points,
           seriesId: effectiveSeriesId,
         });
+      }
+
+      // Seed users (F1-only) always appear even without a profile or predictions.
+      if (effectiveSeriesId === 'f1') {
+        for (const seedEntry of seedLeaderboard) {
+          if (seenUserIds.has(seedEntry.userId)) continue;
+          seenUserIds.add(seedEntry.userId);
+          entries.push({ ...seedEntry, seriesId: 'f1' });
+        }
       }
 
       // Sort + assign ranks.

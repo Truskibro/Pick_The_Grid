@@ -22,9 +22,11 @@ import { useUser } from '@/providers/UserProvider';
 import { useF1Data } from '@/providers/F1DataProvider';
 import type { Race } from '@/types';
 
-// Bumped to v9 — achievement definitions, engine, and season-based instances
-// were rewritten. v8 caches may hold stale tiers / missing seasonInstances.
-const STORAGE_KEY = 'apex_draft_achievements_v9';
+// Bumped to v10 — achievement engine fixes (Golden Goose Egg now computes
+// points fresh from results instead of stale pointsEarned; Box Box Box now
+// has real lock times from the race calendar) plus a full reset of undeserved
+// unlocks. v9 caches may hold the Golden Goose Egg badge awarded incorrectly.
+const STORAGE_KEY = 'apex_draft_achievements_v10';
 // Persisted set of "achievementId:tier[:season]" keys that have already had
 // their celebration animation play. This guarantees the overlay only fires
 // ONCE per tier per device, even across reloads, remounts, or re-evaluations.
@@ -38,13 +40,29 @@ const LEGACY_STORAGE_KEYS = [
   'apex_draft_achievements_v5',
   'apex_draft_achievements_v6',
   'apex_draft_achievements_v7',
-  'apex_draft_achievements_v8',
+  'apex_draft_achievements_v9',
 ];
 
 /** Returns true only when every non-cancelled race is completed. */
 function isSeasonOver(races: Race[] | undefined | null): boolean {
   if (!races || races.length === 0) return false;
   return races.every((r) => r.status === 'completed' || r.status === 'cancelled');
+}
+
+/** Build an ISO timestamp (UTC) from a race date + time, or null if invalid. */
+function buildLockIso(raceDate: string, raceTime: string): string | null {
+  const cleanDate = String(raceDate).trim();
+  const cleanTime = String(raceTime).trim();
+  if (!cleanDate || !cleanTime) return null;
+  const timeWithSeconds = cleanTime.length === 5 ? `${cleanTime}:00` : cleanTime;
+  const hasTimezone =
+    timeWithSeconds.endsWith('Z') || /[+-]\d{2}:?\d{2}$/.test(timeWithSeconds);
+  const isoString = hasTimezone
+    ? `${cleanDate}T${timeWithSeconds}`
+    : `${cleanDate}T${timeWithSeconds}Z`;
+  const parsed = new Date(isoString);
+  if (Number.isNaN(parsed.getTime())) return null;
+  return parsed.toISOString();
 }
 
 /** Derive the current season label (e.g. "2026") from the race calendar. */
@@ -156,13 +174,48 @@ export const [AchievementProvider, useAchievements] = createContextHook(() => {
     leagues = [],
     totalPoints = 0,
     editCounts = {},
-    lockTimes = {},
     getLeagueMembers,
     fetchGlobalLeaderboard,
   } = useGame();
 
   const { raceResults = [], races = [] } = useF1Data();
   const { profile, isGuest } = useUser();
+
+  // Compute per-race lock times from the race calendar. Picks lock at the
+  // race start time (or the sprint start time on sprint weekends — whichever
+  // comes first, since editing either side is blocked once that session starts).
+  // The GameProvider's lockTimes memo is a stub (always {}), so without this
+  // the Box Box Box hidden achievement could never fire.
+  const lockTimes = useMemo<Record<string, string>>(() => {
+    const map: Record<string, string> = {};
+    for (const race of races ?? []) {
+      if (!race?.id || !race.raceDate || !race.raceTime) continue;
+      const raceLock = buildLockIso(race.raceDate, race.raceTime);
+      if (raceLock) map[race.id] = raceLock;
+      // Sprint weekends: the sprint start is also a lock boundary for the
+      // sprint side of the prediction. We key the sprint lock under a derived
+      // id so it can be matched against sprint edits if we ever track them
+      // separately. For now, the earliest lock boundary governs the race edit.
+      if (race.hasSprint && race.sprintDate && race.sprintTime) {
+        const sprintLock = buildLockIso(race.sprintDate, race.sprintTime);
+        if (sprintLock) {
+          // Keep the earlier of the two as the race's effective lock — an edit
+          // within 60s of EITHER start counts.
+          const existing = map[race.id];
+          if (!existing || sprintLock < existing) {
+            // Only override if the sprint starts before the race (normal case).
+            // We still want the race lock available for race-side edits, so we
+            // store the race lock under a secondary key too.
+            if (existing) map[`${race.id}:sprint`] = existing;
+            map[race.id] = sprintLock;
+          } else {
+            map[`${race.id}:sprint`] = sprintLock;
+          }
+        }
+      }
+    }
+    return map;
+  }, [races]);
 
   const stateRef = useRef<AchievementState>(state);
   stateRef.current = state;

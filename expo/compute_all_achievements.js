@@ -81,6 +81,38 @@ function upsertRows(table, rows, onConflict) {
   });
 }
 
+/** Wipe all rows in a table (service role bypasses RLS). */
+function deleteAllRows(table) {
+  return new Promise((resolve, reject) => {
+    const url = `${SUPABASE_URL}/rest/v1/${table}`;
+    const req = https.request(
+      url,
+      {
+        method: 'DELETE',
+        headers: {
+          apikey: SERVICE_KEY,
+          Authorization: `Bearer ${SERVICE_KEY}`,
+          'Content-Profile': 'public',
+          Prefer: 'return=minimal',
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => (data += chunk));
+        res.on('end', () => {
+          if (res.statusCode >= 400) {
+            reject(new Error(`DELETE ${table} failed ${res.statusCode}: ${data.slice(0, 400)}`));
+            return;
+          }
+          resolve();
+        });
+      },
+    );
+    req.on('error', reject);
+    req.end();
+  });
+}
+
 // ── Achievement definitions (mirrors expo/constants/achievements.ts) ─────
 const TIER_ORDER = ['bronze', 'silver', 'gold', 'platinum'];
 
@@ -349,13 +381,150 @@ function hasNoEditsFullGrid(preds, editCounts) {
   return false;
 }
 
+// ── Fresh point computation (mirrors expo/lib/scoring.ts) ────────────────
+// Used by hasFullGridZeroPoints so we never rely on stale points_earned.
+const F1_RACE_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1];
+const F1_SPRINT_POINTS = [8, 7, 6, 5, 4, 3, 2, 1];
+const MOTOGP_RACE_POINTS = [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1];
+const MOTOGP_SPRINT_POINTS = [12, 9, 7, 6, 5, 4, 3, 2, 1];
+const F1_FL_BONUS = 1;
+const F1_DNF_BONUS = 10;
+const MOTOGP_FL_BONUS = 1;
+const MOTOGP_DNF_BONUS = 10;
+const F1_RACE_TOP_N = 10;
+const MOTOGP_RACE_TOP_N = 15;
+
+function normId(id) {
+  if (!id) return null;
+  return String(id).trim().toUpperCase();
+}
+
+function normStatus(s) {
+  return String(s || '').trim().toLowerCase();
+}
+
+function isTrueDnf(s) {
+  const st = normStatus(s);
+  return st === 'dnf' || st === 'retired' || st === 'ret' || st === 'did not finish' || st === 'did_not_finish';
+}
+
+function isDns(s) {
+  const st = normStatus(s);
+  return st === 'dns' || st === 'did not start' || st === 'did_not_start';
+}
+
+function getTrueDnfIds(result) {
+  const dnsIds = new Set();
+  if (Array.isArray(result.dnsDriverIds)) {
+    for (const id of result.dnsDriverIds) {
+      const n = normId(id);
+      if (n) dnsIds.add(n);
+    }
+  }
+  for (const entry of result.classification || []) {
+    const n = normId(entry.driverId);
+    if (n && isDns(entry.status)) dnsIds.add(n);
+  }
+  const dnfIds = new Set();
+  for (const entry of result.classification || []) {
+    const n = normId(entry.driverId);
+    if (!n || dnsIds.has(n)) continue;
+    if (isTrueDnf(entry.status)) dnfIds.add(n);
+  }
+  for (const id of result.dnfDriverIds || []) {
+    const n = normId(id);
+    if (n && !dnsIds.has(n)) dnfIds.add(n);
+  }
+  return dnfIds;
+}
+
+function getDnsIds(result) {
+  const dnsIds = new Set();
+  if (Array.isArray(result.dnsDriverIds)) {
+    for (const id of result.dnsDriverIds) {
+      const n = normId(id);
+      if (n) dnsIds.add(n);
+    }
+  }
+  for (const entry of result.classification || []) {
+    const n = normId(entry.driverId);
+    if (n && isDns(entry.status)) dnsIds.add(n);
+  }
+  return dnsIds;
+}
+
+function calcRacePoints(pred, result, seriesId) {
+  const racePts = seriesId === 'motogp' ? MOTOGP_RACE_POINTS : F1_RACE_POINTS;
+  const flBonus = seriesId === 'motogp' ? MOTOGP_FL_BONUS : F1_FL_BONUS;
+  const dnfBonus = seriesId === 'motogp' ? MOTOGP_DNF_BONUS : F1_DNF_BONUS;
+  const topN = seriesId === 'motogp' ? MOTOGP_RACE_TOP_N : F1_RACE_TOP_N;
+  const predTop = (pred.predicted_top10 || []).slice(0, topN);
+  const resultTop = (result.classification || [])
+    .filter((c) => c.position <= topN)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => normId(c.driverId));
+  let pts = 0;
+  const scored = new Set();
+  for (let i = 0; i < predTop.length && i < topN; i++) {
+    const pd = normId(predTop[i]);
+    const ad = resultTop[i];
+    if (!pd) continue;
+    if (scored.has(pd)) continue;
+    scored.add(pd);
+    if (pd === ad) pts += racePts[i] ?? 0;
+  }
+  const fl = normId(pred.predicted_fastest_lap);
+  const rFl = normId(result.fastestLapDriverId);
+  if (fl && fl === rFl) pts += flBonus;
+  const dnsIds = getDnsIds(result);
+  const dnfSet = getTrueDnfIds(result);
+  const pDnf = normId(pred.predicted_dnf);
+  if (!pDnf && dnfSet.size === 0) {
+    pts += dnfBonus;
+  } else if (pDnf && dnsIds.has(pDnf)) {
+    // DNS pick — no DNF points.
+  } else if (pDnf && dnfSet.has(pDnf)) {
+    pts += dnfBonus;
+  }
+  return pts;
+}
+
+function calcSprintPoints(predSprintTop, sprintClassification, seriesId) {
+  const sprintPts = seriesId === 'motogp' ? MOTOGP_SPRINT_POINTS : F1_SPRINT_POINTS;
+  const topN = seriesId === 'motogp' ? 9 : 8;
+  const predTop = (predSprintTop || []).slice(0, topN);
+  const resultTop = (sprintClassification || [])
+    .filter((c) => c.position <= topN)
+    .sort((a, b) => a.position - b.position)
+    .map((c) => normId(c.driverId));
+  let pts = 0;
+  const scored = new Set();
+  for (let i = 0; i < predTop.length && i < topN; i++) {
+    const pd = normId(predTop[i]);
+    const ad = resultTop[i];
+    if (!pd) continue;
+    if (scored.has(pd)) continue;
+    scored.add(pd);
+    if (pd === ad) pts += sprintPts[i] ?? 0;
+  }
+  return pts;
+}
+
 function hasFullGridZeroPoints(preds, results) {
+  // Compute points fresh from the prediction + result so we never rely on
+  // stale points_earned values. A user who actually scored points must never
+  // be awarded this achievement.
   for (const pred of preds) {
     if ((pred.predicted_top10 || []).length < 10) continue;
     const result = results[pred.race_id];
     if (!result || !result.classification || result.classification.length === 0) continue;
-    const totalPts = (pred.points_earned ?? 0) + (pred.sprint_points_earned ?? 0);
-    if (totalPts === 0) return true;
+    const seriesId = pred.series_id === 'motogp' ? 'motogp' : 'f1';
+    const racePts = calcRacePoints(pred, result, seriesId);
+    const sprintPts =
+      (pred.predicted_sprint_top8 || []).length > 0 && result.sprintClassification?.length
+        ? calcSprintPoints(pred.predicted_sprint_top8, result.sprintClassification, seriesId)
+        : 0;
+    if (racePts === 0 && sprintPts === 0) return true;
   }
   return false;
 }
@@ -629,32 +798,17 @@ async function main() {
       const currentValue = computeValue(def, input);
       const unlockedTiers = computeUnlockedTiers(def, currentValue);
 
-      // Preserve existing unlockedAt timestamps for tiers already unlocked
-      const existing = existingByUser.get(userId)?.get(def.id);
-      const existingUnlockedAt = (existing && typeof existing.unlocked_at === 'object' && existing.unlocked_at) ? existing.unlocked_at : {};
-      const existingTiers = (existing && Array.isArray(existing.unlocked_tiers)) ? existing.unlocked_tiers : [];
-      const existingSet = new Set(existingTiers);
-
-      const unlockedAt = { ...existingUnlockedAt };
+      // Fresh reset — no existing rows to merge with. Timestamps are set now.
+      const unlockedAt = {};
       for (const t of unlockedTiers) {
-        if (!unlockedAt[t]) unlockedAt[t] = new Date().toISOString();
+        unlockedAt[t] = new Date().toISOString();
       }
 
       // Season instances for season-based achievements
       let seasonInstances = undefined;
       if (def.seasonBased && currentSeason) {
-        const existingInst = (existing && Array.isArray(existing.season_instances)) ? existing.season_instances : [];
-        const prevCurrent = existingInst.find((i) => i.season === currentSeason);
-        const prevCurrentTiers = new Set(prevCurrent?.unlockedTiers || []);
-        const mergedTiers = [...new Set([...(prevCurrent?.unlockedTiers || []), ...unlockedTiers])];
-        const mergedValue = Math.max(prevCurrent?.currentValue ?? 0, currentValue);
-        const mergedUnlockedAt = { ...(prevCurrent?.unlockedAt || {}) };
-        for (const t of unlockedTiers) {
-          if (!prevCurrentTiers.has(t) && !mergedUnlockedAt[t]) mergedUnlockedAt[t] = new Date().toISOString();
-        }
-        const currentInstance = { season: currentSeason, unlockedTiers: mergedTiers, currentValue: mergedValue, unlockedAt: mergedUnlockedAt };
-        const otherInstances = existingInst.filter((i) => i.season !== currentSeason);
-        seasonInstances = [...otherInstances, currentInstance].sort((a, b) => a.season.localeCompare(b.season));
+        const currentInstance = { season: currentSeason, unlockedTiers, currentValue, unlockedAt };
+        seasonInstances = [currentInstance];
       }
 
       // Every row must have identical keys for PostgREST bulk upsert.

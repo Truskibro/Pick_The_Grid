@@ -23,6 +23,7 @@ import {
   type SeasonInstance,
 } from '@/constants/achievements';
 import type { Prediction, RaceResult, Race } from '@/types';
+import { calculatePoints, calculateSprintPoints } from '@/lib/scoring';
 
 /* ------------------------------------------------------------------ */
 /*  Input shape — the data the engine needs to evaluate achievements   */
@@ -550,12 +551,21 @@ function hasFullGridZeroPoints(
   predictions: Prediction[],
   raceResults: Record<string, RaceResult>,
 ): boolean {
+  // Compute points fresh from the prediction + result so we never rely on a
+  // stale `pointsEarned` value (e.g. before the server-scoring backfill ran,
+  // or for a race whose result was inserted after the prediction was saved).
+  // A user who actually scored points must never be awarded this achievement.
   for (const pred of predictions) {
     if (pred.top10.length < 10) continue;
     const result = raceResults[pred.raceId];
     if (!result || result.classification.length === 0) continue;
-    const totalPts = (pred.pointsEarned ?? 0) + (pred.sprintPointsEarned ?? 0);
-    if (totalPts === 0) return true;
+    const seriesId = (pred.seriesId ?? 'f1') as 'f1' | 'motogp';
+    const racePts = calculatePoints(pred, result, seriesId).totalPoints;
+    const sprintPts =
+      pred.sprintTop8.length > 0 && result.sprintClassification?.length
+        ? calculateSprintPoints(pred.sprintTop8, result.sprintClassification, seriesId).totalPoints
+        : 0;
+    if (racePts === 0 && sprintPts === 0) return true;
   }
   return false;
 }
