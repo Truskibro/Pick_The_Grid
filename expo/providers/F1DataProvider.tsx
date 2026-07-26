@@ -168,6 +168,57 @@ const FALLBACK_RACE_IDS_SET = new Set([
   'r19','r20','r21','r22',
 ]);
 
+/**
+ * Build the payload for a race_results upsert from a RaceResult.
+ * The scoring trigger fires on insert/update, so this is what kicks off
+ * server-side scoring when live results are synced in.
+ */
+function buildRaceResultRow(result: RaceResult) {
+  return {
+    race_id: result.raceId,
+    classification: result.classification.map((c) => ({
+      driverId: c.driverId,
+      position: c.position,
+      status: c.status,
+      points: c.points,
+      gap: c.gap,
+      time: c.time,
+    })),
+    fastest_lap_driver_id: result.fastestLapDriverId,
+    dnf_driver_ids: result.dnfDriverIds || [],
+    dns_driver_ids: result.dnsDriverIds || [],
+    sprint_classification: result.sprintClassification || null,
+  };
+}
+
+/**
+ * Write live API results that aren't yet in Supabase into the race_results
+ * table. The AFTER INSERT OR UPDATE trigger on race_results fires
+ * score_predictions_for_race() automatically, so this is what makes the
+ * server score predictions the moment results come in from the live API —
+ * no manual intervention needed.
+ */
+async function syncLiveResultsToSupabase(liveResults: RaceResult[]): Promise<void> {
+  if (!isSupabaseConfigured || liveResults.length === 0) return;
+
+  for (const result of liveResults) {
+    try {
+      const row = buildRaceResultRow(result);
+      const { error } = await supabase
+        .from('race_results')
+        .upsert(row, { onConflict: 'race_id' });
+
+      if (error) {
+        console.log('[syncLiveResults] upsert failed for', result.raceId, ':', error.message);
+      } else {
+        console.log('[syncLiveResults] synced', result.raceId, 'to Supabase — scoring trigger fired');
+      }
+    } catch (e: any) {
+      console.log('[syncLiveResults] error for', result.raceId, ':', e?.message || e);
+    }
+  }
+}
+
 async function fetchRaceResults(): Promise<RaceResult[]> {
   // Supabase is the primary, curated source of truth for race results.
   // Live API and mock data are used only as fallbacks.
@@ -202,6 +253,8 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
   }
 
   // 2. Live API — secondary source, fills any gaps.
+  //    Any results fetched here that aren't in Supabase yet are written back
+  //    so the server-side scoring trigger fires automatically.
   try {
     const live = await fetchLiveRaceResults();
     if (live && live.length > 0) {
@@ -212,6 +265,9 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
         }
         results.push(...newLive);
         console.log('Race results: adding', newLive.length, 'from live API:', newLive.map(r => r.raceId).join(', '));
+
+        // Write back to Supabase so the scoring trigger fires.
+        void syncLiveResultsToSupabase(newLive);
       }
     }
   } catch (e) {
