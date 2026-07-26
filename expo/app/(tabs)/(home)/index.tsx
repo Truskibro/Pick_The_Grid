@@ -1,6 +1,6 @@
-import React, { useRef, useEffect, useMemo } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Pressable, Dimensions } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Target, Users, UserPlus, Settings, Trophy, Flag, Zap, LogIn, Clock, MapPin, ChevronRight, Swords, Gauge, Circle } from 'lucide-react-native';
 
@@ -23,7 +23,7 @@ export default function HomeScreen() {
   const seriesColors = config.colors;
   const seriesLabels = config.labels;
   const { isGuest, profile } = useUser();
-  const { leagues, totalPoints, predictions } = useGame();
+  const { leagues, totalPoints, predictions, refreshPredictions } = useGame();
   const { nextRace, races, drivers } = useSeriesData();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(48)).current;
@@ -34,6 +34,15 @@ export default function HomeScreen() {
       Animated.spring(slideAnim, { toValue: 0, tension: 55, friction: 9, useNativeDriver: true }),
     ]).start();
   }, [fadeAnim, slideAnim]);
+
+  // Re-sync predictions from Supabase on focus so totalPoints reflects
+  // any freshly-scored races (server-side scoring writes points remotely;
+  // without this the home stat stays stale until the app cold-restarts).
+  useFocusEffect(
+    useCallback(() => {
+      void refreshPredictions();
+    }, [refreshPredictions])
+  );
 
   const upcomingRaces = useMemo(() => {
     return races.filter(r => r.status === 'upcoming').slice(0, 3);

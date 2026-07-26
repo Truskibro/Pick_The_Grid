@@ -38,7 +38,7 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
-  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions } = useGame();
+  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
   const { profile, session } = useUser();
   const { currentSeries } = useSeries();
 
@@ -87,6 +87,21 @@ export default function LeaderboardsScreen() {
         void refreshPredictions();
       }
     }, [session, refreshPredictions])
+  );
+
+  // Re-fetch league member points on focus so the league rankings reflect
+  // freshly-scored races (the league tab only warms the cache once at
+  // startup, so without this the rankings stay stale until a manual refresh).
+  useFocusEffect(
+    useCallback(() => {
+      const seriesLeagues = leagues.filter(
+        (l) => (l.seriesId ?? 'f1') === currentSeries,
+      );
+      for (const lg of seriesLeagues) {
+        void fetchLeagueMembers(lg.id);
+      }
+      void refreshLeagues();
+    }, [leagues, currentSeries, fetchLeagueMembers, refreshLeagues])
   );
 
   const leagueRankings: LeagueRanking[] = useMemo(() => {

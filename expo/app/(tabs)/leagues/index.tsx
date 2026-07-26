@@ -10,7 +10,7 @@ import {
   Alert,
   Dimensions,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   Plus,
@@ -73,6 +73,16 @@ export default function LeaguesScreen() {
     }
     setRefreshing(false);
   }, [refreshLeagues, fetchPublicLeagues, showDiscover]);
+
+  // Re-fetch leagues + member points from Supabase every time the tab is
+  // focused so freshly-scored races show up immediately (no stale cache).
+  useFocusEffect(
+    useCallback(() => {
+      if (profile?.id) {
+        void refreshLeagues();
+      }
+    }, [profile?.id, refreshLeagues])
+  );
 
   const handleDiscover = useCallback(async () => {
     if (isGuest) {
