@@ -1,0 +1,801 @@
+{
+  "r01": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "VER",
+        "RUS",
+        "ANT",
+        "PIA",
+        "LEC",
+        "NOR",
+        "HAM",
+        "HAD",
+        "LAW",
+        "SAI"
+      ],
+      "fl": "VER",
+      "dnf": "STR",
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "LEC",
+        "PIA",
+        "HAD",
+        "VER",
+        "NOR",
+        "HAM",
+        "LAW",
+        "HUL"
+      ],
+      "fl": "VER",
+      "dnf": "STR",
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "RUS",
+        "ANT",
+        "PIA",
+        "LEC",
+        "NOR",
+        "HAD",
+        "VER",
+        "LAW"
+      ],
+      "fl": "RUS",
+      "dnf": "ALO",
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "RUS",
+        "ANT",
+        "LEC",
+        "PIA",
+        "HAD",
+        "HAM",
+        "NOR",
+        "VER",
+        "LAW",
+        "HUL"
+      ],
+      "fl": "RUS",
+      "dnf": "ALO",
+      "sprint_top": []
+    }
+  },
+  "r02": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "RUS",
+        "LEC",
+        "HAM",
+        "VER",
+        "PIA",
+        "NOR",
+        "HAD",
+        "BEA",
+        "GAS"
+      ],
+      "fl": "RUS",
+      "dnf": "ALO",
+      "sprint_top": [
+        "ANT",
+        "HAM",
+        "NOR",
+        "LEC",
+        "PIA",
+        "VER",
+        "HAD"
+      ]
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "RUS",
+        "LEC",
+        "HAM",
+        "PIA",
+        "VER",
+        "NOR",
+        "HAD",
+        "HUL",
+        "BEA"
+      ],
+      "fl": "RUS",
+      "dnf": "STR",
+      "sprint_top": [
+        "RUS",
+        "NOR",
+        "HAM",
+        "VER",
+        "PIA",
+        "LEC",
+        "HAD"
+      ]
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "RUS",
+        "LEC",
+        "HAM",
+        "PIA",
+        "NOR",
+        "VER",
+        "HAD",
+        "BEA",
+        "GAS"
+      ],
+      "fl": "RUS",
+      "dnf": "PER",
+      "sprint_top": [
+        "ANT",
+        "HAM",
+        "LEC",
+        "LEC",
+        "VER",
+        "NOR",
+        "HAD"
+      ]
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "RUS",
+        "HAM",
+        "LEC",
+        "NOR",
+        "PIA",
+        "VER",
+        "HAD",
+        "GAS",
+        "HUL"
+      ],
+      "fl": "RUS",
+      "dnf": "ALB",
+      "sprint_top": [
+        "ANT",
+        "HAM",
+        "NOR",
+        "LEC",
+        "VER",
+        "PIA",
+        "GAS"
+      ]
+    }
+  },
+  "r03": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "ANT",
+        "RUS",
+        "PIA",
+        "HAM",
+        "NOR",
+        "VER",
+        "HAD",
+        "GAS",
+        "LIN"
+      ],
+      "fl": "ANT",
+      "dnf": "BOT",
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "PIA",
+        "NOR",
+        "VER",
+        "HAM",
+        "GAS",
+        "HAD",
+        "HUL"
+      ],
+      "fl": "PIA",
+      "dnf": "PER",
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "RUS",
+        "ANT",
+        "HAM",
+        "VER",
+        "PIA",
+        "NOR",
+        "HAD",
+        "GAS",
+        "LIN"
+      ],
+      "fl": "RUS",
+      "dnf": "STR",
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "HAM",
+        "PIA",
+        "NOR",
+        "HAD",
+        "VER",
+        "GAS",
+        "LIN"
+      ],
+      "fl": "RUS",
+      "dnf": "STR",
+      "sprint_top": []
+    }
+  },
+  "r04": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "VER",
+        "ANT",
+        "NOR",
+        "LEC",
+        "RUS",
+        "HAM",
+        "HAD",
+        "GAS",
+        "BEA"
+      ],
+      "fl": "VER",
+      "dnf": "COL",
+      "sprint_top": [
+        "ANT",
+        "NOR",
+        "PIA",
+        "RUS",
+        "LEC",
+        "HAM",
+        "HAD"
+      ]
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "PIA",
+        "VER",
+        "NOR",
+        "ANT",
+        "LEC",
+        "RUS",
+        "COL",
+        "SAI",
+        "GAS"
+      ],
+      "fl": null,
+      "dnf": "STR",
+      "sprint_top": [
+        "NOR",
+        "LEC",
+        "ANT",
+        "PIA",
+        "VER",
+        "HAM",
+        "COL"
+      ]
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "VER",
+        "ANT",
+        "NOR",
+        "LEC",
+        "RUS",
+        "PIA",
+        "GAS",
+        "COL"
+      ],
+      "fl": "ANT",
+      "dnf": "ALO",
+      "sprint_top": [
+        "ANT",
+        "NOR",
+        "PIA",
+        "LEC",
+        "RUS",
+        "HAM",
+        "HAD"
+      ]
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "VER",
+        "ANT",
+        "NOR",
+        "LEC",
+        "RUS",
+        "LEC",
+        "HAM",
+        "GAS",
+        "HUL"
+      ],
+      "fl": "VER",
+      "dnf": null,
+      "sprint_top": [
+        "NOR",
+        "ANT",
+        "PIA",
+        "LEC",
+        "RUS",
+        "HAM",
+        "HAD"
+      ]
+    }
+  },
+  "r05": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "RUS",
+        "ANT",
+        "PIA",
+        "NOR",
+        "HAM",
+        "LEC",
+        "VER",
+        "HAD",
+        "LAW"
+      ],
+      "fl": null,
+      "dnf": "COL",
+      "sprint_top": [
+        "ANT",
+        "RUS",
+        "NOR",
+        "PIA",
+        "LEC",
+        "VER",
+        "HAM"
+      ]
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "RUS",
+        "ANT",
+        "NOR",
+        "PIA",
+        "VER",
+        "LEC",
+        "HAM",
+        "HAD",
+        "COL"
+      ],
+      "fl": null,
+      "dnf": "STR",
+      "sprint_top": [
+        "ANT",
+        "RUS",
+        "PIA",
+        "NOR",
+        "VER",
+        "LEC",
+        "HAM"
+      ]
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "RUS",
+        "ANT",
+        "NOR",
+        "PIA",
+        "HAM",
+        "LEC",
+        "VER",
+        "HAD",
+        "LAW"
+      ],
+      "fl": null,
+      "dnf": "BOT",
+      "sprint_top": [
+        "RUS",
+        "ANT",
+        "NOR",
+        "PIA",
+        "HAM",
+        "LEC",
+        "VER"
+      ]
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "NOR",
+        "PIA",
+        "VER",
+        "LEC",
+        "HAM",
+        "HAD",
+        "COL"
+      ],
+      "fl": null,
+      "dnf": "ALO",
+      "sprint_top": [
+        "ANT",
+        "RUS",
+        "PIA",
+        "NOR",
+        "VER",
+        "LEC",
+        "HAM"
+      ]
+    }
+  },
+  "r06": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "ANT",
+        "VER",
+        "RUS",
+        "LEC",
+        "HAM",
+        "PIA",
+        "HAD",
+        "NOR",
+        "GAS",
+        "LAW"
+      ],
+      "fl": "ANT",
+      "dnf": null,
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "ANT",
+        "VER",
+        "HAM",
+        "LEC",
+        "HAD",
+        "PIA",
+        "RUS",
+        "NOR",
+        "GAS",
+        "STR"
+      ],
+      "fl": "ANT",
+      "dnf": null,
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "ANT",
+        "VER",
+        "LEC",
+        "HAM",
+        "RUS",
+        "PIA",
+        "NOR",
+        "GAS",
+        "LAW",
+        "HAD"
+      ],
+      "fl": "ANT",
+      "dnf": null,
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "VER",
+        "ANT",
+        "HAM",
+        "LEC",
+        "HAD",
+        "RUS",
+        "PIA",
+        "NOR",
+        "GAS"
+      ],
+      "fl": "VER",
+      "dnf": null,
+      "sprint_top": []
+    }
+  },
+  "r07": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "ANT",
+        "RUS",
+        "HAM",
+        "NOR",
+        "VER",
+        "PIA",
+        "LEC",
+        "HAD",
+        "HUL",
+        "GAS"
+      ],
+      "fl": null,
+      "dnf": "LAW",
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "HAM",
+        "ANT",
+        "RUS",
+        "VER",
+        "NOR",
+        "PIA",
+        "HAD",
+        "LEC",
+        "HUL",
+        "LAW"
+      ],
+      "fl": null,
+      "dnf": "ALO",
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "RUS",
+        "ANT",
+        "HAM",
+        "NOR",
+        "VER",
+        "PIA",
+        "LEC",
+        "HAD",
+        "LAW",
+        "SAI"
+      ],
+      "fl": null,
+      "dnf": null,
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "RUS",
+        "HAM",
+        "ANT",
+        "VER",
+        "NOR",
+        "LEC",
+        "HAD",
+        "PIA",
+        "HUL",
+        "LAW"
+      ],
+      "fl": null,
+      "dnf": null,
+      "sprint_top": []
+    }
+  },
+  "r08": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [],
+      "fl": null,
+      "dnf": null,
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "HAM",
+        "LEC",
+        "RUS",
+        "ANT",
+        "VER",
+        "NOR",
+        "PIA",
+        "HAD",
+        "LAW",
+        "GAS"
+      ],
+      "fl": "LEC",
+      "dnf": null,
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "ANT",
+        "HAM",
+        "RUS",
+        "LEC",
+        "VER",
+        "NOR",
+        "PIA",
+        "HAD",
+        "LAW",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": null,
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "RUS",
+        "ANT",
+        "HAM",
+        "LEC",
+        "NOR",
+        "VER",
+        "PIA",
+        "HAD",
+        "LAW",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": null,
+      "sprint_top": []
+    }
+  },
+  "r09": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "ANT",
+        "HAM",
+        "LEC",
+        "RUS",
+        "VER",
+        "NOR",
+        "HAD",
+        "PIA",
+        "LAW",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": "LIN",
+      "sprint_top": [
+        "ANT",
+        "HAM",
+        "LEC",
+        "RUS",
+        "VER",
+        "NOR",
+        "PIA",
+        "HAD"
+      ]
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "ANT",
+        "HAM",
+        "RUS",
+        "LEC",
+        "NOR",
+        "VER",
+        "PIA",
+        "HAD",
+        "LAW",
+        "LIN"
+      ],
+      "fl": "ANT",
+      "dnf": "STR",
+      "sprint_top": [
+        "HAM",
+        "ANT",
+        "VER",
+        "LEC",
+        "RUS",
+        "NOR",
+        "PIA",
+        "HAD"
+      ]
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "ANT",
+        "RUS",
+        "HAM",
+        "LEC",
+        "VER",
+        "NOR",
+        "PIA",
+        "HAD",
+        "LAW",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": "STR",
+      "sprint_top": [
+        "ANT",
+        "HAM",
+        "VER",
+        "LEC",
+        "RUS",
+        "NOR",
+        "PIA",
+        "HAD"
+      ]
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "ANT",
+        "HAM",
+        "RUS",
+        "LEC",
+        "VER",
+        "NOR",
+        "HAD",
+        "PIA",
+        "LIN",
+        "LAW"
+      ],
+      "fl": "ANT",
+      "dnf": "STR",
+      "sprint_top": [
+        "HAM",
+        "ANT",
+        "VER",
+        "RUS",
+        "LEC",
+        "NOR",
+        "PIA",
+        "LAW"
+      ]
+    }
+  },
+  "r10": {
+    "cb7536a7-ad8b-44d4-981b-4b24c19abcc4": {
+      "top": [
+        "ANT",
+        "RUS",
+        "LEC",
+        "HAM",
+        "VER",
+        "PIA",
+        "NOR",
+        "LIN",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": "LAW",
+      "sprint_top": []
+    },
+    "652154af-dc27-47b5-aa79-25903b9c4a1b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "VER",
+        "LEC",
+        "HAM",
+        "PIA",
+        "NOR",
+        "LIN",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": "PER",
+      "sprint_top": []
+    },
+    "f35417e9-4f0d-4def-9c2f-c81276863fc0": {
+      "top": [
+        "ANT",
+        "RUS",
+        "VER",
+        "LEC",
+        "HAM",
+        "PIA",
+        "NOR",
+        "LAW",
+        "GAS",
+        "LIN"
+      ],
+      "fl": "ANT",
+      "dnf": "STR",
+      "sprint_top": []
+    },
+    "e11ea4f5-2ba4-4241-9791-b4b6a560534b": {
+      "top": [
+        "ANT",
+        "RUS",
+        "LEC",
+        "VER",
+        "HAM",
+        "PIA",
+        "NOR",
+        "LAW",
+        "COL",
+        "GAS"
+      ],
+      "fl": "ANT",
+      "dnf": "STR",
+      "sprint_top": []
+    }
+  }
+}
