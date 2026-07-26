@@ -1296,11 +1296,15 @@ export default function PredictRaceScreen() {
         animationType="slide"
         onRequestClose={closePicker}
       >
-        <Pressable style={styles.modalBackdrop} onPress={closePicker}>
+        <View style={styles.modalBackdrop}>
+          {/* Backdrop tap target — sibling of the card so the card's
+              ScrollView gets full, unobstructed scroll gestures. */}
           <Pressable
-            style={styles.modalCard}
-            onPress={(e) => e.stopPropagation()}
-          >
+            style={StyleSheet.absoluteFill}
+            onPress={closePicker}
+          />
+
+          <View style={styles.modalCard}>
             <View style={styles.modalHandle} />
 
             <View style={styles.modalHeader}>
@@ -1414,8 +1418,8 @@ export default function PredictRaceScreen() {
                 );
               })}
             </ScrollView>
-          </Pressable>
-        </Pressable>
+          </View>
+        </View>
       </Modal>
     </View>
   );
