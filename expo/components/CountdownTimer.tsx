@@ -9,6 +9,10 @@ interface CountdownTimerProps {
   raceDate?: string;
   raceTime?: string;
   compact?: boolean;
+  /** Accent color for separators and the label. Defaults to F1 red. */
+  accentColor?: string;
+  /** Overrides the default "PREDICTIONS LOCK IN" label. */
+  label?: string;
 }
 
 interface TimeLeft {
@@ -104,9 +108,12 @@ export default function CountdownTimer({
   raceDate,
   raceTime,
   compact,
+  accentColor,
+  label,
 }: CountdownTimerProps) {
   const finalDate = targetDate ?? raceDate;
   const finalTime = targetTime ?? raceTime;
+  const accent = accentColor ?? Colors.f1Red;
 
   const [timeLeft, setTimeLeft] = useState<TimeLeft>(() =>
     getTimeLeft(finalDate, finalTime)
@@ -205,7 +212,9 @@ export default function CountdownTimer({
 
   return (
     <View style={styles.container}>
-      <Text style={styles.label}>PREDICTIONS LOCK IN</Text>
+      <Text style={[styles.label, { color: accent }]}>
+        {label ?? 'PREDICTIONS LOCK IN'}
+      </Text>
 
       <Animated.View
         style={[
@@ -215,22 +224,23 @@ export default function CountdownTimer({
           },
         ]}
       >
-        <TimeBlock value={timeLeft.days} unit="DAYS" />
-        <Text style={styles.separator}>:</Text>
-        <TimeBlock value={timeLeft.hours} unit="HRS" />
-        <Text style={styles.separator}>:</Text>
-        <TimeBlock value={timeLeft.minutes} unit="MIN" />
-        <Text style={styles.separator}>:</Text>
-        <TimeBlock value={timeLeft.seconds} unit="SEC" />
+        <TimeBlock value={timeLeft.days} unit="DAYS" accent={accent} />
+        <Text style={[styles.separator, { color: accent }]}>:</Text>
+        <TimeBlock value={timeLeft.hours} unit="HRS" accent={accent} />
+        <Text style={[styles.separator, { color: accent }]}>:</Text>
+        <TimeBlock value={timeLeft.minutes} unit="MIN" accent={accent} />
+        <Text style={[styles.separator, { color: accent }]}>:</Text>
+        <TimeBlock value={timeLeft.seconds} unit="SEC" accent={accent} />
       </Animated.View>
     </View>
   );
 }
 
-function TimeBlock({ value, unit }: { value: number; unit: string }) {
+function TimeBlock({ value, unit, accent }: { value: number; unit: string; accent: string }) {
   return (
     <View style={styles.timeBlock}>
       <Text style={styles.timeValue}>{String(value).padStart(2, '0')}</Text>
+      <View style={[styles.timeUnitBar, { backgroundColor: accent }]} />
       <Text style={styles.timeUnit}>{unit}</Text>
     </View>
   );
@@ -239,7 +249,7 @@ function TimeBlock({ value, unit }: { value: number; unit: string }) {
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
-    paddingVertical: 16,
+    paddingVertical: 14,
   },
   containerCompact: {
     paddingVertical: 4,
@@ -263,38 +273,51 @@ const styles = StyleSheet.create({
   },
   label: {
     color: Colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 2,
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 2.5,
     marginBottom: 12,
   },
   timerRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 6,
   },
   timeBlock: {
     alignItems: 'center',
-    minWidth: 52,
+    minWidth: 58,
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderRadius: 12,
+    backgroundColor: 'rgba(255,255,255,0.04)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,255,255,0.07)',
   },
   timeValue: {
     color: Colors.text,
-    fontSize: 28,
-    fontWeight: '700',
+    fontSize: 26,
+    fontWeight: '800',
     fontVariant: ['tabular-nums'],
+  },
+  timeUnitBar: {
+    width: 16,
+    height: 2,
+    borderRadius: 1,
+    marginTop: 5,
+    marginBottom: 5,
+    opacity: 0.9,
   },
   timeUnit: {
     color: Colors.textMuted,
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1,
-    marginTop: 2,
+    fontSize: 9,
+    fontWeight: '700',
+    letterSpacing: 1.5,
   },
   separator: {
     color: Colors.f1Red,
-    fontSize: 24,
+    fontSize: 22,
     fontWeight: '700',
-    marginHorizontal: 4,
-    marginBottom: 14,
+    marginBottom: 22,
   },
   compactText: {
     color: Colors.text,

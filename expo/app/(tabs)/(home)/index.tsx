@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useMemo, useCallback } from 'react';
+import React, { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { View, Text, StyleSheet, ScrollView, Animated, Pressable, Dimensions } from 'react-native';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -58,6 +58,41 @@ export default function HomeScreen() {
     .slice(0, 2) || 'P';
 
   const isMotoGP = currentSeries === 'motogp';
+
+  // Session toggle state for the next-race spotlight (sprint weekends only).
+  const [session, setSession] = useState<'race' | 'sprint'>('race');
+  const nextHasSprint = nextRace?.hasSprint ?? false;
+  const sessionDate =
+    session === 'sprint'
+      ? nextRace?.sprintDate ?? nextRace?.raceDate
+      : nextRace?.raceDate;
+  const sessionTime =
+    session === 'sprint'
+      ? nextRace?.sprintTime ?? nextRace?.raceTime
+      : nextRace?.raceTime;
+
+  const sessionStart = useMemo(() => {
+    if (!sessionDate || !sessionTime) return null;
+    const parsed = new Date(`${sessionDate}T${sessionTime}:00Z`);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }, [sessionDate, sessionTime]);
+
+  const sessionDateLabel = sessionStart
+    ? sessionStart.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      })
+    : null;
+
+  const sessionTimeLabel = sessionStart
+    ? sessionStart.toLocaleTimeString('en-US', {
+        hour: 'numeric',
+        minute: '2-digit',
+      })
+    : null;
+
+  const sessionAccent = session === 'sprint' ? Colors.info : seriesColors.primary;
 
   return (
     <View style={[styles.container, { backgroundColor: seriesColors.background }]}>
@@ -174,9 +209,78 @@ export default function HomeScreen() {
 
                   <View style={styles.spotlightDivider} />
 
+                  {nextHasSprint && (
+                    <View style={styles.sessionToggle}>
+                      <Pressable
+                        style={[
+                          styles.sessionPill,
+                          session === 'sprint' && {
+                            backgroundColor: `${Colors.info}1F`,
+                            borderColor: `${Colors.info}80`,
+                          },
+                        ]}
+                        onPress={() => setSession('sprint')}
+                      >
+                        <Zap
+                          size={13}
+                          color={session === 'sprint' ? Colors.info : Colors.textMuted}
+                        />
+                        <Text
+                          style={[
+                            styles.sessionPillText,
+                            session === 'sprint' && { color: Colors.info },
+                          ]}
+                        >
+                          SPRINT
+                        </Text>
+                      </Pressable>
+
+                      <Pressable
+                        style={[
+                          styles.sessionPill,
+                          session === 'race' && {
+                            backgroundColor: `${seriesColors.primary}1F`,
+                            borderColor: `${seriesColors.primary}80`,
+                          },
+                        ]}
+                        onPress={() => setSession('race')}
+                      >
+                        <Flag
+                          size={13}
+                          color={
+                            session === 'race' ? seriesColors.primary : Colors.textMuted
+                          }
+                        />
+                        <Text
+                          style={[
+                            styles.sessionPillText,
+                            session === 'race' && { color: seriesColors.primary },
+                          ]}
+                        >
+                          RACE
+                        </Text>
+                      </Pressable>
+                    </View>
+                  )}
+
+                  {sessionDateLabel && sessionTimeLabel && (
+                    <View style={styles.sessionDateRow}>
+                      <Clock size={13} color={sessionAccent} />
+                      <Text style={styles.sessionDateText}>
+                        {sessionDateLabel} · {sessionTimeLabel} your time
+                      </Text>
+                    </View>
+                  )}
+
                   <CountdownTimer
-                    targetDate={nextRace.raceDate}
-                    targetTime={nextRace.raceTime}
+                    targetDate={sessionDate}
+                    targetTime={sessionTime}
+                    accentColor={sessionAccent}
+                    label={
+                      session === 'sprint'
+                        ? 'SPRINT PICKS LOCK IN'
+                        : 'PREDICTIONS LOCK IN'
+                    }
                   />
 
                   <AnimatedPressable
@@ -674,7 +778,43 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: Colors.border,
     marginTop: 16,
-    marginBottom: 4,
+    marginBottom: 8,
+  },
+  sessionToggle: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 10,
+    marginBottom: 12,
+  },
+  sessionPill: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    backgroundColor: 'rgba(255,255,255,0.03)',
+  },
+  sessionPillText: {
+    color: Colors.textMuted,
+    fontSize: 11,
+    fontWeight: '700' as const,
+    letterSpacing: 1.5,
+  },
+  sessionDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    marginBottom: 2,
+  },
+  sessionDateText: {
+    color: Colors.textSecondary,
+    fontSize: 12,
+    fontWeight: '600' as const,
   },
   setGridBtn: {
     borderRadius: 12,
