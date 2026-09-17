@@ -34,7 +34,8 @@ function NotificationTapHandler() {
       const raceId = data?.raceId as string | undefined;
       const event = data?.event as string | undefined;
       if (!raceId) return;
-      const isEndEvent = event === 'sprint_end' || event === 'race_end';
+      const isEndEvent =
+        event === 'sprint_end' || event === 'race_end' || event === 'results_posted';
       router.push(isEndEvent ? `/race-results/${raceId}` : `/predict-race/${raceId}`);
     });
 
@@ -45,7 +46,8 @@ function NotificationTapHandler() {
         const raceId = data?.raceId as string | undefined;
         const event = data?.event as string | undefined;
         if (!raceId) return;
-        const isEndEvent = event === 'sprint_end' || event === 'race_end';
+        const isEndEvent =
+          event === 'sprint_end' || event === 'race_end' || event === 'results_posted';
         router.push(isEndEvent ? `/race-results/${raceId}` : `/predict-race/${raceId}`);
       }
     );

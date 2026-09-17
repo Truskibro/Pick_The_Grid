@@ -1,4 +1,4 @@
-import { useCallback, useMemo } from 'react';
+import { useCallback, useEffect, useMemo } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
 import { Team, Driver, Race, RaceResult } from '@/types';
 import {
@@ -7,6 +7,13 @@ import {
   MOTOGP_RACES,
   MOTOGP_RACE_RESULTS,
 } from '@/constants/motogp-data';
+import {
+  registerForPushNotifications,
+  scheduleRaceReminders,
+  maybeNotifyResultsPosted,
+  DEFAULT_NOTIFICATION_SETTINGS,
+} from '@/lib/notifications';
+import { useUser } from '@/providers/UserProvider';
 
 /**
  * Compute the live status of a MotoGP race based on its date.
@@ -44,10 +51,28 @@ const UPDATED_RACES = updateRaceStatuses(MOTOGP_RACES);
  * the unified `useSeriesData` hook.
  */
 export const [MotoGPDataProvider, useMotoGPData] = createContextHook(() => {
+  const { notifications } = useUser();
+
   const teams = useMemo<Team[]>(() => MOTOGP_TEAMS, []);
   const drivers = useMemo<Driver[]>(() => MOTOGP_RIDERS, []);
   const races = useMemo<Race[]>(() => UPDATED_RACES, []);
   const raceResults = useMemo<RaceResult[]>(() => MOTOGP_RACE_RESULTS, []);
+
+  // MotoGP race & sprint reminder notifications — scoped to 'motogp' so
+  // they never touch F1's scheduled notifications (both data providers
+  // are mounted at the same time and each manages its own series).
+  useEffect(() => {
+    if (races.length === 0) return;
+    const settings = notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
+    void scheduleRaceReminders(races, settings, 'motogp');
+  }, [races, notifications]);
+
+  // "Results Posted" local notification for fresh MotoGP results.
+  useEffect(() => {
+    if (raceResults.length === 0) return;
+    const settings = notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
+    void maybeNotifyResultsPosted(raceResults, races, settings, 'motogp');
+  }, [raceResults, races, notifications]);
 
   const nextRace = useMemo(() => {
     const live = races.filter(r => r.status === 'live');

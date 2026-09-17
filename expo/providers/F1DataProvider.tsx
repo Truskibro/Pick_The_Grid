@@ -11,7 +11,12 @@ import {
   MOCK_RACE_RESULTS as FALLBACK_RESULTS,
 } from '@/constants/f1-data';
 import { fetchLiveDriverStandings, fetchLiveRaceResults } from '@/lib/f1-api';
-import { registerForPushNotifications, scheduleRaceReminders, DEFAULT_NOTIFICATION_SETTINGS } from '@/lib/notifications';
+import {
+  registerForPushNotifications,
+  scheduleRaceReminders,
+  maybeNotifyResultsPosted,
+  DEFAULT_NOTIFICATION_SETTINGS,
+} from '@/lib/notifications';
 import { useUser } from '@/providers/UserProvider';
 
 const POLL_INTERVAL = 60_000;
@@ -148,6 +153,7 @@ async function fetchRaces(): Promise<Race[]> {
         winner: r.winner || undefined,
         currentLap: r.current_lap || undefined,
         totalLaps: r.total_laps || undefined,
+        seriesId: r.series_id || 'f1',
       };
     });
 
@@ -389,12 +395,21 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
 
   // Schedule race & sprint reminder notifications whenever race data
   // or the user's notification settings change. Each event type is
-  // gated by its own toggle and scheduled independently.
+  // gated by its own toggle and scheduled independently. Scoped to 'f1'
+  // so it never touches MotoGP's scheduled notifications.
   useEffect(() => {
     if (races.length === 0) return;
     const settings = notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
-    void scheduleRaceReminders(races, settings);
+    void scheduleRaceReminders(races, settings, 'f1');
   }, [races, notifications]);
+
+  // Fire the "Results Posted" local notification when fresh results
+  // appear (race ended within the last few hours), at most once per race.
+  useEffect(() => {
+    if (raceResults.length === 0) return;
+    const settings = notifications ?? DEFAULT_NOTIFICATION_SETTINGS;
+    void maybeNotifyResultsPosted(raceResults, races, settings, 'f1');
+  }, [raceResults, races, notifications]);
 
   const nextRace = useMemo(() => {
     const live = races.filter(r => r.status === 'live');

@@ -398,7 +398,7 @@ export default function SettingsScreen() {
 
           <View style={styles.rowContent}>
             <Text style={styles.rowLabel}>Lock Reminder</Text>
-            <Text style={styles.rowValue}>2 hours before predictions lock</Text>
+            <Text style={styles.rowValue}>2 hours before race & sprint picks lock</Text>
           </View>
 
           <Switch
