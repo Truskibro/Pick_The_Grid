@@ -80,7 +80,7 @@ function ConfettiBurst({
   color: string;
 }) {
   return (
-    <View style={StyleSheet.absoluteFillObject} pointerEvents="none">
+    <View style={StyleSheet.absoluteFill} pointerEvents="none">
       {particles.map((p) => {
         const rad = (p.angle * Math.PI) / 180;
         const tx = Math.sin(rad) * p.distance;
@@ -154,7 +154,7 @@ function LightRays({ color, spin }: { color: string; spin: Animated.Value }) {
 
   return (
     <Animated.View
-      style={[StyleSheet.absoluteFillObject, { transform: [{ rotate: rotateInterp }] }]}
+      style={[StyleSheet.absoluteFill, { transform: [{ rotate: rotateInterp }] }]}
       pointerEvents="none"
     >
       {rays.map((r, i) => (
@@ -682,7 +682,11 @@ export default function AchievementCelebrationOverlay() {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     backgroundColor: 'rgba(0,0,0,0.82)',
     alignItems: 'center',
     justifyContent: 'center',
@@ -691,7 +695,11 @@ const styles = StyleSheet.create({
   },
 
   burstAnchor: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -703,7 +711,11 @@ const styles = StyleSheet.create({
   },
 
   glowAura: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     borderRadius: 26,
     shadowOffset: { width: 0, height: 0 },
     shadowOpacity: 0.6,
@@ -724,7 +736,11 @@ const styles = StyleSheet.create({
   },
 
   rayAnchor: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     alignItems: 'center',
     justifyContent: 'center',
   },
