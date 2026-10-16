@@ -72,31 +72,20 @@ export default function SettingsScreen() {
   const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [username, setUsername] = useState(profile.username);
-  const [firstName, setFirstName] = useState(profile.firstName);
-  const [lastName, setLastName] = useState(profile.lastName);
   const [country, setCountry] = useState(profile.country);
   const [saving, setSaving] = useState(false);
   const [focusedField, setFocusedField] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<ProfileFieldErrors>({});
   const [saveError, setSaveError] = useState<string | null>(null);
 
-  const NAME_REGEX = /^[\p{L}][\p{L}\s'\-]{0,31}$/u;
   const DISPLAY_NAME_REGEX = /^[\p{L}0-9][\p{L}0-9\s'._-]{1,31}$/u;
   const USERNAME_REGEX = /^[a-zA-Z0-9_]{3,20}$/;
 
   useEffect(() => {
     setDisplayName(profile.displayName);
     setUsername(profile.username);
-    setFirstName(profile.firstName);
-    setLastName(profile.lastName);
     setCountry(profile.country);
-  }, [
-    profile.displayName,
-    profile.username,
-    profile.firstName,
-    profile.lastName,
-    profile.country,
-  ]);
+  }, [profile.displayName, profile.username, profile.country]);
 
   // Reflect the OS-level notification permission so users understand why
   // toggles might have no effect when the system setting is off.
@@ -181,8 +170,6 @@ export default function SettingsScreen() {
 
     setDisplayName(profile.displayName);
     setUsername(profile.username);
-    setFirstName(profile.firstName);
-    setLastName(profile.lastName);
     setCountry(profile.country);
     setFormErrors({});
     setSaveError(null);
@@ -192,8 +179,6 @@ export default function SettingsScreen() {
   const handleSaveProfile = async () => {
     const trimmedDisplayName = displayName.trim().replace(/\s+/g, ' ');
     const trimmedUsername = username.trim().replace(/^@+/, '');
-    const trimmedFirst = firstName.trim().replace(/\s+/g, ' ');
-    const trimmedLast = lastName.trim().replace(/\s+/g, ' ');
     const trimmedCountry = country.trim();
 
     const errors: ProfileFieldErrors = {};
@@ -208,18 +193,6 @@ export default function SettingsScreen() {
       errors.username = 'Username is required.';
     } else if (!USERNAME_REGEX.test(trimmedUsername)) {
       errors.username = '3\u201320 characters: letters, numbers, and underscores only.';
-    }
-
-    if (!trimmedFirst) {
-      errors.firstName = 'First name is required.';
-    } else if (!NAME_REGEX.test(trimmedFirst)) {
-      errors.firstName = '1\u201332 characters: letters, spaces, hyphens, or apostrophes.';
-    }
-
-    if (!trimmedLast) {
-      errors.lastName = 'Last name is required.';
-    } else if (!NAME_REGEX.test(trimmedLast)) {
-      errors.lastName = '1\u201332 characters: letters, spaces, hyphens, or apostrophes.';
     }
 
     if (!trimmedCountry) {
@@ -242,8 +215,6 @@ export default function SettingsScreen() {
       await updateProfile({
         displayName: trimmedDisplayName,
         username: trimmedUsername,
-        firstName: trimmedFirst,
-        lastName: trimmedLast,
         country: trimmedCountry,
       });
 
@@ -260,8 +231,6 @@ export default function SettingsScreen() {
   const isEditorDirty = () =>
     displayName !== profile.displayName ||
     username !== profile.username ||
-    firstName !== profile.firstName ||
-    lastName !== profile.lastName ||
     country !== profile.country;
 
   const closeEditor = () => {
@@ -723,44 +692,8 @@ export default function SettingsScreen() {
               hint="3–20 characters. Letters, numbers, and underscores only."
             />
 
-            <Text style={styles.sectionLabel}>Personal Details</Text>
-
-            <View style={styles.fieldRowPair}>
-              <ProfileField
-                label="First Name"
-                icon={<UserIcon size={18} color={Colors.textMuted} />}
-                value={firstName}
-                onChangeText={setFirstName}
-                placeholder="First name"
-                error={formErrors.firstName}
-                isFocused={focusedField === 'firstName'}
-                accentColor={seriesColors.primary}
-                onFocus={() => setFocusedField('firstName')}
-                onBlur={() => setFocusedField(null)}
-                maxLength={32}
-                autoCapitalize="words"
-                style={styles.fieldHalf}
-              />
-
-              <ProfileField
-                label="Last Name"
-                icon={<UserIcon size={18} color={Colors.textMuted} />}
-                value={lastName}
-                onChangeText={setLastName}
-                placeholder="Last name"
-                error={formErrors.lastName}
-                isFocused={focusedField === 'lastName'}
-                accentColor={seriesColors.primary}
-                onFocus={() => setFocusedField('lastName')}
-                onBlur={() => setFocusedField(null)}
-                maxLength={32}
-                autoCapitalize="words"
-                style={styles.fieldHalf}
-              />
-            </View>
-
             <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Country</Text>
+              <Text style={styles.fieldLabel}>Country *</Text>
               <CountryPicker
                 value={country}
                 onChange={(next) => {
@@ -771,7 +704,11 @@ export default function SettingsScreen() {
                 }}
                 placeholder="Select Country"
               />
-              {formErrors.country ? <Text style={styles.fieldError}>{formErrors.country}</Text> : null}
+              {formErrors.country ? (
+                <Text style={styles.fieldError}>{formErrors.country}</Text>
+              ) : (
+                <Text style={styles.fieldHint}>{'Required \u2014 shown on your public profile.'}</Text>
+              )}
             </View>
 
             <AnimatedPressable
@@ -796,8 +733,6 @@ export default function SettingsScreen() {
 interface ProfileFieldErrors {
   displayName?: string;
   username?: string;
-  firstName?: string;
-  lastName?: string;
   country?: string;
 }
 
@@ -1257,15 +1192,6 @@ const styles = StyleSheet.create({
     color: Colors.error,
     fontSize: 13,
     fontWeight: '600',
-  },
-
-  fieldRowPair: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-
-  fieldHalf: {
-    flex: 1,
   },
 
   fieldError: {
