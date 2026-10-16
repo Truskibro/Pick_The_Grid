@@ -18,9 +18,9 @@ import {
   AtSign,
   Award,
   Bell,
+  Bike,
   Check,
   ChevronRight,
-  FileText,
   Flag,
   LogIn,
   LogOut,
@@ -30,7 +30,6 @@ import {
   Shield,
   Trophy,
   User as UserIcon,
-  Users,
   X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
@@ -357,7 +356,7 @@ export default function SettingsScreen() {
                 {series.id === 'f1' ? (
                   <Flag size={18} color={series.colors.primary} />
                 ) : (
-                  <Flag size={18} color={series.colors.primary} />
+                  <Bike size={18} color={series.colors.primary} />
                 )}
               </View>
               <View style={styles.rowContent}>
@@ -376,26 +375,7 @@ export default function SettingsScreen() {
         })}
       </View>
 
-      <Text style={styles.sectionLabel}>Account</Text>
-
-      <View style={styles.card}>
-        <AnimatedPressable style={styles.row} onPress={openEditor}>
-          <View style={[styles.rowIcon, { backgroundColor: 'rgba(225,6,0,0.12)' }]}>
-            <UserIcon size={18} color={Colors.f1Red} />
-          </View>
-
-          <View style={styles.rowContent}>
-            <Text style={styles.rowLabel}>Profile Settings</Text>
-            <Text style={styles.rowValue} numberOfLines={1}>
-              {profile.displayName} · @{profile.username}
-            </Text>
-          </View>
-
-          <ChevronRight size={18} color={Colors.textMuted} />
-        </AnimatedPressable>
-      </View>
-
-      <Text style={styles.sectionLabel}>Plaque</Text>
+      <Text style={styles.sectionLabel}>Achievements & Profile</Text>
 
       <View style={styles.card}>
         <AnimatedPressable
@@ -616,36 +596,6 @@ export default function SettingsScreen() {
 
           <ChevronRight size={18} color={Colors.textMuted} />
         </AnimatedPressable>
-      </View>
-
-      <Text style={styles.sectionLabel}>About</Text>
-
-      <View style={styles.card}>
-        <View style={styles.row}>
-          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-            <FileText size={18} color={Colors.textSecondary} />
-          </View>
-
-          <View style={styles.rowContent}>
-            <Text style={styles.rowLabel}>Terms of Service</Text>
-          </View>
-
-          <ChevronRight size={18} color={Colors.textMuted} />
-        </View>
-
-        <View style={styles.divider} />
-
-        <View style={styles.row}>
-          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
-            <Shield size={18} color={Colors.textSecondary} />
-          </View>
-
-          <View style={styles.rowContent}>
-            <Text style={styles.rowLabel}>Privacy Policy</Text>
-          </View>
-
-          <ChevronRight size={18} color={Colors.textMuted} />
-        </View>
       </View>
 
       {!isGuest && (
