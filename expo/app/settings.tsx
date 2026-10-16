@@ -76,6 +76,9 @@ export default function SettingsScreen() {
   const [lastName, setLastName] = useState(profile.lastName);
   const [country, setCountry] = useState(profile.country);
   const [saving, setSaving] = useState(false);
+  const [focusedField, setFocusedField] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<ProfileFieldErrors>({});
+  const [saveError, setSaveError] = useState<string | null>(null);
 
   const NAME_REGEX = /^[\p{L}][\p{L}\s'\-]{0,31}$/u;
   const DISPLAY_NAME_REGEX = /^[\p{L}0-9][\p{L}0-9\s'._-]{1,31}$/u;
@@ -181,6 +184,8 @@ export default function SettingsScreen() {
     setFirstName(profile.firstName);
     setLastName(profile.lastName);
     setCountry(profile.country);
+    setFormErrors({});
+    setSaveError(null);
     setEditorOpen(true);
   };
 
@@ -191,41 +196,47 @@ export default function SettingsScreen() {
     const trimmedLast = lastName.trim().replace(/\s+/g, ' ');
     const trimmedCountry = country.trim();
 
-    if (!trimmedDisplayName || !trimmedUsername || !trimmedFirst || !trimmedLast || !trimmedCountry) {
-      Alert.alert('Missing info', 'Display name, username, first name, last name, and country are required.');
-      return;
+    const errors: ProfileFieldErrors = {};
+
+    if (!trimmedDisplayName) {
+      errors.displayName = 'Display name is required.';
+    } else if (!DISPLAY_NAME_REGEX.test(trimmedDisplayName)) {
+      errors.displayName = '2\u201332 characters: letters, numbers, spaces, . _ - or apostrophes.';
     }
 
-    if (!DISPLAY_NAME_REGEX.test(trimmedDisplayName)) {
-      Alert.alert(
-        'Invalid display name',
-        'Display name must be 2–32 characters and can use letters, numbers, spaces, apostrophes, periods, hyphens, and underscores.'
-      );
-      return;
+    if (!trimmedUsername) {
+      errors.username = 'Username is required.';
+    } else if (!USERNAME_REGEX.test(trimmedUsername)) {
+      errors.username = '3\u201320 characters: letters, numbers, and underscores only.';
     }
 
-    if (!USERNAME_REGEX.test(trimmedUsername)) {
-      Alert.alert(
-        'Invalid username',
-        'Username must be 3–20 characters and can only use letters, numbers, and underscores.'
-      );
-      return;
+    if (!trimmedFirst) {
+      errors.firstName = 'First name is required.';
+    } else if (!NAME_REGEX.test(trimmedFirst)) {
+      errors.firstName = '1\u201332 characters: letters, spaces, hyphens, or apostrophes.';
     }
 
-    if (!NAME_REGEX.test(trimmedFirst) || !NAME_REGEX.test(trimmedLast)) {
-      Alert.alert(
-        'Invalid name',
-        'First and last name must be 1–32 characters and only contain letters, spaces, hyphens, or apostrophes.'
-      );
-      return;
+    if (!trimmedLast) {
+      errors.lastName = 'Last name is required.';
+    } else if (!NAME_REGEX.test(trimmedLast)) {
+      errors.lastName = '1\u201332 characters: letters, spaces, hyphens, or apostrophes.';
     }
 
-    if (!COUNTRIES.some((c) => c.name === trimmedCountry)) {
-      Alert.alert('Invalid country', 'Please select a valid country from the list.');
+    if (!trimmedCountry) {
+      errors.country = 'Country is required.';
+    } else if (!COUNTRIES.some((c) => c.name === trimmedCountry)) {
+      errors.country = 'Select a valid country from the list.';
+    }
+
+    setFormErrors(errors);
+
+    if (Object.keys(errors).length > 0) {
+      void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
 
     setSaving(true);
+    setSaveError(null);
 
     try {
       await updateProfile({
@@ -240,10 +251,31 @@ export default function SettingsScreen() {
       setEditorOpen(false);
     } catch (e: any) {
       void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Save failed', e?.message || 'Could not save profile. Please try again.');
+      setSaveError(e?.message || 'Could not save profile. Please try again.');
     } finally {
       setSaving(false);
     }
+  };
+
+  const isEditorDirty = () =>
+    displayName !== profile.displayName ||
+    username !== profile.username ||
+    firstName !== profile.firstName ||
+    lastName !== profile.lastName ||
+    country !== profile.country;
+
+  const closeEditor = () => {
+    if (saving) return;
+
+    if (isEditorDirty()) {
+      Alert.alert('Discard changes?', 'Your edits haven\u2019t been saved yet.', [
+        { text: 'Keep Editing', style: 'cancel' },
+        { text: 'Discard', style: 'destructive', onPress: () => setEditorOpen(false) },
+      ]);
+      return;
+    }
+
+    setEditorOpen(false);
   };
 
   const handleSignOut = () => {
@@ -611,21 +643,25 @@ export default function SettingsScreen() {
         visible={editorOpen}
         animationType="slide"
         presentationStyle="pageSheet"
-        onRequestClose={() => setEditorOpen(false)}
+        onRequestClose={closeEditor}
       >
         <KeyboardAvoidingView
           style={styles.modalRoot}
           behavior={Platform.OS === 'ios' ? 'padding' : undefined}
         >
           <View style={styles.modalHeader}>
-            <AnimatedPressable style={styles.modalClose} onPress={() => setEditorOpen(false)}>
+            <AnimatedPressable style={styles.modalClose} onPress={closeEditor}>
               <X size={20} color={Colors.text} />
             </AnimatedPressable>
 
             <Text style={styles.modalTitle}>Edit Profile</Text>
 
             <AnimatedPressable
-              style={[styles.modalSave, saving && styles.modalSaveDisabled]}
+              style={[
+                styles.modalSave,
+                saving && styles.modalSaveDisabled,
+                { backgroundColor: seriesColors.primary },
+              ]}
               onPress={handleSaveProfile}
               disabled={saving}
             >
@@ -635,90 +671,115 @@ export default function SettingsScreen() {
 
           <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
             <View style={styles.modalAvatarWrap}>
-              <LinearGradient colors={[Colors.f1Red, Colors.f1RedDark]} style={styles.modalAvatar}>
-                <Text style={styles.modalAvatarText}>{initials}</Text>
+              <LinearGradient
+                colors={[seriesColors.primary, seriesColors.primaryDark]}
+                style={styles.modalAvatarRing}
+              >
+                <View style={styles.modalAvatar}>
+                  <Text style={styles.modalAvatarText}>{initials}</Text>
+                </View>
               </LinearGradient>
 
               <Text style={styles.modalAvatarHint}>Your initials update from your display name</Text>
             </View>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Display Name</Text>
-              <View style={styles.fieldWrap}>
-                <UserIcon size={18} color={Colors.textMuted} />
-                <TextInput
-                  value={displayName}
-                  onChangeText={setDisplayName}
-                  placeholder="Display name"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.fieldInput}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  maxLength={32}
-                />
+            {saveError && (
+              <View style={styles.saveErrorBanner}>
+                <Text style={styles.saveErrorText}>{saveError}</Text>
               </View>
-              <Text style={styles.fieldHint}>This is the name shown on leaderboards, leagues, and your profile.</Text>
-            </View>
+            )}
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Username</Text>
-              <View style={styles.fieldWrap}>
-                <AtSign size={18} color={Colors.textMuted} />
-                <TextInput
-                  value={username}
-                  onChangeText={(text) => setUsername(text.replace(/^@+/, '').replace(/\s/g, ''))}
-                  placeholder="username"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.fieldInput}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  maxLength={20}
-                />
-              </View>
-              <Text style={styles.fieldHint}>3–20 characters. Letters, numbers, and underscores only.</Text>
-            </View>
+            <Text style={styles.sectionLabel}>Public Identity</Text>
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>First Name</Text>
-              <View style={styles.fieldWrap}>
-                <UserIcon size={18} color={Colors.textMuted} />
-                <TextInput
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="First name"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.fieldInput}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  maxLength={32}
-                />
-              </View>
-            </View>
+            <ProfileField
+              label="Display Name"
+              icon={<UserIcon size={18} color={Colors.textMuted} />}
+              value={displayName}
+              onChangeText={setDisplayName}
+              placeholder="Display name"
+              error={formErrors.displayName}
+              isFocused={focusedField === 'displayName'}
+              accentColor={seriesColors.primary}
+              onFocus={() => setFocusedField('displayName')}
+              onBlur={() => setFocusedField(null)}
+              maxLength={32}
+              autoCapitalize="words"
+              hint="Shown on leaderboards, leagues, and your profile."
+            />
 
-            <View style={styles.fieldGroup}>
-              <Text style={styles.fieldLabel}>Last Name</Text>
-              <View style={styles.fieldWrap}>
-                <UserIcon size={18} color={Colors.textMuted} />
-                <TextInput
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Last name"
-                  placeholderTextColor={Colors.textMuted}
-                  style={styles.fieldInput}
-                  autoCapitalize="words"
-                  autoCorrect={false}
-                  maxLength={32}
-                />
-              </View>
+            <ProfileField
+              label="Username"
+              icon={<AtSign size={18} color={Colors.textMuted} />}
+              value={username}
+              onChangeText={(text) => setUsername(text.replace(/^@+/, '').replace(/\s/g, ''))}
+              placeholder="username"
+              error={formErrors.username}
+              isFocused={focusedField === 'username'}
+              accentColor={seriesColors.primary}
+              onFocus={() => setFocusedField('username')}
+              onBlur={() => setFocusedField(null)}
+              maxLength={20}
+              autoCapitalize="none"
+              hint="3–20 characters. Letters, numbers, and underscores only."
+            />
+
+            <Text style={styles.sectionLabel}>Personal Details</Text>
+
+            <View style={styles.fieldRowPair}>
+              <ProfileField
+                label="First Name"
+                icon={<UserIcon size={18} color={Colors.textMuted} />}
+                value={firstName}
+                onChangeText={setFirstName}
+                placeholder="First name"
+                error={formErrors.firstName}
+                isFocused={focusedField === 'firstName'}
+                accentColor={seriesColors.primary}
+                onFocus={() => setFocusedField('firstName')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={32}
+                autoCapitalize="words"
+                style={styles.fieldHalf}
+              />
+
+              <ProfileField
+                label="Last Name"
+                icon={<UserIcon size={18} color={Colors.textMuted} />}
+                value={lastName}
+                onChangeText={setLastName}
+                placeholder="Last name"
+                error={formErrors.lastName}
+                isFocused={focusedField === 'lastName'}
+                accentColor={seriesColors.primary}
+                onFocus={() => setFocusedField('lastName')}
+                onBlur={() => setFocusedField(null)}
+                maxLength={32}
+                autoCapitalize="words"
+                style={styles.fieldHalf}
+              />
             </View>
 
             <View style={styles.fieldGroup}>
               <Text style={styles.fieldLabel}>Country</Text>
-              <CountryPicker value={country} onChange={setCountry} placeholder="Select Country" />
+              <CountryPicker
+                value={country}
+                onChange={(next) => {
+                  setCountry(next);
+                  if (formErrors.country) {
+                    setFormErrors((prev) => ({ ...prev, country: undefined }));
+                  }
+                }}
+                placeholder="Select Country"
+              />
+              {formErrors.country ? <Text style={styles.fieldError}>{formErrors.country}</Text> : null}
             </View>
 
             <AnimatedPressable
-              style={[styles.modalSaveBig, saving && styles.modalSaveDisabled]}
+              style={[
+                styles.modalSaveBig,
+                saving && styles.modalSaveDisabled,
+                { backgroundColor: seriesColors.primary },
+              ]}
               onPress={handleSaveProfile}
               disabled={saving}
             >
@@ -729,6 +790,85 @@ export default function SettingsScreen() {
         </KeyboardAvoidingView>
       </Modal>
     </ScrollView>
+  );
+}
+
+interface ProfileFieldErrors {
+  displayName?: string;
+  username?: string;
+  firstName?: string;
+  lastName?: string;
+  country?: string;
+}
+
+interface ProfileFieldProps {
+  label: string;
+  icon: React.ReactNode;
+  value: string;
+  onChangeText: (text: string) => void;
+  placeholder: string;
+  error?: string;
+  isFocused: boolean;
+  accentColor: string;
+  onFocus: () => void;
+  onBlur: () => void;
+  maxLength?: number;
+  autoCapitalize?: 'none' | 'words';
+  hint?: string;
+  style?: object;
+}
+
+function ProfileField({
+  label,
+  icon,
+  value,
+  onChangeText,
+  placeholder,
+  error,
+  isFocused,
+  accentColor,
+  onFocus,
+  onBlur,
+  maxLength,
+  autoCapitalize = 'words',
+  hint,
+  style,
+}: ProfileFieldProps) {
+  const hasError = Boolean(error);
+
+  return (
+    <View style={[styles.fieldGroup, style]}>
+      <Text style={styles.fieldLabel}>{label}</Text>
+
+      <View
+        style={[
+          styles.fieldWrap,
+          isFocused && !hasError && { borderColor: accentColor, borderWidth: 1 },
+          hasError && { borderColor: Colors.error, borderWidth: 1 },
+        ]}
+      >
+        {icon}
+
+        <TextInput
+          value={value}
+          onChangeText={onChangeText}
+          placeholder={placeholder}
+          placeholderTextColor={Colors.textMuted}
+          style={styles.fieldInput}
+          autoCapitalize={autoCapitalize}
+          autoCorrect={false}
+          maxLength={maxLength}
+          onFocus={onFocus}
+          onBlur={onBlur}
+        />
+      </View>
+
+      {hasError ? (
+        <Text style={styles.fieldError}>{error}</Text>
+      ) : hint ? (
+        <Text style={styles.fieldHint}>{hint}</Text>
+      ) : null}
+    </View>
   );
 }
 
@@ -1085,13 +1225,54 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
 
-  modalAvatar: {
-    width: 96,
-    height: 96,
-    borderRadius: 48,
+  modalAvatarRing: {
+    width: 104,
+    height: 104,
+    borderRadius: 52,
     alignItems: 'center',
     justifyContent: 'center',
     marginBottom: 10,
+  },
+
+  modalAvatar: {
+    width: 94,
+    height: 94,
+    borderRadius: 47,
+    backgroundColor: Colors.background,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+
+  saveErrorBanner: {
+    backgroundColor: 'rgba(255, 69, 58, 0.10)',
+    borderColor: 'rgba(255, 69, 58, 0.30)',
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    marginBottom: 16,
+  },
+
+  saveErrorText: {
+    color: Colors.error,
+    fontSize: 13,
+    fontWeight: '600',
+  },
+
+  fieldRowPair: {
+    flexDirection: 'row',
+    gap: 12,
+  },
+
+  fieldHalf: {
+    flex: 1,
+  },
+
+  fieldError: {
+    color: Colors.error,
+    fontSize: 11,
+    marginTop: 6,
+    marginLeft: 4,
   },
 
   modalAvatarText: {
