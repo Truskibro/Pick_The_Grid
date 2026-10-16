@@ -102,7 +102,7 @@ if (Platform.OS !== 'web') {
  * immediate notifications display even when push-token registration was
  * skipped (emulators, missing project ID).
  */
-async function ensureAndroidChannel(): Promise<string | undefined> {
+export async function ensureAndroidChannel(): Promise<string | undefined> {
   if (Platform.OS !== 'android') return undefined;
 
   try {

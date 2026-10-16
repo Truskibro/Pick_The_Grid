@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   Alert,
   KeyboardAvoidingView,
+  Linking,
   Modal,
   Platform,
   ScrollView,
@@ -25,6 +26,7 @@ import {
   LogOut,
   Pencil,
   Save,
+  Send,
   Shield,
   Trophy,
   User as UserIcon,
@@ -32,6 +34,7 @@ import {
   X,
 } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
+import * as Notifications from 'expo-notifications';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
@@ -42,6 +45,7 @@ import { useSeries } from '@/providers/SeriesProvider';
 import { useAchievements } from '@/providers/AchievementProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
+import { ensureAndroidChannel } from '@/lib/notifications';
 
 export default function SettingsScreen() {
   const router = useRouter();
@@ -66,6 +70,7 @@ export default function SettingsScreen() {
   );
 
   const [editorOpen, setEditorOpen] = useState(false);
+  const [permissionStatus, setPermissionStatus] = useState<'unknown' | 'granted' | 'denied'>('unknown');
   const [displayName, setDisplayName] = useState(profile.displayName);
   const [username, setUsername] = useState(profile.username);
   const [firstName, setFirstName] = useState(profile.firstName);
@@ -90,6 +95,64 @@ export default function SettingsScreen() {
     profile.lastName,
     profile.country,
   ]);
+
+  // Reflect the OS-level notification permission so users understand why
+  // toggles might have no effect when the system setting is off.
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    Notifications.getPermissionsAsync()
+      .then(({ status }) => {
+        setPermissionStatus(status === 'granted' ? 'granted' : 'denied');
+      })
+      .catch(() => setPermissionStatus('unknown'));
+  }, []);
+
+  const openSystemNotificationSettings = () => {
+    if (permissionStatus !== 'denied') return;
+    if (Platform.OS === 'ios') {
+      void Linking.openURL('app-settings:');
+    } else if (Platform.OS === 'android') {
+      void Linking.openSettings();
+    }
+  };
+
+  const sendTestNotification = async () => {
+    if (Platform.OS === 'web') {
+      Alert.alert('Not Available', 'Notifications only work on the mobile app.');
+      return;
+    }
+
+    void Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+
+    try {
+      const { status } = await Notifications.getPermissionsAsync();
+      if (status !== 'granted') {
+        const { status: asked } = await Notifications.requestPermissionsAsync();
+        setPermissionStatus(asked === 'granted' ? 'granted' : 'denied');
+        if (asked !== 'granted') {
+          Alert.alert(
+            'Permission Needed',
+            'Enable notifications for this app in your phone\u2019s Settings to receive race reminders.',
+          );
+          return;
+        }
+      }
+
+      await ensureAndroidChannel();
+
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: '\u{1F3CE} Test Notification',
+          body: 'Notifications are working! Race reminders will look like this.',
+          sound: Platform.OS === 'ios' ? 'default' : undefined,
+        },
+        trigger: null,
+      });
+    } catch (e) {
+      console.log('[Settings] Test notification failed:', e);
+      Alert.alert('Failed', 'Could not send the test notification on this device.');
+    }
+  };
 
   const initials = useMemo(() => {
     const source = (displayName || username || profile.displayName || profile.username || 'P').trim();
@@ -391,6 +454,33 @@ export default function SettingsScreen() {
       <Text style={styles.sectionLabel}>Notifications</Text>
 
       <View style={styles.card}>
+        <AnimatedPressable
+          onPress={openSystemNotificationSettings}
+          style={styles.toggleRow}
+          disabled={permissionStatus !== 'denied'}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Shield size={18} color={Colors.textSecondary} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>System Permission</Text>
+            <Text style={styles.rowValue}>
+              {permissionStatus === 'granted'
+                ? 'Allowed — reminders can appear'
+                : permissionStatus === 'denied'
+                  ? 'Blocked — tap to enable in Settings'
+                  : 'Checking…'}
+            </Text>
+          </View>
+
+          {permissionStatus === 'denied' && (
+            <ChevronRight size={18} color={Colors.textMuted} />
+          )}
+        </AnimatedPressable>
+
+        <View style={styles.divider} />
+
         <View style={styles.toggleRow}>
           <View style={[styles.rowIcon, { backgroundColor: 'rgba(48,209,88,0.12)' }]}>
             <Bell size={18} color={Colors.success} />
@@ -508,6 +598,24 @@ export default function SettingsScreen() {
             thumbColor="#FFF"
           />
         </View>
+
+        <View style={styles.divider} />
+
+        <AnimatedPressable
+          onPress={() => void sendTestNotification()}
+          style={styles.toggleRow}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(225, 6, 0, 0.12)' }]}>
+            <Send size={18} color={Colors.f1Red} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Send Test Notification</Text>
+            <Text style={styles.rowValue}>Check that reminders appear on this device</Text>
+          </View>
+
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </AnimatedPressable>
       </View>
 
       <Text style={styles.sectionLabel}>About</Text>
