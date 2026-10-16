@@ -1115,7 +1115,6 @@ export default function PredictRaceScreen() {
                         driver={driver}
                         teamColor={team?.color}
                         teamName={team?.shortName}
-                        accentColor={seriesColors.primary}
                         onPress={() => addRaceDriver(driver.id)}
                       />
                     );
@@ -1242,7 +1241,6 @@ export default function PredictRaceScreen() {
                         driver={driver}
                         teamColor={team?.color}
                         teamName={team?.shortName}
-                        accentColor={Colors.info}
                         onPress={() => addSprintDriver(driver.id)}
                       />
                     );
@@ -1469,7 +1467,6 @@ interface DriverPickRowProps {
   driver: Driver;
   teamColor?: string;
   teamName?: string;
-  accentColor: string;
   onPress: () => void;
 }
 
@@ -1477,7 +1474,6 @@ function DriverPickRow({
   driver,
   teamColor,
   teamName,
-  accentColor,
   onPress,
 }: DriverPickRowProps) {
   const { config, currentSeries } = useSeries();
@@ -1503,9 +1499,6 @@ function DriverPickRow({
         </Text>
       </View>
 
-      <View style={[styles.driverPickAdd, { borderColor: accentColor }, isMotoGP && { borderRadius: 2 }]}>
-        <Plus color={accentColor} size={17} />
-      </View>
       {isMotoGP && (
         <ChamferOverlay chamferSize={10} borderColor={config.colors.border} borderWidth={1} surroundingColor={config.colors.background} />
       )}
@@ -1675,27 +1668,33 @@ function GridSlot({
         style={styles.slotDriverInfo}
         scaleDown={0.98}
       >
-        <Text style={styles.slotDriverName}>{driver.name}</Text>
-
-        <View style={styles.slotMetaRow}>
-          <Text style={styles.slotTeamName}>
-            {teamName || driver.shortName}
+        <View style={styles.slotNameRow}>
+          <Text style={styles.slotDriverName} numberOfLines={1}>
+            {driver.name}
           </Text>
 
-          {isFL && (
-            <View style={styles.flMiniBadge}>
-              <Zap color={Colors.warning} size={10} />
-              <Text style={styles.flMiniBadgeText}>FL</Text>
-            </View>
-          )}
-
-          {isDnf && (
-            <View style={styles.dnfMiniBadge}>
-              <AlertTriangle color={Colors.error} size={10} />
-              <Text style={styles.dnfMiniBadgeText}>DNF</Text>
-            </View>
-          )}
+          <Text style={styles.slotTeamName} numberOfLines={1}>
+            {teamName || driver.shortName}
+          </Text>
         </View>
+
+        {(isFL || isDnf) && (
+          <View style={styles.slotMetaRow}>
+            {isFL && (
+              <View style={styles.flMiniBadge}>
+                <Zap color={Colors.warning} size={10} />
+                <Text style={styles.flMiniBadgeText}>FL</Text>
+              </View>
+            )}
+
+            {isDnf && (
+              <View style={styles.dnfMiniBadge}>
+                <AlertTriangle color={Colors.error} size={10} />
+                <Text style={styles.dnfMiniBadgeText}>DNF</Text>
+              </View>
+            )}
+          </View>
+        )}
       </AnimatedPressable>
 
       {!locked && (
@@ -2057,10 +2056,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
+  slotNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
   slotDriverName: {
     color: Colors.text,
     fontSize: 15,
     fontWeight: '700',
+    flexShrink: 1,
   },
   slotMetaRow: {
     flexDirection: 'row',
@@ -2072,6 +2077,7 @@ const styles = StyleSheet.create({
     color: Colors.textMuted,
     fontSize: 11,
     fontWeight: '500',
+    flexShrink: 1,
   },
   flMiniBadge: {
     flexDirection: 'row',
@@ -2165,15 +2171,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     marginTop: 2,
-  },
-  driverPickAdd: {
-    width: 32,
-    height: 32,
-    borderRadius: 10,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    marginRight: 10,
   },
   bonusList: {
     marginTop: 12,
