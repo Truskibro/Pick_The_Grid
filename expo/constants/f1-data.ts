@@ -67,13 +67,15 @@ export const RACES: Race[] = [
   { id: 'r13', round: 13, name: 'Italian Grand Prix',          location: 'Monza',            country: 'Italy',           countryFlag: '', raceDate: '2026-09-06', raceTime: '13:00', status: 'upcoming',  hasSprint: false, totalLaps: 53 },
   { id: 'r14', round: 14, name: 'Spanish Grand Prix',          location: 'Madrid',           country: 'Spain',           countryFlag: '', raceDate: '2026-09-13', raceTime: '13:00', status: 'upcoming',  hasSprint: false, totalLaps: 66 },
   { id: 'r15', round: 15, name: 'Azerbaijan Grand Prix',       location: 'Baku',             country: 'Azerbaijan',      countryFlag: '', raceDate: '2026-09-26', raceTime: '12:00', status: 'upcoming',  hasSprint: false, totalLaps: 51 },
-  { id: 'r16', round: 16, name: 'Singapore Grand Prix',        location: 'Marina Bay',       country: 'Singapore',       countryFlag: '', raceDate: '2026-10-11', raceTime: '12:00', status: 'upcoming',  hasSprint: true,  sprintDate: '2026-10-10', sprintTime: '12:00', totalLaps: 62 },
-  { id: 'r17', round: 17, name: 'United States Grand Prix',    location: 'Austin',           country: 'USA',             countryFlag: '', raceDate: '2026-10-25', raceTime: '19:00', status: 'upcoming',  hasSprint: false, totalLaps: 56 },
-  { id: 'r18', round: 18, name: 'Mexico City Grand Prix',      location: 'Mexico City',      country: 'Mexico',          countryFlag: '', raceDate: '2026-11-01', raceTime: '20:00', status: 'upcoming',  hasSprint: false, totalLaps: 71 },
-  { id: 'r19', round: 19, name: 'Brazilian Grand Prix',        location: 'Interlagos',       country: 'Brazil',          countryFlag: '', raceDate: '2026-11-08', raceTime: '17:00', status: 'upcoming',  hasSprint: false, totalLaps: 71 },
-  { id: 'r20', round: 20, name: 'Las Vegas Grand Prix',        location: 'Las Vegas',        country: 'USA',             countryFlag: '', raceDate: '2026-11-22', raceTime: '06:00', status: 'upcoming',  hasSprint: false, totalLaps: 50 },
-  { id: 'r21', round: 21, name: 'Qatar Grand Prix',            location: 'Lusail',           country: 'Qatar',           countryFlag: '', raceDate: '2026-11-29', raceTime: '17:00', status: 'upcoming',  hasSprint: false, totalLaps: 57 },
-  { id: 'r22', round: 22, name: 'Abu Dhabi Grand Prix',        location: 'Yas Marina',       country: 'UAE',             countryFlag: '', raceDate: '2026-12-06', raceTime: '14:00', status: 'upcoming',  hasSprint: false, totalLaps: 58 },
+  // Calendar revision: Bahrain added as Round 16 (was scheduled April, moved to October).
+  { id: 'r15b', round: 16, name: 'Bahrain Grand Prix',         location: 'Sakhir',           country: 'Bahrain',         countryFlag: '', raceDate: '2026-10-04', raceTime: '15:00', status: 'upcoming',  hasSprint: false, totalLaps: 57 },
+  { id: 'r16', round: 17, name: 'Singapore Grand Prix',        location: 'Marina Bay',       country: 'Singapore',       countryFlag: '', raceDate: '2026-10-11', raceTime: '12:00', status: 'upcoming',  hasSprint: true,  sprintDate: '2026-10-10', sprintTime: '12:00', totalLaps: 62 },
+  { id: 'r17', round: 18, name: 'United States Grand Prix',    location: 'Austin',           country: 'USA',             countryFlag: '', raceDate: '2026-10-25', raceTime: '19:00', status: 'upcoming',  hasSprint: false, totalLaps: 56 },
+  { id: 'r18', round: 19, name: 'Mexico City Grand Prix',      location: 'Mexico City',      country: 'Mexico',          countryFlag: '', raceDate: '2026-11-01', raceTime: '20:00', status: 'upcoming',  hasSprint: false, totalLaps: 71 },
+  { id: 'r19', round: 20, name: 'Brazilian Grand Prix',        location: 'Interlagos',       country: 'Brazil',          countryFlag: '', raceDate: '2026-11-08', raceTime: '17:00', status: 'upcoming',  hasSprint: false, totalLaps: 71 },
+  { id: 'r20', round: 21, name: 'Las Vegas Grand Prix',        location: 'Las Vegas',        country: 'USA',             countryFlag: '', raceDate: '2026-11-22', raceTime: '06:00', status: 'upcoming',  hasSprint: false, totalLaps: 50 },
+  { id: 'r21', round: 22, name: 'Qatar Grand Prix',            location: 'Lusail',           country: 'Qatar',           countryFlag: '', raceDate: '2026-11-29', raceTime: '17:00', status: 'upcoming',  hasSprint: false, totalLaps: 57 },
+  { id: 'r22', round: 23, name: 'Abu Dhabi Grand Prix',        location: 'Yas Marina',       country: 'UAE',             countryFlag: '', raceDate: '2026-12-06', raceTime: '14:00', status: 'upcoming',  hasSprint: false, totalLaps: 58 },
 ];
 
 /**
