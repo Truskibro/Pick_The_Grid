@@ -1,0 +1,9 @@
+{
+  "name": "results-worker",
+  "private": true,
+  "type": "module",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20260505.1",
+    "wrangler": "^4.154.0"
+  }
+}

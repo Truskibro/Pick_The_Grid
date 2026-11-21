@@ -21,6 +21,7 @@ import {
   Bike,
   Check,
   ChevronRight,
+  FileText,
   Flag,
   LogIn,
   LogOut,
@@ -39,7 +40,7 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
 import Colors from '@/constants/colors';
 import { COUNTRIES } from '@/constants/countries';
-import { ALL_SERIES, SeriesId } from '@/constants/series';
+import { ALL_SERIES } from '@/constants/series';
 import { useSeries } from '@/providers/SeriesProvider';
 import { useAchievements } from '@/providers/AchievementProvider';
 import { useGame } from '@/providers/GameProvider';
@@ -428,6 +429,40 @@ export default function SettingsScreen() {
             <Text style={styles.rowValue}>See your plaque, stats, and achievements</Text>
           </View>
 
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </AnimatedPressable>
+      </View>
+
+      <Text style={styles.sectionLabel}>About</Text>
+
+      <View style={styles.card}>
+        <AnimatedPressable
+          style={styles.row}
+          onPress={() => void Linking.openURL('https://apex-draft-f1.rork.app/privacy')}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <Shield size={18} color={Colors.textSecondary} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Privacy Policy</Text>
+            <Text style={styles.rowValue}>What we store and how it is used</Text>
+          </View>
+          <ChevronRight size={18} color={Colors.textMuted} />
+        </AnimatedPressable>
+
+        <View style={styles.divider} />
+
+        <AnimatedPressable
+          style={styles.row}
+          onPress={() => void Linking.openURL('https://apex-draft-f1.rork.app/terms')}
+        >
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,255,255,0.06)' }]}>
+            <FileText size={18} color={Colors.textSecondary} />
+          </View>
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Terms of Service</Text>
+            <Text style={styles.rowValue}>Scoring rules and fair play</Text>
+          </View>
           <ChevronRight size={18} color={Colors.textMuted} />
         </AnimatedPressable>
       </View>

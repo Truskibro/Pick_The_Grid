@@ -12,6 +12,7 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Minus,
   Shield,
+  Swords,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -257,6 +258,20 @@ export default function LeaderboardsScreen() {
             <Text style={styles.rankMetaText} numberOfLines={1}>
               Global #{actualRank}
             </Text>
+
+            {session?.user?.id && item.userId !== session.user.id && (
+              <AnimatedPressable
+                style={styles.challengeButton}
+                onPress={() =>
+                  router.push(
+                    `/challenge/${item.userId}?name=${encodeURIComponent(item.displayName)}` as any,
+                  )
+                }
+              >
+                <Swords size={13} color={Colors.f1Red} />
+                <Text style={styles.challengeButtonText}>Challenge</Text>
+              </AnimatedPressable>
+            )}
           </View>
         </View>
       </AnimatedPressable>
@@ -966,6 +981,24 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700' as const,
     textAlign: 'right',
+  },
+
+  challengeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${Colors.f1Red}14`,
+    borderColor: `${Colors.f1Red}44`,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+  },
+
+  challengeButtonText: {
+    color: Colors.f1Red,
+    fontSize: 10,
+    fontWeight: '800' as const,
   },
 
   emptyState: {
