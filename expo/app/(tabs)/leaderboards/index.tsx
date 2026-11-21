@@ -39,8 +39,8 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
-  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
-  const { profile, session } = useUser();
+  const { leagues, leagueMembers, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
+  const { session } = useUser();
   const { currentSeries } = useSeries();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
@@ -126,6 +126,19 @@ export default function LeaderboardsScreen() {
 
   const top3 = globalLeaderboard.slice(0, 3);
   const rest = globalLeaderboard.slice(3);
+
+  // Challenges are league-only: you can only challenge players who share at
+  // least one league with you in the current series.
+  const challengeableUserIds = useMemo(() => {
+    const ids = new Set<string>();
+    for (const league of leagues) {
+      if ((league.seriesId ?? 'f1') !== currentSeries) continue;
+      for (const m of getLeagueMembers(league.id) ?? []) ids.add(m.userId);
+    }
+    return ids;
+    // leagueMembers is the cache the lookup above reads — recompute when it changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [leagues, leagueMembers, getLeagueMembers, currentSeries]);
 
   const leagueTop3 = leagueRankings.slice(0, 3);
   const leagueRest = leagueRankings.slice(3);
@@ -259,7 +272,9 @@ export default function LeaderboardsScreen() {
               Global #{actualRank}
             </Text>
 
-            {session?.user?.id && item.userId !== session.user.id && (
+            {session?.user?.id &&
+              item.userId !== session.user.id &&
+              challengeableUserIds.has(item.userId) && (
               <AnimatedPressable
                 style={styles.challengeButton}
                 onPress={() =>

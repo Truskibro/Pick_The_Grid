@@ -59,6 +59,7 @@ export default function ChallengeScreen() {
   const seriesColors = config.colors;
 
   const [loading, setLoading] = useState(true);
+  const [notLeagueMate, setNotLeagueMate] = useState(false);
   const [theirName, setTheirName] = useState<string>(
     typeof nameParam === 'string' ? decodeURIComponent(nameParam) : 'Rival',
   );
@@ -72,7 +73,30 @@ export default function ChallengeScreen() {
 
     const load = async () => {
       setLoading(true);
+      setNotLeagueMate(false);
       try {
+        // Head-to-head is league-only: both players must share at least one
+        // league. This guards the deep link too, not just the entry button.
+        const memberRes = await supabase
+          .from('league_members')
+          .select('league_id, user_id')
+          .in('user_id', [userId, profile.id]);
+        if (cancelled) return;
+        if (!memberRes.error) {
+          const myLeagues = new Set<string>();
+          for (const r of memberRes.data ?? []) {
+            if (r.user_id === profile.id) myLeagues.add(r.league_id as string);
+          }
+          const sharesLeague = (memberRes.data ?? []).some(
+            (r) => r.user_id === userId && myLeagues.has(r.league_id as string),
+          );
+          if (!sharesLeague) {
+            setNotLeagueMate(true);
+            setLoading(false);
+            return;
+          }
+        }
+
         // Fetch both users' scored predictions for the active series.
         const [predRes, racesRes, profileRes] = await Promise.all([
           supabase
@@ -322,6 +346,15 @@ export default function ChallengeScreen() {
           <Text style={[styles.emptyTitle, { color: Colors.text }]}>Not Connected</Text>
           <Text style={[styles.emptyText, { color: Colors.textMuted }]}>
             Connect to the server to challenge other players.
+          </Text>
+        </View>
+      ) : notLeagueMate ? (
+        <View style={styles.loadingContainer}>
+          <Swords size={42} color={Colors.textMuted} />
+          <Text style={[styles.emptyTitle, { color: Colors.text }]}>League Rivals Only</Text>
+          <Text style={[styles.emptyText, { color: Colors.textMuted }]}>
+            You can only challenge players who share a league with you. Join or
+            create a league together first.
           </Text>
         </View>
       ) : !summary || summary.rows.length === 0 ? (

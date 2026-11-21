@@ -17,6 +17,7 @@ import {
   Globe,
   Lock,
   Share2,
+  Swords,
   Trash2,
   Users,
 } from 'lucide-react-native';
@@ -24,7 +25,6 @@ import * as Haptics from 'expo-haptics';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
-import { useSeries } from '@/providers/SeriesProvider';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { LeagueMember } from '@/types';
@@ -32,8 +32,6 @@ import { LeagueMember } from '@/types';
 export default function LeagueDetailScreen() {
   const { leagueId } = useLocalSearchParams<{ leagueId: string }>();
   const router = useRouter();
-  const { config } = useSeries();
-  const seriesColors = config.colors;
 
   const {
     leagues,
@@ -42,7 +40,7 @@ export default function LeagueDetailScreen() {
     deleteLeague,
   } = useGame();
 
-  const { profile } = useUser();
+  const { profile, session } = useUser();
 
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
@@ -85,7 +83,9 @@ export default function LeagueDetailScreen() {
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const fetchLeagueMembersRef = useRef(fetchLeagueMembers);
 
-  fetchLeagueMembersRef.current = fetchLeagueMembers;
+  useEffect(() => {
+    fetchLeagueMembersRef.current = fetchLeagueMembers;
+  }, [fetchLeagueMembers]);
 
   useEffect(() => {
     Animated.timing(fadeAnim, {
@@ -249,6 +249,20 @@ export default function LeagueDetailScreen() {
           </Text>
           <Text style={styles.pointsLabel}>PTS</Text>
         </View>
+
+        {session?.user?.id && !isCurrentUser && (
+          <AnimatedPressable
+            style={styles.challengeButton}
+            onPress={() =>
+              router.push(
+                `/challenge/${item.userId}?name=${encodeURIComponent(item.displayName || item.username)}` as any,
+              )
+            }
+          >
+            <Swords size={13} color={Colors.f1Red} />
+            <Text style={styles.challengeButtonText}>Challenge</Text>
+          </AnimatedPressable>
+        )}
       </AnimatedPressable>
     );
   };
@@ -639,5 +653,25 @@ const styles = StyleSheet.create({
     fontWeight: '900',
     letterSpacing: 1.2,
     marginTop: 1,
+  },
+
+  challengeButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: `${Colors.f1Red}14`,
+    borderColor: `${Colors.f1Red}44`,
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 4,
+    marginLeft: 8,
+    flexShrink: 0,
+  },
+
+  challengeButtonText: {
+    color: Colors.f1Red,
+    fontSize: 10,
+    fontWeight: '800',
   },
 });
