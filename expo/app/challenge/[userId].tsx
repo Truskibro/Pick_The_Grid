@@ -59,7 +59,7 @@ export default function ChallengeScreen() {
   const seriesColors = config.colors;
 
   const [loading, setLoading] = useState(true);
-  const [notLeagueMate, setNotLeagueMate] = useState(false);
+  const [locked, setLocked] = useState<null | 'pending' | 'none'>(null);
   const [theirName, setTheirName] = useState<string>(
     typeof nameParam === 'string' ? decodeURIComponent(nameParam) : 'Rival',
   );
@@ -73,25 +73,23 @@ export default function ChallengeScreen() {
 
     const load = async () => {
       setLoading(true);
-      setNotLeagueMate(false);
+      setLocked(null);
       try {
-        // Head-to-head is league-only: both players must share at least one
-        // league. This guards the deep link too, not just the entry button.
-        const memberRes = await supabase
-          .from('league_members')
-          .select('league_id, user_id')
-          .in('user_id', [userId, profile.id]);
-        if (cancelled) return;
-        if (!memberRes.error) {
-          const myLeagues = new Set<string>();
-          for (const r of memberRes.data ?? []) {
-            if (r.user_id === profile.id) myLeagues.add(r.league_id as string);
-          }
-          const sharesLeague = (memberRes.data ?? []).some(
-            (r) => r.user_id === userId && myLeagues.has(r.league_id as string),
+        // Head-to-head unlocks only once an accepted challenge exists between
+        // the two players in this series. This guards deep links too.
+        const chRes = await supabase
+          .from('challenges')
+          .select('id, status')
+          .eq('series_id', currentSeries)
+          .or(
+            `and(challenger_id.eq.${userId},challenged_id.eq.${profile.id}),` +
+              `and(challenger_id.eq.${profile.id},challenged_id.eq.${userId})`,
           );
-          if (!sharesLeague) {
-            setNotLeagueMate(true);
+        if (cancelled) return;
+        if (!chRes.error) {
+          const rows = chRes.data ?? [];
+          if (!rows.some((c) => c.status === 'accepted')) {
+            setLocked(rows.some((c) => c.status === 'pending') ? 'pending' : 'none');
             setLoading(false);
             return;
           }
@@ -348,13 +346,16 @@ export default function ChallengeScreen() {
             Connect to the server to challenge other players.
           </Text>
         </View>
-      ) : notLeagueMate ? (
+      ) : locked ? (
         <View style={styles.loadingContainer}>
           <Swords size={42} color={Colors.textMuted} />
-          <Text style={[styles.emptyTitle, { color: Colors.text }]}>League Rivals Only</Text>
+          <Text style={[styles.emptyTitle, { color: Colors.text }]}>
+            {locked === 'pending' ? 'Challenge Pending' : 'No Challenge Yet'}
+          </Text>
           <Text style={[styles.emptyText, { color: Colors.textMuted }]}>
-            You can only challenge players who share a league with you. Join or
-            create a league together first.
+            {locked === 'pending'
+              ? `Your invite to ${them || 'them'} hasn't been accepted yet. The head-to-head battle opens once they respond.`
+              : `Send a challenge from the Rankings or a league page — you can only race players who share a league with you.`}
           </Text>
         </View>
       ) : !summary || summary.rows.length === 0 ? (

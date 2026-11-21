@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   Animated,
   FlatList,
   StyleSheet,
@@ -24,6 +25,7 @@ import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useSeries } from '@/providers/SeriesProvider';
+import { useChallenges } from '@/providers/ChallengeProvider';
 import { LeaderboardEntry, League } from '@/types';
 
 type TabType = 'global' | 'league';
@@ -42,6 +44,7 @@ export default function LeaderboardsScreen() {
   const { leagues, leagueMembers, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
   const { session } = useUser();
   const { currentSeries } = useSeries();
+  const { sendChallenge } = useChallenges();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -174,6 +177,35 @@ export default function LeaderboardsScreen() {
     return <Minus size={13} color={Colors.textMuted} />;
   };
 
+  // Challenge sends an invite the rival can accept or decline (league-only).
+  const handleChallenge = useCallback(
+    (rivalId: string, rivalName: string) => {
+      if (!session?.user?.id) {
+        router.push('/auth' as any);
+        return;
+      }
+      void sendChallenge(rivalId).then((res) => {
+        if (res.ok) {
+          Alert.alert(
+            'Challenge Sent',
+            `${rivalName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
+          );
+        } else if (res.reason === 'pending') {
+          Alert.alert('Already Challenged', `Your invite to ${rivalName} is still waiting.`);
+        } else if (res.reason === 'accepted') {
+          router.push(`/challenge/${rivalId}?name=${encodeURIComponent(rivalName)}` as any);
+        } else if (res.reason === 'no-league') {
+          Alert.alert('League Rivals Only', 'You can only challenge players who share a league with you.');
+        } else if (res.reason === 'guest') {
+          router.push('/auth' as any);
+        } else {
+          Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
+        }
+      });
+    },
+    [session, sendChallenge, router],
+  );
+
   const renderGlobalRow = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const actualRank = item.rank ?? index + 4;
     const accentColor = actualRank <= 3 ? podiumColors[actualRank - 1] : undefined;
@@ -277,11 +309,7 @@ export default function LeaderboardsScreen() {
               challengeableUserIds.has(item.userId) && (
               <AnimatedPressable
                 style={styles.challengeButton}
-                onPress={() =>
-                  router.push(
-                    `/challenge/${item.userId}?name=${encodeURIComponent(item.displayName)}` as any,
-                  )
-                }
+                onPress={() => void handleChallenge(item.userId, item.displayName)}
               >
                 <Swords size={13} color={Colors.f1Red} />
                 <Text style={styles.challengeButtonText}>Challenge</Text>

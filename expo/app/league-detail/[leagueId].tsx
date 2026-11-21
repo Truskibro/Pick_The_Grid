@@ -27,6 +27,7 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
+import { useChallenges } from '@/providers/ChallengeProvider';
 import { LeagueMember } from '@/types';
 
 export default function LeagueDetailScreen() {
@@ -41,6 +42,31 @@ export default function LeagueDetailScreen() {
   } = useGame();
 
   const { profile, session } = useUser();
+  const { sendChallenge } = useChallenges();
+
+  // Challenge sends an invite the rival can accept or decline (league-only).
+  const handleChallenge = (rivalId: string, rivalName: string) => {
+    if (!session?.user?.id) {
+      router.push('/auth' as any);
+      return;
+    }
+    void sendChallenge(rivalId).then((res) => {
+      if (res.ok) {
+        Alert.alert(
+          'Challenge Sent',
+          `${rivalName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
+        );
+      } else if (res.reason === 'pending') {
+        Alert.alert('Already Challenged', `Your invite to ${rivalName} is still waiting.`);
+      } else if (res.reason === 'accepted') {
+        router.push(`/challenge/${rivalId}?name=${encodeURIComponent(rivalName)}` as any);
+      } else if (res.reason === 'no-league') {
+        Alert.alert('League Rivals Only', 'You can only challenge players who share a league with you.');
+      } else {
+        Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
+      }
+    });
+  };
 
   const league = leagues.find((l) => l.id === leagueId);
   const rawMembers = leagueId ? getLeagueMembers(leagueId) : [];
@@ -253,11 +279,7 @@ export default function LeagueDetailScreen() {
         {session?.user?.id && !isCurrentUser && (
           <AnimatedPressable
             style={styles.challengeButton}
-            onPress={() =>
-              router.push(
-                `/challenge/${item.userId}?name=${encodeURIComponent(item.displayName || item.username)}` as any,
-              )
-            }
+            onPress={() => handleChallenge(item.userId, item.displayName || item.username)}
           >
             <Swords size={13} color={Colors.f1Red} />
             <Text style={styles.challengeButtonText}>Challenge</Text>

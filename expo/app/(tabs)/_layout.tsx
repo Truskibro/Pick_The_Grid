@@ -1,13 +1,15 @@
 import { Tabs } from "expo-router";
-import { Grid3x3, Target, CalendarDays, Users, BarChart3 } from "lucide-react-native";
+import { Grid3x3, Target, CalendarDays, Users, BarChart3, Swords } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
 import Colors from "@/constants/colors";
 import { useSeries } from "@/providers/SeriesProvider";
+import { useChallenges } from "@/providers/ChallengeProvider";
 
 export default function TabLayout() {
   const { config } = useSeries();
   const seriesColors = config.colors;
+  const { pendingIncoming } = useChallenges();
 
   return (
     <Tabs
@@ -61,6 +63,15 @@ export default function TabLayout() {
         options={{
           title: "Rankings",
           tabBarIcon: ({ color, size }) => <BarChart3 size={size - 2} color={color} />,
+        }}
+      />
+      <Tabs.Screen
+        name="challenges"
+        options={{
+          title: "Challenges",
+          tabBarIcon: ({ color, size }) => <Swords size={size - 2} color={color} />,
+          tabBarBadge: pendingIncoming.length > 0 ? pendingIncoming.length : undefined,
+          tabBarBadgeStyle: { backgroundColor: Colors.error, color: '#fff' },
         }}
       />
     </Tabs>

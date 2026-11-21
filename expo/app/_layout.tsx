@@ -13,6 +13,7 @@ import { F1DataProvider } from "@/providers/F1DataProvider";
 import { MotoGPDataProvider } from "@/providers/MotoGPDataProvider";
 import { SeriesProvider, useSeries } from "@/providers/SeriesProvider";
 import { AchievementProvider } from "@/providers/AchievementProvider";
+import { ChallengeProvider } from "@/providers/ChallengeProvider";
 import AchievementCelebrationOverlay from "@/components/AchievementCelebrationOverlay";
 
 void SplashScreen.preventAutoHideAsync();
@@ -156,6 +157,12 @@ function RootLayoutNav() {
         }}
       />
       <Stack.Screen
+        name="challenge/[userId]"
+        options={{
+          title: "Head to Head",
+        }}
+      />
+      <Stack.Screen
         name="auth"
         options={{
           presentation: "modal",
@@ -181,10 +188,12 @@ export default function RootLayout() {
               <MotoGPDataProvider>
                 <GameProvider>
                   <AchievementProvider>
-                    <NotificationTapHandler />
-                    <StatusBar style="light" />
-                    <RootLayoutNav />
-                    <AchievementCelebrationOverlay />
+                    <ChallengeProvider>
+                      <NotificationTapHandler />
+                      <StatusBar style="light" />
+                      <RootLayoutNav />
+                      <AchievementCelebrationOverlay />
+                    </ChallengeProvider>
                   </AchievementProvider>
                 </GameProvider>
               </MotoGPDataProvider>
