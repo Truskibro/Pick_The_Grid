@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   FlatList,
   StyleSheet,
@@ -13,7 +12,6 @@ import { LinearGradient } from 'expo-linear-gradient';
 import {
   Minus,
   Shield,
-  Swords,
   TrendingDown,
   TrendingUp,
   Trophy,
@@ -25,7 +23,6 @@ import Colors from '@/constants/colors';
 import { useGame } from '@/providers/GameProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useSeries } from '@/providers/SeriesProvider';
-import { useChallenges } from '@/providers/ChallengeProvider';
 import { LeaderboardEntry, League } from '@/types';
 
 type TabType = 'global' | 'league';
@@ -41,10 +38,9 @@ export default function LeaderboardsScreen() {
   const router = useRouter();
   const [activeTab, setActiveTab] = useState<TabType>('global');
 
-  const { leagues, leagueMembers, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
+  const { leagues, getLeagueMembers, fetchGlobalLeaderboard, refreshPredictions, refreshLeagues, fetchLeagueMembers } = useGame();
   const { session } = useUser();
   const { currentSeries } = useSeries();
-  const { sendChallenge } = useChallenges();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const [globalLeaderboard, setGlobalLeaderboard] = useState<LeaderboardEntry[]>([]);
@@ -130,19 +126,6 @@ export default function LeaderboardsScreen() {
   const top3 = globalLeaderboard.slice(0, 3);
   const rest = globalLeaderboard.slice(3);
 
-  // Challenges are league-only: you can only challenge players who share at
-  // least one league with you in the current series.
-  const challengeableUserIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const league of leagues) {
-      if ((league.seriesId ?? 'f1') !== currentSeries) continue;
-      for (const m of getLeagueMembers(league.id) ?? []) ids.add(m.userId);
-    }
-    return ids;
-    // leagueMembers is the cache the lookup above reads — recompute when it changes.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [leagues, leagueMembers, getLeagueMembers, currentSeries]);
-
   const leagueTop3 = leagueRankings.slice(0, 3);
   const leagueRest = leagueRankings.slice(3);
 
@@ -176,35 +159,6 @@ export default function LeaderboardsScreen() {
 
     return <Minus size={13} color={Colors.textMuted} />;
   };
-
-  // Challenge sends an invite the rival can accept or decline (league-only).
-  const handleChallenge = useCallback(
-    (rivalId: string, rivalName: string) => {
-      if (!session?.user?.id) {
-        router.push('/auth' as any);
-        return;
-      }
-      void sendChallenge(rivalId).then((res) => {
-        if (res.ok) {
-          Alert.alert(
-            'Challenge Sent',
-            `${rivalName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
-          );
-        } else if (res.reason === 'pending') {
-          Alert.alert('Already Challenged', `Your invite to ${rivalName} is still waiting.`);
-        } else if (res.reason === 'accepted') {
-          router.push(`/challenge/${rivalId}?name=${encodeURIComponent(rivalName)}` as any);
-        } else if (res.reason === 'no-league') {
-          Alert.alert('League Rivals Only', 'You can only challenge players who share a league with you.');
-        } else if (res.reason === 'guest') {
-          router.push('/auth' as any);
-        } else {
-          Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
-        }
-      });
-    },
-    [session, sendChallenge, router],
-  );
 
   const renderGlobalRow = ({ item, index }: { item: LeaderboardEntry; index: number }) => {
     const actualRank = item.rank ?? index + 4;
@@ -303,18 +257,6 @@ export default function LeaderboardsScreen() {
             <Text style={styles.rankMetaText} numberOfLines={1}>
               Global #{actualRank}
             </Text>
-
-            {session?.user?.id &&
-              item.userId !== session.user.id &&
-              challengeableUserIds.has(item.userId) && (
-              <AnimatedPressable
-                style={styles.challengeButton}
-                onPress={() => void handleChallenge(item.userId, item.displayName)}
-              >
-                <Swords size={13} color={Colors.f1Red} />
-                <Text style={styles.challengeButtonText}>Challenge</Text>
-              </AnimatedPressable>
-            )}
           </View>
         </View>
       </AnimatedPressable>
@@ -1024,24 +966,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '700' as const,
     textAlign: 'right',
-  },
-
-  challengeButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-    backgroundColor: `${Colors.f1Red}14`,
-    borderColor: `${Colors.f1Red}44`,
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 4,
-  },
-
-  challengeButtonText: {
-    color: Colors.f1Red,
-    fontSize: 10,
-    fontWeight: '800' as const,
   },
 
   emptyState: {

@@ -1,6 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import createContextHook from '@nkzw/create-context-hook';
+import * as Notifications from 'expo-notifications';
 import { supabase, isSupabaseConfigured } from '@/lib/supabase';
+import { ensureAndroidChannel } from '@/lib/notifications';
 import { useSeries } from '@/providers/SeriesProvider';
 import { useUser } from '@/providers/UserProvider';
 import { useGame } from '@/providers/GameProvider';
@@ -40,6 +42,10 @@ function firstEmbed(value: RawEmbed | RawEmbed[] | null | undefined): RawEmbed |
   return value ?? null;
 }
 
+function fresh(challenges: Challenge[], seen: Set<string>): Challenge[] {
+  return challenges.filter((c) => !seen.has(c.id));
+}
+
 function normalizeChallenge(raw: {
   id: string;
   challenger_id: string;
@@ -77,7 +83,7 @@ function normalizeChallenge(raw: {
 
 export const [ChallengeProvider, useChallenges] = createContextHook(() => {
   const { currentSeries } = useSeries();
-  const { profile, isGuest } = useUser();
+  const { profile, isGuest, notifications } = useUser();
   const { leagues } = useGame();
 
   const [allChallenges, setAllChallenges] = useState<Challenge[]>([]);
@@ -120,6 +126,44 @@ export const [ChallengeProvider, useChallenges] = createContextHook(() => {
     () => challenges.filter((c) => c.status === 'pending' && c.challenged_id === profile?.id),
     [challenges, profile?.id],
   );
+
+  // Local notifications for NEW incoming invites. The first load only primes
+  // the seen-set (no spam for the existing backlog); after that, any pending
+  // invite the poll hasn't seen before fires one notification — unless the
+  // user turned Challenge Invites off in Settings.
+  const seenPendingIdsRef = useRef<Set<string> | null>(null);
+  const challengeInvitesEnabled = notifications?.challengeInvites !== false;
+  useEffect(() => {
+    const currentIds = new Set(pendingIncoming.map((c) => c.id));
+    const seen = seenPendingIdsRef.current;
+    seenPendingIdsRef.current = currentIds;
+
+    if (seen === null || fresh(pendingIncoming, seen).length === 0) return;
+    if (!challengeInvitesEnabled) return;
+
+    const freshChallenges = fresh(pendingIncoming, seen);
+    void (async () => {
+      try {
+        await ensureAndroidChannel();
+        for (const c of freshChallenges) {
+          const challengerName =
+            c.challenger?.display_name?.trim() ||
+            c.challenger?.username?.trim() ||
+            'A rival';
+          await Notifications.scheduleNotificationAsync({
+            content: {
+              title: '\u2694\uFE0F New Challenge',
+              body: `${challengerName} challenged you to a head-to-head. Accept or decline it in your Challenges tab.`,
+            },
+            trigger: null,
+          });
+        }
+      } catch (e) {
+        console.log('[challenges] invite notification failed:', e);
+      }
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pendingIncoming, challengeInvitesEnabled]);
 
   /**
    * Send a head-to-head invite to a player you share a league with.

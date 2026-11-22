@@ -140,6 +140,8 @@ export interface NotificationSettings {
   sprintEndReminder: boolean;
   /** Notify when the main race ends and final results are being scored. */
   raceEndReminder: boolean;
+  /** Notify when another player sends you a head-to-head challenge invite. */
+  challengeInvites: boolean;
 }
 
 export const F1_POINTS = [25, 18, 15, 12, 10, 8, 6, 4, 2, 1] as const;

@@ -43,6 +43,7 @@ export const DEFAULT_NOTIFICATION_SETTINGS: NotificationSettings = {
   sprintStartReminder: true,
   sprintEndReminder: true,
   raceEndReminder: true,
+  challengeInvites: true,
 };
 
 /**

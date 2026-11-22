@@ -29,6 +29,7 @@ import {
   Save,
   Send,
   Shield,
+  Swords,
   Trophy,
   User as UserIcon,
   X,
@@ -510,6 +511,26 @@ export default function SettingsScreen() {
           <Switch
             value={notifications.lockReminder}
             onValueChange={(val) => updateNotifications({ lockReminder: val })}
+            trackColor={{ false: Colors.surfaceHighlight, true: Colors.f1Red }}
+            thumbColor="#FFF"
+          />
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.toggleRow}>
+          <View style={[styles.rowIcon, { backgroundColor: 'rgba(255,59,48,0.12)' }]}>
+            <Swords size={18} color={Colors.f1Red} />
+          </View>
+
+          <View style={styles.rowContent}>
+            <Text style={styles.rowLabel}>Challenge Invites</Text>
+            <Text style={styles.rowValue}>When a rival challenges you head-to-head</Text>
+          </View>
+
+          <Switch
+            value={notifications.challengeInvites}
+            onValueChange={(val) => updateNotifications({ challengeInvites: val })}
             trackColor={{ false: Colors.surfaceHighlight, true: Colors.f1Red }}
             thumbColor="#FFF"
           />
