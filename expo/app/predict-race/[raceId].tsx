@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { appAlert } from '@/lib/confirm';
+import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   useFocusEffect,
@@ -202,6 +203,7 @@ export default function PredictRaceScreen() {
   const { raceId } = useLocalSearchParams<{ raceId: string }>();
   const navigation = useNavigation();
   const router = useRouter();
+  const keyboardHeight = useKeyboardHeight();
 
   const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
@@ -1348,7 +1350,10 @@ export default function PredictRaceScreen() {
 
             <ScrollView
               style={styles.modalList}
-              contentContainerStyle={styles.modalListContent}
+              contentContainerStyle={[
+                styles.modalListContent,
+                { paddingBottom: 12 + keyboardHeight },
+              ]}
               keyboardShouldPersistTaps="handled"
             >
               {pickerDrivers.length === 0 && (

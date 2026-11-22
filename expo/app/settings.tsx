@@ -38,6 +38,7 @@ import * as Notifications from 'expo-notifications';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import { appAlert } from '@/lib/confirm';
+import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import CountryPicker from '@/components/CountryPicker';
 import Colors from '@/constants/colors';
 import { COUNTRIES } from '@/constants/countries';
@@ -50,6 +51,7 @@ import { ensureAndroidChannel } from '@/lib/notifications';
 
 export default function SettingsScreen() {
   const router = useRouter();
+  const keyboardHeight = useKeyboardHeight();
 
   const {
     profile,
@@ -706,7 +708,10 @@ export default function SettingsScreen() {
             </AnimatedPressable>
           </View>
 
-          <ScrollView contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            contentContainerStyle={[styles.modalContent, { paddingBottom: 40 + keyboardHeight }]}
+            keyboardShouldPersistTaps="handled"
+          >
             <View style={styles.modalAvatarWrap}>
               <LinearGradient
                 colors={[seriesColors.primary, seriesColors.primaryDark]}

@@ -6,16 +6,19 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "rork-app",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#0B0E11"
     },
     "ios": {
       "supportsTablet": false,
-      "bundleIdentifier": "app.rork.apex-draft-f1"
+      "bundleIdentifier": "app.rork.apex-draft-f1",
+      "infoPlist": {
+        "UIUserInterfaceStyle": "Dark"
+      }
     },
     "android": {
       "adaptiveIcon": {

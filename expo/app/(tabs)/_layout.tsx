@@ -1,4 +1,6 @@
 import { Tabs } from "expo-router";
+import { View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Grid3x3, Target, CalendarDays, Users, BarChart3, Swords } from "lucide-react-native";
 import React from "react";
 import { Platform } from "react-native";
@@ -10,8 +12,14 @@ export default function TabLayout() {
   const { config } = useSeries();
   const seriesColors = config.colors;
   const { pendingIncoming } = useChallenges();
+  const insets = useSafeAreaInsets();
 
   return (
+    // All tab screens draw their own headers (headerShown: false below), so
+    // nothing else keeps content clear of the iPhone status bar / Dynamic
+    // Island. Padding the whole navigator down by the top inset fixes that
+    // for every tab in one place.
+    <View style={{ flex: 1, paddingTop: insets.top, backgroundColor: Colors.background }}>
     <Tabs
       screenOptions={{
         headerShown: false,
@@ -75,5 +83,6 @@ export default function TabLayout() {
         }}
       />
     </Tabs>
+    </View>
   );
 }

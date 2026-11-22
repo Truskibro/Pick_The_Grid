@@ -18,6 +18,7 @@ import {
   Platform,
 } from 'react-native';
 import { appAlert } from '@/lib/confirm';
+import { useKeyboardHeight } from '@/lib/useKeyboardHeight';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -207,6 +208,7 @@ export default function PredictScreen() {
   const { profile, isGuest } = useUser();
 
   const fadeAnim = useRef(new Animated.Value(0)).current;
+  const keyboardHeight = useKeyboardHeight();
 
   const existingPrediction = nextRace ? getPrediction(nextRace.id) : undefined;
 
@@ -1236,7 +1238,10 @@ export default function PredictScreen() {
 
             <ScrollView
               style={styles.modalList}
-              contentContainerStyle={styles.modalListContent}
+              contentContainerStyle={[
+                styles.modalListContent,
+                { paddingBottom: 12 + keyboardHeight },
+              ]}
               keyboardShouldPersistTaps="handled"
             >
               {pickerDrivers.length === 0 && (

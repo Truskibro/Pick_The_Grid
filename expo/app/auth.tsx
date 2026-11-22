@@ -30,6 +30,7 @@ import { COUNTRIES } from '@/constants/countries';
 import { useUser } from '@/providers/UserProvider';
 import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 type AuthMode = 'login' | 'signup';
 
@@ -61,6 +62,7 @@ export default function AuthScreen() {
   const passwordStrong = passwordChecks.length && passwordChecks.letter && passwordChecks.number;
   const [loading, setLoading] = useState<boolean>(false);
   const [notice, setNotice] = useState<Notice | null>(null);
+  const insets = useSafeAreaInsets();
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -202,7 +204,10 @@ export default function AuthScreen() {
         behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
         <ScrollView
-          contentContainerStyle={styles.scrollContent}
+          contentContainerStyle={[
+            styles.scrollContent,
+            { paddingTop: insets.top + 24, paddingBottom: insets.bottom + 24 },
+          ]}
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
