@@ -681,7 +681,7 @@ export default function LeaderboardsScreen() {
           ListHeaderComponent={renderGlobalPodium}
           renderItem={renderGlobalRow}
           ListEmptyComponent={
-            loadingLeaderboard ? null : top3.length === 0 ? (
+            loadingLeaderboard ? undefined : top3.length === 0 ? (
               <View style={styles.emptyState}>
                 <Trophy size={42} color={Colors.textMuted} />
                 <Text style={styles.emptyTitle}>No Rankings Yet</Text>
@@ -689,7 +689,7 @@ export default function LeaderboardsScreen() {
                   Make predictions and connect to the server to see the global leaderboard.
                 </Text>
               </View>
-            ) : null
+            ) : undefined
           }
         />
       )}
@@ -712,7 +712,7 @@ export default function LeaderboardsScreen() {
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={renderLeaguePodium}
           renderItem={renderLeagueRow}
-          ListEmptyComponent={null}
+          ListEmptyComponent={undefined}
         />
       )}
     </Animated.View>

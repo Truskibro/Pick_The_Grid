@@ -43,7 +43,9 @@
           "color": "#E8002D",
           "defaultChannel": "race-reminders"
         }
-      ]
+      ],
+      "expo-splash-screen",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true

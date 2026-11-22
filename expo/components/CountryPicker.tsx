@@ -30,7 +30,8 @@ export default function CountryPicker({
 }: CountryPickerProps) {
   const [visible, setVisible] = useState<boolean>(false);
   const [search, setSearch] = useState<string>('');
-  const searchInputRef = useRef<TextInput>(null);
+  // RN 0.88: TextInput refs expose TextInputInstance, not the component type.
+  const searchInputRef = useRef<React.ComponentRef<typeof TextInput>>(null);
 
   useEffect(() => {
     if (visible) {

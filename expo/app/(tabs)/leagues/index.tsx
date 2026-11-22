@@ -402,7 +402,7 @@ export default function LeaguesScreen() {
                 </LinearGradient>
               </AnimatedPressable>
             </Animated.View>
-          ) : null
+          ) : undefined
         }
       />
     </View>
