@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -6,16 +6,18 @@ import {
   FlatList,
   StyleSheet,
   Text,
+  TextInput,
   View,
 } from 'react-native';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Check, Swords, X } from 'lucide-react-native';
+import { Check, Search, Swords, X } from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import { useCallback, useRef } from 'react';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
 import Colors from '@/constants/colors';
+import { supabase } from '@/lib/supabase';
 import { Challenge, useChallenges } from '@/providers/ChallengeProvider';
 import { useSeries } from '@/providers/SeriesProvider';
 import { useUser } from '@/providers/UserProvider';
@@ -29,9 +31,22 @@ function when(dateStr: string): string {
   return d.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
 }
 
+interface ProfileHit {
+  id: string;
+  username: string | null;
+  display_name: string | null;
+  total_points: number | null;
+  motogp_total_points: number | null;
+}
+
+/** Strip characters that would break the PostgREST `.or()` filter. */
+function sanitizeQuery(q: string): string {
+  return q.replace(/[,()%_]/g, ' ').trim();
+}
+
 export default function ChallengesScreen() {
   const router = useRouter();
-  const { config } = useSeries();
+  const { config, currentSeries } = useSeries();
   const seriesColors = config.colors;
   const { profile, isGuest } = useUser();
   const {
@@ -41,6 +56,7 @@ export default function ChallengesScreen() {
     refresh,
     respondToChallenge,
     cancelChallenge,
+    sendChallenge,
   } = useChallenges();
 
   const [busyId, setBusyId] = useState<string | null>(null);
@@ -101,6 +117,183 @@ export default function ChallengesScreen() {
     c.challenger_id === profile?.id
       ? { user: c.challenged, id: c.challenged_id }
       : { user: c.challenger, id: c.challenger_id };
+
+  // ---- rival search -------------------------------------------------------
+  const [query, setQuery] = useState('');
+  const [searching, setSearching] = useState(false);
+  const [results, setResults] = useState<ProfileHit[]>([]);
+  const searchSeq = useRef(0);
+
+  useEffect(() => {
+    const q = sanitizeQuery(query);
+    if (q.length < 2 || !profile?.id) {
+      setResults([]);
+      setSearching(false);
+      return;
+    }
+    setSearching(true);
+    const seq = ++searchSeq.current;
+    const timer = setTimeout(async () => {
+      try {
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, username, display_name, total_points, motogp_total_points')
+          .or(`display_name.ilike.%${q}%,username.ilike.%${q}%`)
+          .neq('id', profile.id)
+          .limit(10);
+        if (seq !== searchSeq.current) return;
+        if (error) {
+          console.log('[challenges] search error:', error.message);
+          setResults([]);
+        } else {
+          setResults((data ?? []) as ProfileHit[]);
+        }
+      } catch (e) {
+        if (seq === searchSeq.current) {
+          console.log('[challenges] search threw:', e);
+          setResults([]);
+        }
+      } finally {
+        if (seq === searchSeq.current) setSearching(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query, profile?.id]);
+
+  // Existing challenge per rival, so search results show Pending / View
+  // instead of offering a duplicate invite. accepted > pending > declined.
+  const statusRank = { accepted: 3, pending: 2, declined: 1 } as const;
+  const challengeByRival = useMemo(() => {
+    const map = new Map<string, Challenge>();
+    for (const c of challenges) {
+      const rivalId = c.challenger_id === profile?.id ? c.challenged_id : c.challenger_id;
+      const prev = map.get(rivalId);
+      if (!prev || statusRank[c.status] > statusRank[prev.status]) map.set(rivalId, c);
+    }
+    return map;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [challenges, profile?.id]);
+
+  const challengeUser = async (hit: ProfileHit) => {
+    if (!profile?.id) {
+      router.push('/auth' as any);
+      return;
+    }
+    void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium).catch(() => {});
+    const displayName = hit.display_name?.trim() || hit.username?.trim() || 'this player';
+    const res = await sendChallenge(hit.id);
+    if (res.ok) {
+      Alert.alert(
+        'Challenge Sent',
+        `${displayName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
+      );
+    } else if (res.reason === 'pending') {
+      Alert.alert('Already Challenged', `Your invite to ${displayName} is still waiting.`);
+    } else if (res.reason === 'accepted') {
+      router.push(`/challenge/${hit.id}?name=${encodeURIComponent(displayName)}` as any);
+    } else if (res.reason === 'no-league') {
+      Alert.alert(
+        'League Rivals Only',
+        `You and ${displayName} need to share a league in this series before you can challenge them.`,
+      );
+    } else if (res.reason === 'guest') {
+      router.push('/auth' as any);
+    } else {
+      Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
+    }
+  };
+
+  const seriesPointsOf = (hit: ProfileHit): number =>
+    (currentSeries === 'motogp' ? hit.motogp_total_points : hit.total_points) ?? 0;
+
+  const initialsOf = (name: string): string =>
+    name
+      .split(' ')
+      .map((w) => w[0])
+      .join('')
+      .substring(0, 2)
+      .toUpperCase();
+
+  const renderSearchRow = (hit: ProfileHit) => {
+    const displayName = hit.display_name?.trim() || hit.username?.trim() || 'Player';
+    const existing = challengeByRival.get(hit.id);
+
+    return (
+      <AnimatedPressable
+        key={hit.id}
+        style={[styles.row, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+        onPress={() =>
+          existing?.status === 'accepted' &&
+          (router.push(`/challenge/${hit.id}?name=${encodeURIComponent(displayName)}` as any), true)
+        }
+      >
+        <View style={[styles.avatar, { borderColor: seriesColors.primary }]}>
+          <Text style={styles.avatarText}>{initialsOf(displayName)}</Text>
+        </View>
+
+        <View style={styles.rowMain}>
+          <Text style={styles.rowName} numberOfLines={1}>
+            {displayName}
+          </Text>
+          <Text style={styles.rowMeta} numberOfLines={1}>
+            {hit.username ? `@${hit.username}` : 'Player'} · {seriesPointsOf(hit)} pts
+          </Text>
+        </View>
+
+        {existing?.status === 'accepted' ? (
+          <View style={[styles.openPill, { backgroundColor: `${seriesColors.primary}1A` }]}>
+            <Swords size={13} color={seriesColors.primary} />
+            <Text style={[styles.openText, { color: seriesColors.primary }]}>View</Text>
+          </View>
+        ) : existing?.status === 'pending' ? (
+          <View style={[styles.pendingPill, { borderColor: Colors.border }]}>
+            <Text style={styles.pendingText}>Pending</Text>
+          </View>
+        ) : (
+          <AnimatedPressable
+            style={[styles.challengeBtn, { backgroundColor: seriesColors.primary }]}
+            onPress={() => void challengeUser(hit)}
+          >
+            <Swords size={13} color="#fff" />
+            <Text style={styles.challengeBtnText}>Challenge</Text>
+          </AnimatedPressable>
+        )}
+      </AnimatedPressable>
+    );
+  };
+
+  const searchBar = !isGuest && profile?.id && (
+    <View style={styles.searchWrap}>
+      <View
+        style={[styles.searchBar, { backgroundColor: Colors.surface, borderColor: Colors.border }]}
+      >
+        <Search size={16} color={Colors.textMuted} />
+        <TextInput
+          style={styles.searchInput}
+          placeholder="Find a rival to challenge..."
+          placeholderTextColor={Colors.textMuted}
+          value={query}
+          onChangeText={setQuery}
+          autoCapitalize="none"
+          autoCorrect={false}
+          returnKeyType="search"
+        />
+        {query.length > 0 && (
+          <AnimatedPressable onPress={() => setQuery('')} hitSlop={8}>
+            <X size={16} color={Colors.textMuted} />
+          </AnimatedPressable>
+        )}
+      </View>
+
+      {searching && (
+        <ActivityIndicator style={styles.searchSpinner} color={seriesColors.primary} />
+      )}
+      {!searching && query.trim().length >= 2 && results.length === 0 && (
+        <Text style={styles.noResults}>No players found for "{query.trim()}"</Text>
+      )}
+      {results.length > 0 && <View style={styles.searchResults}>{results.map(renderSearchRow)}</View>}
+    </View>
+  );
 
   const renderRow = ({ item }: { item: Challenge }) => {
     const isIncoming = item.challenged_id === profile?.id;
@@ -214,15 +407,11 @@ export default function ChallengesScreen() {
       <Swords size={44} color={Colors.textMuted} />
       <Text style={styles.emptyTitle}>No Challenges Yet</Text>
       <Text style={styles.emptyText}>
-        {isGuest
-          ? 'Sign in, join a league, and tap Challenge on a rival to start a head-to-head battle.'
-          : 'Open the Rankings tab and tap Challenge on a league rival to send your first invite.'}
+        Sign in, join a league, and tap Challenge on a rival to start a head-to-head battle.
       </Text>
-      {isGuest && (
-        <AnimatedPressable style={styles.signInBtn} onPress={() => router.push('/auth' as any)}>
-          <Text style={styles.signInText}>Sign In</Text>
-        </AnimatedPressable>
-      )}
+      <AnimatedPressable style={styles.signInBtn} onPress={() => router.push('/auth' as any)}>
+        <Text style={styles.signInText}>Sign In</Text>
+      </AnimatedPressable>
     </View>
   );
 
@@ -242,7 +431,7 @@ export default function ChallengesScreen() {
         <View style={styles.empty}>
           <ActivityIndicator color={seriesColors.primary} />
         </View>
-      ) : !hasAnything ? (
+      ) : isGuest && !hasAnything ? (
         emptyBody
       ) : (
         <FlatList
@@ -251,10 +440,21 @@ export default function ChallengesScreen() {
           renderItem={renderRow}
           contentContainerStyle={styles.listContent}
           showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
           refreshing={loading}
           onRefresh={() => void refresh()}
           ListHeaderComponent={
             <View>
+              {searchBar}
+              {!hasAnything && query.trim().length === 0 && (
+                <View style={styles.emptyHint}>
+                  <Swords size={36} color={Colors.textMuted} />
+                  <Text style={styles.emptyHintText}>
+                    Search for a league rival above, or tap Challenge on a member in your league,
+                    to send your first invite.
+                  </Text>
+                </View>
+              )}
               {incoming.length > 0 && sectionHeader('Invites', incoming.length)}
               {sent.length > 0 && (
                 <View style={incoming.length > 0 ? { marginTop: 18 } : undefined}>
@@ -444,5 +644,87 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 14,
     fontWeight: '800' as const,
+  },
+
+  searchWrap: {
+    marginBottom: 14,
+  },
+
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 12,
+    paddingHorizontal: 12,
+    height: 42,
+  },
+
+  searchInput: {
+    flex: 1,
+    color: Colors.text,
+    fontSize: 14,
+    fontWeight: '600' as const,
+    paddingVertical: 0,
+  },
+
+  searchSpinner: {
+    marginTop: 12,
+  },
+
+  noResults: {
+    color: Colors.textMuted,
+    fontSize: 13,
+    fontWeight: '600' as const,
+    textAlign: 'center',
+    marginTop: 14,
+  },
+
+  searchResults: {
+    marginTop: 12,
+  },
+
+  pendingPill: {
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    marginLeft: 8,
+  },
+
+  pendingText: {
+    color: Colors.textMuted,
+    fontSize: 10,
+    fontWeight: '700' as const,
+  },
+
+  challengeBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    borderRadius: 999,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    marginLeft: 8,
+  },
+
+  challengeBtnText: {
+    color: '#fff',
+    fontSize: 10,
+    fontWeight: '800' as const,
+  },
+
+  emptyHint: {
+    alignItems: 'center',
+    paddingVertical: 44,
+    paddingHorizontal: 30,
+    gap: 12,
+  },
+
+  emptyHintText: {
+    color: Colors.textSecondary,
+    fontSize: 14,
+    textAlign: 'center',
+    lineHeight: 20,
   },
 });
