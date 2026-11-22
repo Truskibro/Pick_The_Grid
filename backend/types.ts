@@ -197,27 +197,36 @@ export type Database = {
       }
       profiles: {
         Row: {
+          country: string
           created_at: string | null
           display_name: string
+          first_name: string
           id: string
+          last_name: string
           motogp_total_points: number | null
           total_points: number
           updated_at: string | null
           username: string | null
         }
         Insert: {
+          country?: string
           created_at?: string | null
           display_name: string
+          first_name?: string
           id: string
+          last_name?: string
           motogp_total_points?: number | null
           total_points?: number
           updated_at?: string | null
           username?: string | null
         }
         Update: {
+          country?: string
           created_at?: string | null
           display_name?: string
+          first_name?: string
           id?: string
+          last_name?: string
           motogp_total_points?: number | null
           total_points?: number
           updated_at?: string | null
