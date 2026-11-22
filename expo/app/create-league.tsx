@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { useRouter } from 'expo-router';
 import { Globe, Lock } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -22,7 +23,7 @@ export default function CreateLeagueScreen() {
 
   const handleCreate = async () => {
     if (isGuest) {
-      Alert.alert(
+      appAlert(
         'Account Required',
         'You need to log in or create an account to create a league.',
         [
@@ -34,7 +35,7 @@ export default function CreateLeagueScreen() {
     }
 
     if (!name.trim()) {
-      Alert.alert('Error', 'League name is required.');
+      appAlert('Error', 'League name is required.');
       return;
     }
 
@@ -53,14 +54,14 @@ export default function CreateLeagueScreen() {
         currentSeries,
       );
 
-      Alert.alert(
+      appAlert(
         'League Created!',
         `Join code: ${league.joinCode}\nShare this with friends to invite them.`,
         [{ text: 'Done', onPress: () => router.back() }]
       );
     } catch (e: any) {
       console.log('Create league error:', e?.message);
-      Alert.alert(
+      appAlert(
         'Error',
         e?.message || 'Failed to create league. Please try again.',
         [{ text: 'OK' }]

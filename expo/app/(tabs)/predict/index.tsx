@@ -10,13 +10,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
+
   Animated,
   Modal,
   Pressable,
   TextInput,
   Platform,
 } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useFocusEffect } from 'expo-router';
 import {
@@ -469,7 +470,7 @@ export default function PredictScreen() {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning
           );
-          Alert.alert('Race Grid Full', `Remove a ${seriesLabels.competitorLower} from your race grid first.`);
+          appAlert('Race Grid Full', `Remove a ${seriesLabels.competitorLower} from your race grid first.`);
           return cleaned;
         }
 
@@ -500,7 +501,7 @@ export default function PredictScreen() {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning
           );
-          Alert.alert(
+          appAlert(
             'Sprint Grid Full',
             `Remove a ${seriesLabels.competitorLower} from your sprint grid first.`
           );
@@ -598,7 +599,7 @@ export default function PredictScreen() {
   const clearRace = useCallback(() => {
     if (locked) return;
 
-    Alert.alert('Clear Race Picks', 'Remove all race picks?', [
+    appAlert('Clear Race Picks', 'Remove all race picks?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -619,7 +620,7 @@ export default function PredictScreen() {
   const clearSprint = useCallback(() => {
     if (sprintLocked) return;
 
-    Alert.alert('Clear Sprint Picks', 'Remove all sprint picks?', [
+    appAlert('Clear Sprint Picks', 'Remove all sprint picks?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -651,7 +652,7 @@ export default function PredictScreen() {
 
   const handleSave = useCallback(async () => {
     if (!nextRace) {
-      Alert.alert('Cannot Save', 'No upcoming race is available.');
+      appAlert('Cannot Save', 'No upcoming race is available.');
       return;
     }
 
@@ -666,7 +667,7 @@ export default function PredictScreen() {
     // Race picks required only if race picks are still editable.
     if (!locked && finalTop10.length !== raceTopN) {
       setActiveTab('race');
-      Alert.alert(
+      appAlert(
         'Cannot Save',
         `Please select exactly ${raceTopN} race ${seriesLabels.competitorsLower}. You currently have ${finalTop10.length}.`
       );
@@ -680,7 +681,7 @@ export default function PredictScreen() {
       finalSprintTop8.length !== sprintTopN
     ) {
       setActiveTab('sprint');
-      Alert.alert(
+      appAlert(
         'Cannot Save',
         `Please select exactly ${sprintTopN} sprint ${seriesLabels.competitorsLower}. You currently have ${finalSprintTop8.length}.`
       );
@@ -689,7 +690,7 @@ export default function PredictScreen() {
 
     // If both race and sprint are locked, nothing left to save.
     if (locked && sprintLocked) {
-      Alert.alert('Predictions Locked', 'Both race and sprint picks are locked.');
+      appAlert('Predictions Locked', 'Both race and sprint picks are locked.');
       return;
     }
 
@@ -727,17 +728,17 @@ export default function PredictScreen() {
       setSaved(true);
 
       if (result.synced) {
-        Alert.alert(
+        appAlert(
           'Prediction Saved!',
           'Your prediction has been saved and synced to the cloud.'
         );
       } else if (isGuest) {
-        Alert.alert(
+        appAlert(
           'Prediction Saved!',
           'Saved on this device. Set up your profile to sync to cloud.'
         );
       } else {
-        Alert.alert(
+        appAlert(
           'Prediction Saved Locally',
           result.errorMessage ??
             'Could not sync to cloud. Please sign out and sign back in, then try again.'
@@ -745,7 +746,7 @@ export default function PredictScreen() {
       }
     } catch (e: any) {
       console.log('[PredictScreen] Save failed:', e?.message || e);
-      Alert.alert('Save Failed', 'An unexpected error occurred. Please try again.');
+      appAlert('Save Failed', 'An unexpected error occurred. Please try again.');
     }
   }, [
     nextRace,

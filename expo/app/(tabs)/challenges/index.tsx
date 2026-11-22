@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+
   Animated,
   FlatList,
   StyleSheet,
@@ -9,6 +9,7 @@ import {
   TextInput,
   View,
 } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { Stack, useFocusEffect, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import { Check, Search, Swords, X } from 'lucide-react-native';
@@ -103,7 +104,7 @@ export default function ChallengesScreen() {
   };
 
   const withdraw = (c: Challenge) => {
-    Alert.alert('Withdraw Challenge', 'Take back this pending invite?', [
+    appAlert('Withdraw Challenge', 'Take back this pending invite?', [
       { text: 'Keep', style: 'cancel' },
       {
         text: 'Withdraw',
@@ -183,23 +184,23 @@ export default function ChallengesScreen() {
     const displayName = hit.display_name?.trim() || hit.username?.trim() || 'this player';
     const res = await sendChallenge(hit.id);
     if (res.ok) {
-      Alert.alert(
+      appAlert(
         'Challenge Sent',
         `${displayName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
       );
     } else if (res.reason === 'pending') {
-      Alert.alert('Already Challenged', `Your invite to ${displayName} is still waiting.`);
+      appAlert('Already Challenged', `Your invite to ${displayName} is still waiting.`);
     } else if (res.reason === 'accepted') {
       router.push(`/challenge/${hit.id}?name=${encodeURIComponent(displayName)}` as any);
     } else if (res.reason === 'no-league') {
-      Alert.alert(
+      appAlert(
         'League Rivals Only',
         `You and ${displayName} need to share a league in this series before you can challenge them.`,
       );
     } else if (res.reason === 'guest') {
       router.push('/auth' as any);
     } else {
-      Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
+      appAlert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
     }
   };
 

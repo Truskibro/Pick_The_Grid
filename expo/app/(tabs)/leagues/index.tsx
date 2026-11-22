@@ -7,9 +7,10 @@ import {
   Animated,
   RefreshControl,
   ActivityIndicator,
-  Alert,
+
   Dimensions,
 } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -86,7 +87,7 @@ export default function LeaguesScreen() {
 
   const handleDiscover = useCallback(async () => {
     if (isGuest) {
-      Alert.alert('Account Required', 'Log in to discover public leagues.', [
+      appAlert('Account Required', 'Log in to discover public leagues.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Log In', onPress: () => router.push('/auth') },
       ]);
@@ -105,7 +106,7 @@ export default function LeaguesScreen() {
 
   const handleQuickJoin = useCallback(async (league: League) => {
     if (isGuest) {
-      Alert.alert('Account Required', 'Log in to join leagues.', [
+      appAlert('Account Required', 'Log in to join leagues.', [
         { text: 'Cancel', style: 'cancel' },
         { text: 'Log In', onPress: () => router.push('/auth') },
       ]);
@@ -115,12 +116,12 @@ export default function LeaguesScreen() {
     const success = await joinLeague(league.id, profile.id, profile.username, profile.displayName);
     setJoiningId(null);
     if (success) {
-      Alert.alert('Joined!', `You've joined "${league.name}".`);
+      appAlert('Joined!', `You've joined "${league.name}".`);
       await refreshLeagues();
       const pub = await fetchPublicLeagues();
       setPublicLeagues(pub);
     } else {
-      Alert.alert('Already Joined', "You're already a member of this league.");
+      appAlert('Already Joined', "You're already a member of this league.");
     }
   }, [isGuest, joinLeague, profile, refreshLeagues, fetchPublicLeagues, router]);
 

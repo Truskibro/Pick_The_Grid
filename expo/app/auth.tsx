@@ -5,7 +5,6 @@ import {
   StyleSheet,
   TextInput,
   ScrollView,
-  Alert,
   KeyboardAvoidingView,
   Platform,
   Animated,
@@ -13,7 +12,18 @@ import {
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
-import { Mail, Lock, User, ArrowRight, Eye, EyeOff, Check } from 'lucide-react-native';
+import {
+  Mail,
+  Lock,
+  User,
+  ArrowRight,
+  Eye,
+  EyeOff,
+  Check,
+  AlertCircle,
+  Info,
+  Flag,
+} from 'lucide-react-native';
 import * as Haptics from 'expo-haptics';
 import Colors from '@/constants/colors';
 import { COUNTRIES } from '@/constants/countries';
@@ -22,6 +32,14 @@ import AnimatedPressable from '@/components/AnimatedPressable';
 import CountryPicker from '@/components/CountryPicker';
 
 type AuthMode = 'login' | 'signup';
+
+interface Notice {
+  type: 'error' | 'info';
+  text: string;
+}
+
+const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+const NAME_REGEX = /^[\p{L}][\p{L}\s'\-]{0,31}$/u;
 
 export default function AuthScreen() {
   const router = useRouter();
@@ -35,9 +53,6 @@ export default function AuthScreen() {
   const [country, setCountry] = useState<string>('');
   const [showPassword, setShowPassword] = useState<boolean>(false);
 
-  const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
-  const NAME_REGEX = /^[\p{L}][\p{L}\s'\-]{0,31}$/u;
-
   const passwordChecks = {
     length: password.length >= 8,
     letter: /[A-Za-z]/.test(password),
@@ -45,6 +60,7 @@ export default function AuthScreen() {
   };
   const passwordStrong = passwordChecks.length && passwordChecks.letter && passwordChecks.number;
   const [loading, setLoading] = useState<boolean>(false);
+  const [notice, setNotice] = useState<Notice | null>(null);
   const fadeAnim = useRef(new Animated.Value(0)).current;
   const slideAnim = useRef(new Animated.Value(30)).current;
 
@@ -55,48 +71,68 @@ export default function AuthScreen() {
     ]).start();
   }, []);
 
+  // The combined message shown in the inline banner: provider auth errors plus
+  // page-local notices. Inline (never Alert.alert) so it is visible on web too.
+  const banner: Notice | null = notice ?? (authError ? { type: 'error', text: authError } : null);
+
+  const navigateAfterAuth = () => {
+    try {
+      if (router.canGoBack()) {
+        router.back();
+      } else {
+        // /auth was the entry route (e.g. page reload in the preview) — there
+        // is no stack to pop, so send the user into the app directly.
+        router.replace('/(tabs)' as any);
+      }
+    } catch {
+      router.replace('/(tabs)' as any);
+    }
+  };
+
   const handleSubmit = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     const trimmedFirst = firstName.trim();
     const trimmedLast = lastName.trim();
     const trimmedCountry = country.trim();
 
+    setNotice(null);
+
     if (!normalizedEmail || !password) {
-      Alert.alert('Missing Fields', 'Please enter email and password.');
+      setNotice({ type: 'error', text: 'Please enter your email and password.' });
       return;
     }
 
     if (!EMAIL_REGEX.test(normalizedEmail) || normalizedEmail.length > 254) {
-      Alert.alert('Invalid Email', 'Please enter a valid email address.');
+      setNotice({ type: 'error', text: 'Please enter a valid email address.' });
       return;
     }
 
     if (mode === 'signup') {
       if (!trimmedFirst || !trimmedLast || !trimmedCountry) {
-        Alert.alert('Missing Fields', 'Please enter your first name, last name, and country.');
+        setNotice({ type: 'error', text: 'Please enter your first name, last name, and country.' });
         return;
       }
       if (!NAME_REGEX.test(trimmedFirst) || !NAME_REGEX.test(trimmedLast)) {
-        Alert.alert(
-          'Invalid Name',
-          'Names must be 1–32 characters and only contain letters, spaces, hyphens, or apostrophes.'
-        );
+        setNotice({
+          type: 'error',
+          text: 'Names must be 1–32 characters and only contain letters, spaces, hyphens, or apostrophes.',
+        });
         return;
       }
       const isValidCountry = COUNTRIES.some(c => c.name === trimmedCountry);
       if (!isValidCountry) {
-        Alert.alert('Invalid Country', 'Please select a valid country from the list.');
+        setNotice({ type: 'error', text: 'Please select a valid country from the list.' });
         return;
       }
       if (!passwordStrong) {
-        Alert.alert(
-          'Weak Password',
-          'Password must be at least 8 characters and include both a letter and a number.'
-        );
+        setNotice({
+          type: 'error',
+          text: 'Password must be at least 8 characters and include both a letter and a number.',
+        });
         return;
       }
       if (password !== confirmPassword) {
-        Alert.alert('Passwords Do Not Match', 'Please re-enter the same password in both fields.');
+        setNotice({ type: 'error', text: 'Passwords do not match — please re-enter the same password in both fields.' });
         return;
       }
     }
@@ -116,27 +152,15 @@ export default function AuthScreen() {
     if (success) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
       if (mode === 'signup') {
-        Alert.alert(
-          'Verify Your Email',
-          `We sent a confirmation link to ${normalizedEmail}. Tap the link in that email to activate your account, then come back here to sign in.`,
-          [
-            {
-              text: 'Resend Email',
-              onPress: async () => {
-                const ok = await resendVerification(normalizedEmail);
-                Alert.alert(
-                  ok ? 'Email Sent' : 'Could Not Resend',
-                  ok
-                    ? 'A new confirmation email is on its way.'
-                    : 'Please try again in a moment.'
-                );
-              },
-            },
-            { text: 'OK', onPress: () => setMode('login') },
-          ]
-        );
+        setMode('login');
+        setPassword('');
+        setConfirmPassword('');
+        setNotice({
+          type: 'info',
+          text: `We sent a confirmation link to ${normalizedEmail}. Tap the link in that email to activate your account, then come back here and sign in.`,
+        });
       } else {
-        router.back();
+        navigateAfterAuth();
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
@@ -146,208 +170,245 @@ export default function AuthScreen() {
   const handleResend = async () => {
     const normalizedEmail = email.trim().toLowerCase();
     if (!EMAIL_REGEX.test(normalizedEmail)) {
-      Alert.alert('Enter Email', 'Type your email above and try again.');
+      setNotice({ type: 'error', text: 'Type your email above and try again.' });
       return;
     }
     const ok = await resendVerification(normalizedEmail);
-    Alert.alert(
-      ok ? 'Email Sent' : 'Could Not Resend',
+    setNotice(
       ok
-        ? `A new confirmation email is on its way to ${normalizedEmail}.`
-        : 'Please try again in a moment.'
+        ? { type: 'info', text: `A new confirmation email is on its way to ${normalizedEmail}.` }
+        : { type: 'error', text: 'Could not resend the verification email — please try again in a moment.' },
     );
   };
 
-  const switchMode = () => {
+  const switchMode = (next: AuthMode) => {
+    if (mode === next) return;
     Haptics.selectionAsync();
-    setMode(prev => prev === 'login' ? 'signup' : 'login');
+    setMode(next);
+    setNotice(null);
     setPassword('');
     setConfirmPassword('');
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.container}
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-    >
-      <ScrollView
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={false}
-        keyboardShouldPersistTaps="handled"
+    <View style={styles.screen}>
+      <LinearGradient
+        colors={[`${Colors.f1Red}26`, 'transparent']}
+        style={styles.topGlow}
+        pointerEvents="none"
+      />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
       >
-        <Animated.View style={[styles.inner, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
-          <View style={styles.header}>
-            <Text style={styles.logo}>APEX DRAFT</Text>
-            <Text style={styles.logoSub}>F1</Text>
-          </View>
-
-          <Text style={styles.title}>
-            {mode === 'login' ? 'Welcome Back' : 'Create Account'}
-          </Text>
-          <Text style={styles.subtitle}>
-            {mode === 'login'
-              ? 'Sign in to sync predictions and compete in leagues'
-              : 'Join the ultimate F1 prediction game'}
-          </Text>
-
-          {authError && (
-            <View style={styles.errorBanner}>
-              <Text style={styles.errorText}>{authError}</Text>
-              {mode === 'login' && /verify your email/i.test(authError) && (
-                <AnimatedPressable onPress={handleResend} style={styles.resendBtn}>
-                  <Text style={styles.resendText}>Resend verification email</Text>
-                </AnimatedPressable>
-              )}
+        <ScrollView
+          contentContainerStyle={styles.scrollContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          <Animated.View style={[styles.inner, { opacity: fadeAnim, transform: [{ translateY: slideAnim }] }]}>
+            <View style={styles.header}>
+              <View style={styles.flagIcon}>
+                <Flag size={16} color="#FFF" />
+              </View>
+              <Text style={styles.logo}>APEX DRAFT</Text>
+              <Text style={styles.logoSub}>F1</Text>
             </View>
-          )}
 
-          {mode === 'signup' && (
-            <>
-              <View style={styles.inputWrapper}>
-                <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={firstName}
-                  onChangeText={setFirstName}
-                  placeholder="First Name"
-                  placeholderTextColor={Colors.textMuted}
-                  autoCorrect={false}
-                  autoComplete="given-name"
-                  textContentType="givenName"
-                  maxLength={32}
-                />
-              </View>
+            {/* Segmented mode switch */}
+            <View style={styles.modeSwitch}>
+              <AnimatedPressable
+                style={[styles.modeBtn, mode === 'login' && styles.modeBtnActive]}
+                onPress={() => switchMode('login')}
+              >
+                <Text style={[styles.modeBtnText, mode === 'login' && styles.modeBtnTextActive]}>
+                  Sign In
+                </Text>
+              </AnimatedPressable>
+              <AnimatedPressable
+                style={[styles.modeBtn, mode === 'signup' && styles.modeBtnActive]}
+                onPress={() => switchMode('signup')}
+              >
+                <Text style={[styles.modeBtnText, mode === 'signup' && styles.modeBtnTextActive]}>
+                  Sign Up
+                </Text>
+              </AnimatedPressable>
+            </View>
 
-              <View style={styles.inputWrapper}>
-                <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={lastName}
-                  onChangeText={setLastName}
-                  placeholder="Last Name"
-                  placeholderTextColor={Colors.textMuted}
-                  autoCorrect={false}
-                  autoComplete="family-name"
-                  textContentType="familyName"
-                  maxLength={32}
-                />
-              </View>
-
-              <CountryPicker
-                value={country}
-                onChange={setCountry}
-                placeholder="Select Country"
-              />
-            </>
-          )}
-
-          <View style={styles.inputWrapper}>
-            <Mail size={18} color={Colors.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={email}
-              onChangeText={setEmail}
-              placeholder="Email"
-              placeholderTextColor={Colors.textMuted}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              maxLength={254}
-            />
-          </View>
-
-          <View style={styles.inputWrapper}>
-            <Lock size={18} color={Colors.textMuted} style={styles.inputIcon} />
-            <TextInput
-              style={styles.input}
-              value={password}
-              onChangeText={setPassword}
-              placeholder={mode === 'signup' ? 'Password (8+ chars, letter & number)' : 'Password'}
-              placeholderTextColor={Colors.textMuted}
-              secureTextEntry={!showPassword}
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
-              textContentType={mode === 'signup' ? 'newPassword' : 'password'}
-              maxLength={72}
-            />
-            <AnimatedPressable
-              onPress={() => setShowPassword(prev => !prev)}
-              style={styles.eyeBtn}
-            >
-              {showPassword
-                ? <EyeOff size={18} color={Colors.textMuted} />
-                : <Eye size={18} color={Colors.textMuted} />
-              }
-            </AnimatedPressable>
-          </View>
-
-          {mode === 'signup' && (
-            <>
-              <View style={styles.inputWrapper}>
-                <Lock size={18} color={Colors.textMuted} style={styles.inputIcon} />
-                <TextInput
-                  style={styles.input}
-                  value={confirmPassword}
-                  onChangeText={setConfirmPassword}
-                  placeholder="Confirm Password"
-                  placeholderTextColor={Colors.textMuted}
-                  secureTextEntry={!showPassword}
-                  autoCapitalize="none"
-                  autoCorrect={false}
-                  autoComplete="new-password"
-                  textContentType="newPassword"
-                  maxLength={72}
-                />
-              </View>
-
-              {password.length > 0 && (
-                <View style={styles.strengthBox}>
-                  <PasswordRule ok={passwordChecks.length} label="At least 8 characters" />
-                  <PasswordRule ok={passwordChecks.letter} label="Contains a letter" />
-                  <PasswordRule ok={passwordChecks.number} label="Contains a number" />
-                </View>
-              )}
-            </>
-          )}
-
-          <AnimatedPressable onPress={handleSubmit} disabled={loading} style={styles.submitBtn}>
-            <LinearGradient
-              colors={[Colors.f1Red, Colors.f1RedDark]}
-              style={styles.submitGradient}
-            >
-              {loading ? (
-                <ActivityIndicator color="#FFF" size="small" />
-              ) : (
-                <>
-                  <Text style={styles.submitText}>
-                    {mode === 'login' ? 'Sign In' : 'Create Account'}
-                  </Text>
-                  <ArrowRight size={18} color="#FFF" />
-                </>
-              )}
-            </LinearGradient>
-          </AnimatedPressable>
-
-          <AnimatedPressable onPress={switchMode} style={styles.switchBtn}>
-            <Text style={styles.switchText}>
-              {mode === 'login'
-                ? "Don't have an account? "
-                : 'Already have an account? '}
-              <Text style={styles.switchTextBold}>
-                {mode === 'login' ? 'Sign Up' : 'Sign In'}
-              </Text>
+            <Text style={styles.title}>
+              {mode === 'login' ? 'Welcome back' : 'Create your account'}
             </Text>
-          </AnimatedPressable>
+            <Text style={styles.subtitle}>
+              {mode === 'login'
+                ? 'Sign in to sync predictions and compete in leagues.'
+                : 'Join the ultimate F1 prediction game.'}
+            </Text>
 
-          <AnimatedPressable onPress={() => router.back()} style={styles.guestBtn}>
-            <Text style={styles.guestText}>Continue as Guest</Text>
-          </AnimatedPressable>
-        </Animated.View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+            {banner && (
+              <View
+                style={[
+                  styles.banner,
+                  banner.type === 'error' ? styles.bannerError : styles.bannerInfo,
+                ]}
+              >
+                {banner.type === 'error'
+                  ? <AlertCircle size={16} color={Colors.error} style={styles.bannerIcon} />
+                  : <Info size={16} color={Colors.f1Red} style={styles.bannerIcon} />}
+                <View style={styles.bannerBody}>
+                  <Text
+                    style={[
+                      styles.bannerText,
+                      banner.type === 'error' && styles.bannerTextError,
+                    ]}
+                  >
+                    {banner.text}
+                  </Text>
+                  {/verify your email/i.test(banner.text) && (
+                    <AnimatedPressable onPress={handleResend} style={styles.resendBtn}>
+                      <Text style={styles.resendText}>Resend verification email</Text>
+                    </AnimatedPressable>
+                  )}
+                </View>
+              </View>
+            )}
+
+            {mode === 'signup' && (
+              <>
+                <View style={styles.inputWrapper}>
+                  <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={firstName}
+                    onChangeText={setFirstName}
+                    placeholder="First Name"
+                    placeholderTextColor={Colors.textMuted}
+                    autoCorrect={false}
+                    autoComplete="given-name"
+                    textContentType="givenName"
+                    maxLength={32}
+                  />
+                </View>
+
+                <View style={styles.inputWrapper}>
+                  <User size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={lastName}
+                    onChangeText={setLastName}
+                    placeholder="Last Name"
+                    placeholderTextColor={Colors.textMuted}
+                    autoCorrect={false}
+                    autoComplete="family-name"
+                    textContentType="familyName"
+                    maxLength={32}
+                  />
+                </View>
+
+                <CountryPicker
+                  value={country}
+                  onChange={setCountry}
+                  placeholder="Select Country"
+                />
+              </>
+            )}
+
+            <View style={styles.inputWrapper}>
+              <Mail size={18} color={Colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={email}
+                onChangeText={setEmail}
+                placeholder="Email"
+                placeholderTextColor={Colors.textMuted}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                maxLength={254}
+              />
+            </View>
+
+            <View style={styles.inputWrapper}>
+              <Lock size={18} color={Colors.textMuted} style={styles.inputIcon} />
+              <TextInput
+                style={styles.input}
+                value={password}
+                onChangeText={setPassword}
+                placeholder={mode === 'signup' ? 'Password (8+ chars, letter & number)' : 'Password'}
+                placeholderTextColor={Colors.textMuted}
+                secureTextEntry={!showPassword}
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
+                textContentType={mode === 'signup' ? 'newPassword' : 'password'}
+                maxLength={72}
+              />
+              <AnimatedPressable
+                onPress={() => setShowPassword(prev => !prev)}
+                style={styles.eyeBtn}
+              >
+                {showPassword
+                  ? <EyeOff size={18} color={Colors.textMuted} />
+                  : <Eye size={18} color={Colors.textMuted} />
+                }
+              </AnimatedPressable>
+            </View>
+
+            {mode === 'signup' && (
+              <>
+                <View style={styles.inputWrapper}>
+                  <Lock size={18} color={Colors.textMuted} style={styles.inputIcon} />
+                  <TextInput
+                    style={styles.input}
+                    value={confirmPassword}
+                    onChangeText={setConfirmPassword}
+                    placeholder="Confirm Password"
+                    placeholderTextColor={Colors.textMuted}
+                    secureTextEntry={!showPassword}
+                    autoCapitalize="none"
+                    autoCorrect={false}
+                    autoComplete="new-password"
+                    textContentType="newPassword"
+                    maxLength={72}
+                  />
+                </View>
+
+                {password.length > 0 && (
+                  <View style={styles.strengthBox}>
+                    <PasswordRule ok={passwordChecks.length} label="At least 8 characters" />
+                    <PasswordRule ok={passwordChecks.letter} label="Contains a letter" />
+                    <PasswordRule ok={passwordChecks.number} label="Contains a number" />
+                  </View>
+                )}
+              </>
+            )}
+
+            <AnimatedPressable onPress={handleSubmit} disabled={loading} style={styles.submitBtn}>
+              <LinearGradient
+                colors={[Colors.f1Red, Colors.f1RedDark]}
+                style={styles.submitGradient}
+              >
+                {loading ? (
+                  <ActivityIndicator color="#FFF" size="small" />
+                ) : (
+                  <>
+                    <Text style={styles.submitText}>
+                      {mode === 'login' ? 'Sign In' : 'Create Account'}
+                    </Text>
+                    <ArrowRight size={18} color="#FFF" />
+                  </>
+                )}
+              </LinearGradient>
+            </AnimatedPressable>
+
+            <AnimatedPressable onPress={() => router.back()} style={styles.guestBtn}>
+              <Text style={styles.guestText}>Continue as Guest</Text>
+            </AnimatedPressable>
+          </Animated.View>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -363,9 +424,19 @@ function PasswordRule({ ok, label }: { ok: boolean; label: string }) {
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
     backgroundColor: Colors.background,
+  },
+  topGlow: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    height: 220,
+  },
+  container: {
+    flex: 1,
   },
   scrollContent: {
     flexGrow: 1,
@@ -377,25 +448,63 @@ const styles = StyleSheet.create({
   },
   header: {
     flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 6,
-    marginBottom: 8,
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  flagIcon: {
+    width: 30,
+    height: 30,
+    borderRadius: 8,
+    backgroundColor: Colors.f1Red,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   logo: {
     color: Colors.text,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900' as const,
     letterSpacing: 2,
   },
   logoSub: {
     color: Colors.f1Red,
-    fontSize: 28,
+    fontSize: 24,
     fontWeight: '900' as const,
+  },
+  modeSwitch: {
+    flexDirection: 'row',
+    backgroundColor: Colors.surface,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    padding: 4,
+    gap: 4,
+  },
+  modeBtn: {
+    flex: 1,
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderRadius: 9,
+  },
+  modeBtnActive: {
+    backgroundColor: Colors.surfaceHighlight,
+    borderWidth: 1,
+    borderColor: `${Colors.f1Red}55`,
+    paddingVertical: 9,
+  },
+  modeBtnText: {
+    color: Colors.textMuted,
+    fontSize: 14,
+    fontWeight: '700' as const,
+  },
+  modeBtnTextActive: {
+    color: Colors.f1Red,
   },
   title: {
     color: Colors.text,
     fontSize: 24,
-    fontWeight: '700' as const,
+    fontWeight: '800' as const,
+    marginTop: 4,
   },
   subtitle: {
     color: Colors.textSecondary,
@@ -403,17 +512,44 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 8,
   },
-  errorBanner: {
-    backgroundColor: 'rgba(255, 59, 59, 0.12)',
+  banner: {
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
+    flexDirection: 'row',
+    gap: 8,
+    alignItems: 'flex-start',
+  },
+  bannerError: {
+    backgroundColor: 'rgba(255, 59, 59, 0.12)',
     borderColor: 'rgba(255, 59, 59, 0.25)',
   },
-  errorText: {
-    color: Colors.error,
+  bannerInfo: {
+    backgroundColor: 'rgba(225, 6, 0, 0.08)',
+    borderColor: `${Colors.f1Red}44`,
+  },
+  bannerIcon: {
+    marginTop: 1,
+  },
+  bannerBody: {
+    flex: 1,
+  },
+  bannerText: {
     fontSize: 13,
     lineHeight: 18,
+    color: Colors.text,
+  },
+  bannerTextError: {
+    color: Colors.error,
+  },
+  resendBtn: {
+    marginTop: 8,
+    alignSelf: 'flex-start',
+  },
+  resendText: {
+    color: Colors.f1Red,
+    fontSize: 13,
+    fontWeight: '700' as const,
   },
   inputWrapper: {
     flexDirection: 'row',
@@ -453,18 +589,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700' as const,
   },
-  switchBtn: {
-    alignItems: 'center',
-    paddingVertical: 8,
-  },
-  switchText: {
-    color: Colors.textSecondary,
-    fontSize: 14,
-  },
-  switchTextBold: {
-    color: Colors.f1Red,
-    fontWeight: '700' as const,
-  },
   guestBtn: {
     alignItems: 'center',
     paddingVertical: 8,
@@ -493,13 +617,4 @@ const styles = StyleSheet.create({
   ruleDotOk: { backgroundColor: Colors.success },
   ruleText: { color: Colors.textMuted, fontSize: 12 },
   ruleTextOk: { color: Colors.text },
-  resendBtn: {
-    marginTop: 8,
-    alignSelf: 'flex-start',
-  },
-  resendText: {
-    color: Colors.f1Red,
-    fontSize: 13,
-    fontWeight: '700' as const,
-  },
 });

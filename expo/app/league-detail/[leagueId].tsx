@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
+
   Animated,
   FlatList,
   Share,
@@ -9,6 +9,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { Stack, useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
@@ -52,18 +53,18 @@ export default function LeagueDetailScreen() {
     }
     void sendChallenge(rivalId).then((res) => {
       if (res.ok) {
-        Alert.alert(
+        appAlert(
           'Challenge Sent',
           `${rivalName} can accept it from their Challenges tab. Once they do, the head-to-head battle opens up.`,
         );
       } else if (res.reason === 'pending') {
-        Alert.alert('Already Challenged', `Your invite to ${rivalName} is still waiting.`);
+        appAlert('Already Challenged', `Your invite to ${rivalName} is still waiting.`);
       } else if (res.reason === 'accepted') {
         router.push(`/challenge/${rivalId}?name=${encodeURIComponent(rivalName)}` as any);
       } else if (res.reason === 'no-league') {
-        Alert.alert('League Rivals Only', 'You can only challenge players who share a league with you.');
+        appAlert('League Rivals Only', 'You can only challenge players who share a league with you.');
       } else {
-        Alert.alert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
+        appAlert('Something Went Wrong', 'Could not send the challenge. Try again in a moment.');
       }
     });
   };
@@ -161,7 +162,7 @@ export default function LeagueDetailScreen() {
 
   const handleCopyCode = () => {
     void Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    Alert.alert('Join Code', `Share this code with friends:\n\n${league.joinCode}`);
+    appAlert('Join Code', `Share this code with friends:\n\n${league.joinCode}`);
   };
 
   const handleShare = async () => {
@@ -175,7 +176,7 @@ export default function LeagueDetailScreen() {
   };
 
   const handleDelete = () => {
-    Alert.alert(
+    appAlert(
       'Delete League',
       `Are you sure you want to delete "${league.name}"? This cannot be undone.`,
       [

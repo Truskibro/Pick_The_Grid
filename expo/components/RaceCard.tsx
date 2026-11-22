@@ -1,5 +1,6 @@
 import React, { useCallback } from 'react';
-import { View, Text, StyleSheet, Linking, Platform, Alert } from 'react-native';
+import { View, Text, StyleSheet, Linking, Platform, } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { MapPin, Clock, Trophy, Zap, PlayCircle, Flame, CheckCircle, AlertTriangle } from 'lucide-react-native';
 import Colors from '@/constants/colors';
 import { getSeriesConfig } from '@/constants/series';
@@ -71,7 +72,7 @@ export default React.memo(function RaceCard({ race, onPress, showStatus = true, 
       if (supported) {
         await Linking.openURL(url);
       } else {
-        Alert.alert('Unable to open', 'Could not open F1 TV link.');
+        appAlert('Unable to open', 'Could not open F1 TV link.');
       }
     } catch (e) {
       console.log('[RaceCard] open live link failed', e);

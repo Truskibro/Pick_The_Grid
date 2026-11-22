@@ -10,13 +10,14 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Alert,
+
   Animated,
   Modal,
   Pressable,
   TextInput,
   Platform,
 } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { LinearGradient } from 'expo-linear-gradient';
 import {
   useFocusEffect,
@@ -505,7 +506,7 @@ export default function PredictRaceScreen() {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning,
           );
-          Alert.alert(
+          appAlert(
             'Race Grid Full',
             `Remove a ${seriesLabels.competitorLower} from your race grid first.`,
           );
@@ -539,7 +540,7 @@ export default function PredictRaceScreen() {
           void Haptics.notificationAsync(
             Haptics.NotificationFeedbackType.Warning,
           );
-          Alert.alert(
+          appAlert(
             'Sprint Grid Full',
             `Remove a ${seriesLabels.competitorLower} from your sprint grid first.`,
           );
@@ -641,7 +642,7 @@ export default function PredictRaceScreen() {
   const clearRace = useCallback(() => {
     if (locked) return;
 
-    Alert.alert('Clear Race Picks', 'Remove all race picks?', [
+    appAlert('Clear Race Picks', 'Remove all race picks?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -662,7 +663,7 @@ export default function PredictRaceScreen() {
   const clearSprint = useCallback(() => {
     if (sprintLocked) return;
 
-    Alert.alert('Clear Sprint Picks', 'Remove all sprint picks?', [
+    appAlert('Clear Sprint Picks', 'Remove all sprint picks?', [
       { text: 'Cancel', style: 'cancel' },
       {
         text: 'Clear',
@@ -694,7 +695,7 @@ export default function PredictRaceScreen() {
 
   const handleSave = useCallback(async () => {
     if (!race) {
-      Alert.alert('Error', 'Race data is not available.');
+      appAlert('Error', 'Race data is not available.');
       return;
     }
 
@@ -709,7 +710,7 @@ export default function PredictRaceScreen() {
     // Race picks required only if race picks are still editable.
     if (!locked && finalTop10.length !== raceTopN) {
       setActiveTab('race');
-      Alert.alert(
+      appAlert(
         'Cannot Save',
         `Please select exactly ${raceTopN} race ${seriesLabels.competitorsLower}. You currently have ${finalTop10.length}.`,
       );
@@ -723,7 +724,7 @@ export default function PredictRaceScreen() {
       finalSprintTop8.length !== sprintTopN
     ) {
       setActiveTab('sprint');
-      Alert.alert(
+      appAlert(
         'Cannot Save',
         `Please select exactly ${sprintTopN} sprint ${seriesLabels.competitorsLower}. You currently have ${finalSprintTop8.length}.`,
       );
@@ -732,7 +733,7 @@ export default function PredictRaceScreen() {
 
     // If both race and sprint are locked, nothing left to save.
     if (locked && sprintLocked) {
-      Alert.alert(
+      appAlert(
         'Predictions Locked',
         'Both race and sprint picks are locked.',
       );
@@ -775,17 +776,17 @@ export default function PredictRaceScreen() {
       setSaved(true);
 
       if (result.synced) {
-        Alert.alert(
+        appAlert(
           'Prediction Saved!',
           'Your prediction has been saved and synced to the cloud.',
         );
       } else if (isGuest) {
-        Alert.alert(
+        appAlert(
           'Prediction Saved!',
           'Saved on this device. Set up your profile to sync to cloud.',
         );
       } else {
-        Alert.alert(
+        appAlert(
           'Prediction Saved Locally',
           result.errorMessage ??
             'Could not sync to cloud. Please sign out and sign back in, then try again.',
@@ -793,7 +794,7 @@ export default function PredictRaceScreen() {
       }
     } catch (e: any) {
       console.log('[PredictRaceScreen] Save failed:', e?.message || e);
-      Alert.alert(
+      appAlert(
         'Save Failed',
         'An unexpected error occurred. Please try again.',
       );

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   KeyboardAvoidingView,
   Linking,
   Modal,
@@ -38,6 +37,7 @@ import * as Haptics from 'expo-haptics';
 import * as Notifications from 'expo-notifications';
 
 import AnimatedPressable from '@/components/AnimatedPressable';
+import { appAlert } from '@/lib/confirm';
 import CountryPicker from '@/components/CountryPicker';
 import Colors from '@/constants/colors';
 import { COUNTRIES } from '@/constants/countries';
@@ -111,7 +111,7 @@ export default function SettingsScreen() {
 
   const sendTestNotification = async () => {
     if (Platform.OS === 'web') {
-      Alert.alert('Not Available', 'Notifications only work on the mobile app.');
+      appAlert('Not Available', 'Notifications only work on the mobile app.');
       return;
     }
 
@@ -123,7 +123,7 @@ export default function SettingsScreen() {
         const { status: asked } = await Notifications.requestPermissionsAsync();
         setPermissionStatus(asked === 'granted' ? 'granted' : 'denied');
         if (asked !== 'granted') {
-          Alert.alert(
+      appAlert(
             'Permission Needed',
             'Enable notifications for this app in your phone\u2019s Settings to receive race reminders.',
           );
@@ -143,7 +143,7 @@ export default function SettingsScreen() {
       });
     } catch (e) {
       console.log('[Settings] Test notification failed:', e);
-      Alert.alert('Failed', 'Could not send the test notification on this device.');
+      appAlert('Failed', 'Could not send the test notification on this device.');
     }
   };
 
@@ -239,7 +239,7 @@ export default function SettingsScreen() {
     if (saving) return;
 
     if (isEditorDirty()) {
-      Alert.alert('Discard changes?', 'Your edits haven\u2019t been saved yet.', [
+      appAlert('Discard changes?', 'Your edits haven\u2019t been saved yet.', [
         { text: 'Keep Editing', style: 'cancel' },
         { text: 'Discard', style: 'destructive', onPress: () => setEditorOpen(false) },
       ]);
@@ -249,17 +249,18 @@ export default function SettingsScreen() {
     setEditorOpen(false);
   };
 
-  const handleSignOut = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
-      { text: 'Cancel', style: 'cancel' },
-      {
-        text: 'Sign Out',
-        style: 'destructive',
-        onPress: async () => {
-          await signOut();
-        },
-      },
-    ]);
+  const [signOutArmed, setSignOutArmed] = useState(false);
+
+  const handleSignOut = async () => {
+    // Two-tap confirmation instead of Alert.alert — Alert.alert is a silent
+    // no-op on web, which made the sign out button look dead in the preview.
+    if (!signOutArmed) {
+      setSignOutArmed(true);
+      setTimeout(() => setSignOutArmed(false), 4000);
+      return;
+    }
+    setSignOutArmed(false);
+    await signOut();
   };
 
   return (
@@ -656,9 +657,20 @@ export default function SettingsScreen() {
       </View>
 
       {!isGuest && (
-        <AnimatedPressable style={styles.signOutBtn} onPress={handleSignOut}>
+        <AnimatedPressable
+          style={[
+            styles.signOutBtn,
+            signOutArmed && {
+              backgroundColor: 'rgba(255, 59, 59, 0.18)',
+              borderColor: Colors.error,
+            },
+          ]}
+          onPress={handleSignOut}
+        >
           <LogOut size={18} color={Colors.error} />
-          <Text style={styles.signOutText}>Sign Out</Text>
+          <Text style={[styles.signOutText, signOutArmed && { fontWeight: '800' as const }]}>
+            {signOutArmed ? 'Tap Again to Confirm Sign Out' : 'Sign Out'}
+          </Text>
         </AnimatedPressable>
       )}
 

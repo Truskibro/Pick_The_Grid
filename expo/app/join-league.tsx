@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
-import { View, Text, StyleSheet, TextInput, Alert, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, TextInput, ScrollView } from 'react-native';
+import { appAlert } from '@/lib/confirm';
 import { useRouter } from 'expo-router';
 import { Search } from 'lucide-react-native';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -17,14 +18,14 @@ export default function JoinLeagueScreen() {
 
   const handleJoin = async () => {
     if (!code.trim()) {
-      Alert.alert('Error', 'Please enter a join code.');
+      appAlert('Error', 'Please enter a join code.');
       return;
     }
 
     const league = await findLeagueByCode(code.trim());
     if (!league) {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      Alert.alert('Not Found', 'No league found with that join code. Check and try again.');
+      appAlert('Not Found', 'No league found with that join code. Check and try again.');
       return;
     }
 
@@ -36,12 +37,12 @@ export default function JoinLeagueScreen() {
     );
 
     if (!success) {
-      Alert.alert('Already Joined', "You're already a member of this league.");
+      appAlert('Already Joined', "You're already a member of this league.");
       return;
     }
 
     Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
-    Alert.alert('Joined!', `You've joined "${league.name}".`, [
+    appAlert('Joined!', `You've joined "${league.name}".`, [
       { text: 'View League', onPress: () => { router.back(); router.push(`/league-detail/${league.id}` as any); } },
       { text: 'Done', onPress: () => router.back() },
     ]);
