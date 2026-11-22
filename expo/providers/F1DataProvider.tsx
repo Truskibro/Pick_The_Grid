@@ -1,4 +1,4 @@
-import { useEffect, useCallback, useMemo, useState } from 'react';
+import { useEffect, useCallback, useMemo, useState, useRef } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import createContextHook from '@nkzw/create-context-hook';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
@@ -20,6 +20,8 @@ import {
 import { useUser } from '@/providers/UserProvider';
 
 const POLL_INTERVAL = 60_000;
+/** How often the background live-standings refresh may run (keeps championship points fresh without blocking startup). */
+const LIVE_STANDINGS_REFRESH_MS = 30 * 60_000;
 
 /** No cancelled races in the 2026 season. */
 const CANCELLED_RACE_IDS = new Set<string>([]);
@@ -74,18 +76,11 @@ async function fetchTeams(): Promise<Team[]> {
   }
 }
 
+// Drivers load from Supabase first (fast, curated). The live standings API
+// is slow and rate-limited, so it is never allowed to block startup: it is
+// used only as a fallback when Supabase has no drivers, and as a throttled
+// background refresh (see the effect in the provider below).
 async function fetchDrivers(): Promise<Driver[]> {
-  try {
-    const liveStandings = await fetchLiveDriverStandings();
-    if (liveStandings && liveStandings.length > 0) {
-      console.log('Drivers: loaded live standings from F1 API');
-      return liveStandings;
-    }
-    console.log('Drivers: live standings returned null/empty, trying fallback');
-  } catch (e: any) {
-    console.log('Live standings fetch failed, trying Supabase:', e?.message || e);
-  }
-
   if (!isSupabaseConfigured) {
     console.log('Drivers: Supabase not configured, using fallback data');
     return FALLBACK_DRIVERS;
@@ -98,8 +93,8 @@ async function fetchDrivers(): Promise<Driver[]> {
       .order('championship_points', { ascending: false });
 
     if (error || !data || data.length === 0) {
-      console.log('Drivers: using fallback data', error?.message);
-      return FALLBACK_DRIVERS;
+      console.log('Drivers: Supabase empty/error', error?.message, '— trying live standings API');
+      return fetchDriversFromLiveApi();
     }
 
     console.log('Drivers: loaded', data.length, 'from Supabase');
@@ -112,9 +107,28 @@ async function fetchDrivers(): Promise<Driver[]> {
       championshipPoints: d.championship_points || 0,
     }));
   } catch (e) {
-    console.log('Drivers fetch error, using fallback:', e);
-    return FALLBACK_DRIVERS;
+    console.log('Drivers fetch error, trying live standings API:', e);
+    return fetchDriversFromLiveApi();
   }
+}
+
+/**
+ * Fallback only: when Supabase has no drivers at all, try the live
+ * standings API (jolpica, then f1api.dev). This can take up to ~16s if the
+ * APIs are slow, which is why it runs only when there is nothing to show.
+ */
+async function fetchDriversFromLiveApi(): Promise<Driver[]> {
+  try {
+    const liveStandings = await fetchLiveDriverStandings();
+    if (liveStandings && liveStandings.length > 0) {
+      console.log('Drivers: loaded live standings from F1 API');
+      return liveStandings;
+    }
+    console.log('Drivers: live standings returned null/empty, using fallback');
+  } catch (e: any) {
+    console.log('Live standings fetch failed, using fallback:', e?.message || e);
+  }
+  return FALLBACK_DRIVERS;
 }
 
 async function fetchRaces(): Promise<Race[]> {
@@ -163,16 +177,6 @@ async function fetchRaces(): Promise<Race[]> {
     return updateRaceStatuses(FALLBACK_RACES);
   }
 }
-
-/**
- * Race IDs that have verified mock data available as a fallback.
- * Used only when the live API returns no results for these races.
- */
-const FALLBACK_RACE_IDS_SET = new Set([
-  'r01','r02','r03','r04','r05','r06','r07','r08','r09',
-  'r10','r11','r12','r13','r14','r15','r16','r17','r18',
-  'r19','r20','r21','r22',
-]);
 
 /**
  * Build the payload for a race_results upsert from a RaceResult.
@@ -258,26 +262,45 @@ async function fetchRaceResults(): Promise<RaceResult[]> {
     }
   }
 
-  // 2. Live API — secondary source, fills any gaps.
-  //    Any results fetched here that aren't in Supabase yet are written back
-  //    so the server-side scoring trigger fires automatically.
-  try {
-    const live = await fetchLiveRaceResults();
-    if (live && live.length > 0) {
-      const newLive = live.filter(r => !coveredRaceIds.has(r.raceId));
-      if (newLive.length > 0) {
-        for (const r of newLive) {
-          coveredRaceIds.add(r.raceId);
-        }
-        results.push(...newLive);
-        console.log('Race results: adding', newLive.length, 'from live API:', newLive.map(r => r.raceId).join(', '));
+  // 2. Live API — secondary source, fills any gaps — but only when there
+  //    ARE gaps. Supabase normally covers every completed race, so skipping
+  //    the slow, rate-limited live fetch on those launches removes seconds
+  //    of startup latency. Any results fetched here that aren't in Supabase
+  //    yet are written back so the server-side scoring trigger fires.
+  const today = new Date().toISOString().split('T')[0];
+  const expectedCompleted = FALLBACK_RACES.filter(
+    (r) => r.raceDate <= today && r.status !== 'cancelled',
+  );
+  const missingExpected = expectedCompleted.filter((r) => !coveredRaceIds.has(r.id));
 
-        // Write back to Supabase so the scoring trigger fires.
-        void syncLiveResultsToSupabase(newLive);
+  if (missingExpected.length === 0) {
+    console.log('Race results: Supabase covers all completed races — skipping live API');
+  } else {
+    console.log(
+      'Race results: missing', missingExpected.length, 'completed race(s):',
+      missingExpected.map((r) => r.id).join(', '), '— trying live API',
+    );
+  }
+
+  if (missingExpected.length > 0) {
+    try {
+      const live = await fetchLiveRaceResults();
+      if (live && live.length > 0) {
+        const newLive = live.filter(r => !coveredRaceIds.has(r.raceId));
+        if (newLive.length > 0) {
+          for (const r of newLive) {
+            coveredRaceIds.add(r.raceId);
+          }
+          results.push(...newLive);
+          console.log('Race results: adding', newLive.length, 'from live API:', newLive.map(r => r.raceId).join(', '));
+
+          // Write back to Supabase so the scoring trigger fires.
+          void syncLiveResultsToSupabase(newLive);
+        }
       }
+    } catch (e) {
+      console.log('Race results: live API failed:', e);
     }
-  } catch (e) {
-    console.log('Race results: live API failed:', e);
   }
 
   // 3. Mock data — last resort fallback.
@@ -387,6 +410,27 @@ export const [F1DataProvider, useF1Data] = createContextHook(() => {
   const drivers = useMemo(() => driversQuery.data ?? FALLBACK_DRIVERS, [driversQuery.data]);
   const races = useMemo(() => racesQuery.data ?? updateRaceStatuses(FALLBACK_RACES), [racesQuery.data]);
   const raceResults = useMemo(() => resultsQuery.data ?? FALLBACK_RESULTS, [resultsQuery.data]);
+
+  // Background standings refresh: drivers now load instantly from Supabase,
+  // so keep the championship points (used for pick-list ordering) fresh by
+  // refetching the live standings out-of-band and updating the cache when
+  // they arrive. Never blocks the UI; throttled so remounts stay cheap.
+  const lastLiveStandingsFetchRef = useRef(0);
+  useEffect(() => {
+    if (!isSupabaseConfigured) return;
+    const nowMs = Date.now();
+    if (nowMs - lastLiveStandingsFetchRef.current < LIVE_STANDINGS_REFRESH_MS) return;
+    lastLiveStandingsFetchRef.current = nowMs;
+    let cancelled = false;
+    void fetchLiveDriverStandings().then((live) => {
+      if (cancelled || !live || live.length === 0) return;
+      queryClient.setQueryData<Driver[]>(['f1-drivers'], live);
+      console.log('Drivers: background live standings refresh applied');
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [queryClient]);
 
   // Register for push notifications on first load.
   useEffect(() => {
