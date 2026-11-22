@@ -1094,7 +1094,13 @@ export const [GameProvider, useGame] = createContextHook(() => {
         mapLeagueRow(row as LeagueRow, counts.get(row.id) ?? 0),
       );
 
-      setLeagues(nextLeagues);
+      // Identity guard: the leaderboards screen re-runs its focus effect
+      // whenever the leagues state identity changes, so always setting a
+      // fresh array here would create an infinite refetch loop. Only update
+      // when the data actually changed.
+      setLeagues((prev) =>
+        JSON.stringify(prev) === JSON.stringify(nextLeagues) ? prev : nextLeagues,
+      );
       await AsyncStorage.setItem(STORAGE_KEYS.leagues, JSON.stringify(nextLeagues));
 
       // Warm member caches for the user's own leagues so the leagues list +
@@ -1333,6 +1339,12 @@ export const [GameProvider, useGame] = createContextHook(() => {
         } as LeagueMember;
       });
 
+      // Same identity guard as setLeagues above: skip the state update when
+      // this league's members are unchanged, so focus effects depending on
+      // fetchLeagueMembers/leagueMembers don't refetch in a loop.
+      if (JSON.stringify(leagueMembers[leagueId]) === JSON.stringify(members)) {
+        return leagueMembers[leagueId] ?? members;
+      }
       const updatedMembers = { ...leagueMembers, [leagueId]: members };
       setLeagueMembers(updatedMembers);
       await AsyncStorage.setItem(STORAGE_KEYS.leagueMembers, JSON.stringify(updatedMembers));

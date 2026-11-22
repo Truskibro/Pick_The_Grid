@@ -445,6 +445,15 @@ export default function ChallengesScreen() {
           onRefresh={() => void refresh()}
           ListHeaderComponent={
             <View>
+              <View style={styles.pageHeader}>
+                <View style={styles.pageHeaderRow}>
+                  <Swords size={22} color={seriesColors.primary} />
+                  <Text style={styles.pageHeaderTitle}>Challenges</Text>
+                </View>
+                <Text style={styles.pageHeaderSubtitle}>
+                  Head-to-head battles against your league rivals.
+                </Text>
+              </View>
               {searchBar}
               {!hasAnything && query.trim().length === 0 && (
                 <View style={styles.emptyHint}>
@@ -479,8 +488,33 @@ const styles = StyleSheet.create({
 
   listContent: {
     paddingHorizontal: 16,
-    paddingTop: 8,
+    paddingTop: 12,
     paddingBottom: 40,
+  },
+
+  pageHeader: {
+    marginTop: 14,
+    marginBottom: 16,
+    gap: 6,
+  },
+
+  pageHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+
+  pageHeaderTitle: {
+    color: Colors.text,
+    fontSize: 26,
+    fontWeight: '800' as const,
+    letterSpacing: -0.5,
+  },
+
+  pageHeaderSubtitle: {
+    color: Colors.textSecondary,
+    fontSize: 13,
+    fontWeight: '600' as const,
   },
 
   sectionHeader: {
