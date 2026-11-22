@@ -1,4 +1,4 @@
-import { createClient, SupabaseClient } from '@supabase/supabase-js';
+import { createClient, SupabaseClient, processLock } from '@supabase/supabase-js';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 
@@ -94,6 +94,13 @@ function createSupabaseClient(): SupabaseClient {
         autoRefreshToken: true,
         persistSession: true,
         detectSessionInUrl: Platform.OS === 'web',
+        // Use an in-process lock instead of the web default (navigator.locks).
+        // The LockManager default throws 'Acquiring an exclusive Navigator
+        // LockManager lock ... timed out waiting 10000ms' whenever another auth
+        // operation (e.g. a token refresh waiting on a slow network call) holds
+        // the lock for >10s. processLock serializes auth ops in-process with no
+        // hard timeout, which is what a single-context app needs.
+        lock: processLock,
       },
     });
   }
