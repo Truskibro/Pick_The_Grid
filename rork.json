@@ -1,13 +1,5 @@
 {
   "$schema": "https://rork.com/schema/rork.json",
-  "crons": [
-    {
-      "name": "sync-race-results",
-      "schedule": "*/15 * * * *",
-      "target": "https://0gh0lza74yba9xaelm3uk-results-worker.rork.live/cron/sync-results",
-      "payload": { "series": "all" }
-    }
-  ],
   "apps": [
     {
       "name": "Expo",
@@ -25,6 +17,24 @@
       "framework": "web",
       "settings": {
         "kind": "server-only"
+      }
+    },
+    {
+      "name": "Pick The Grid iOS",
+      "path": "ios-pick-the-grid-ios",
+      "framework": "swift",
+      "settings": {
+        "swiftSibling": false
+      }
+    }
+  ],
+  "crons": [
+    {
+      "name": "sync-race-results",
+      "schedule": "*/15 * * * *",
+      "target": "https://0gh0lza74yba9xaelm3uk-results-worker.rork.live/cron/sync-results",
+      "payload": {
+        "series": "all"
       }
     }
   ]
