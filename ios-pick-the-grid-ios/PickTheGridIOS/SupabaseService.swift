@@ -36,25 +36,21 @@ struct StoredSession: Codable {
 final class SupabaseService {
     static let shared = SupabaseService()
 
-    // Same public (anon) values the Expo client ships inside its bundle.
+    // The same public (anon) values the Expo client hardcodes in
+    // expo/lib/supabase.ts. Like Expo, we deliberately ignore the injected
+    // EXPO_PUBLIC_SUPABASE_* envs: the managed values point at a gateway
+    // that does not serve /auth/v1, which caused 404s on sign-in.
+    private static let requiredURLString = "https://fxwgbpassouaddakgyus.supabase.co"
+    private static let requiredAnonKey = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4d2dicGFzc291YWRkYWtneXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE5MDQ0NDAsImV4cCI6MjA4NzQ4MDQ0MH0.OLiqosY-xSUAs1o3oPyAx9OFN97ldqxLWeZbbJmxgN8"
+
     let url: URL
     let anonKey: String
 
     private(set) var session: StoredSession?
 
-    private let keychainAccount = "supabase-session"
-
     init() {
-        // Config.EXPO_PUBLIC_* values are injected at iOS build time; the
-        // literals are the known public fallbacks if injection is absent.
-        let urlString = Config.EXPO_PUBLIC_SUPABASE_URL.isEmpty
-            ? "https://fxwgbpassouaddakgyus.supabase.co"
-            : Config.EXPO_PUBLIC_SUPABASE_URL
-        let key = Config.EXPO_PUBLIC_SUPABASE_ANON_KEY.isEmpty
-            ? "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImZ4d2dicGFzc291YWRkYWtneXVzIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NTQxMzc5NDYsImV4cCI6MjA2OTcxNTk0Nn0.n7NNBkr6QXEuYB4VV3IJ_6q_2MTz1DPxJI1vEZGFdY8"
-            : Config.EXPO_PUBLIC_SUPABASE_ANON_KEY
-        url = URL(string: urlString)!
-        anonKey = key
+        url = URL(string: Self.requiredURLString)!
+        anonKey = Self.requiredAnonKey
         session = Self.loadSessionFromKeychain()
     }
 
@@ -138,7 +134,7 @@ final class SupabaseService {
     }
 
     func signOut() async {
-        if let session {
+        if session != nil {
             let request = makeRequest("auth/v1/logout", method: "POST", body: Data("{}".utf8), auth: true)
             _ = try? await URLSession.shared.data(for: request)
         }

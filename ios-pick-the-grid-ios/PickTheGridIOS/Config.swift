@@ -11,13 +11,5 @@
 import Foundation
 
 enum Config {
-    nonisolated static let EXPO_PUBLIC_ = ""
-    nonisolated static let EXPO_PUBLIC_SUPABASE_ANON_KEY = ""
-    nonisolated static let EXPO_PUBLIC_SUPABASE_URL = ""
-
-    nonisolated static let allValues: [String: String] = [
-        "EXPO_PUBLIC_": EXPO_PUBLIC_,
-        "EXPO_PUBLIC_SUPABASE_ANON_KEY": EXPO_PUBLIC_SUPABASE_ANON_KEY,
-        "EXPO_PUBLIC_SUPABASE_URL": EXPO_PUBLIC_SUPABASE_URL,
-    ]
+    nonisolated static let allValues: [String: String] = [:]
 }
