@@ -151,6 +151,27 @@ final class AppStore {
         }
     }
 
+    /// Saves the editable profile fields (mirrors expo/app/settings.tsx's editor).
+    func updateProfile(username: String, displayName: String, firstName: String, lastName: String, country: String) async throws {
+        guard let userId = user?.id else { throw SupabaseError.notSignedIn }
+        let body: [String: Any] = [
+            "username": username,
+            "display_name": displayName,
+            "first_name": firstName,
+            "last_name": lastName,
+            "country": country,
+        ]
+        do {
+            try await supabase.update("profiles", query: ["id": "eq.\(userId)"], body: body)
+        } catch let error as SupabaseError {
+            if case .http(let code, let message) = error, code == 409 || message.contains("duplicate key") {
+                throw SupabaseError.http(409, "That username is already taken.")
+            }
+            throw error
+        }
+        await loadProfile()
+    }
+
     var displayUsername: String {
         if let username = profile?.username { return username }
         if let email = user?.email {
