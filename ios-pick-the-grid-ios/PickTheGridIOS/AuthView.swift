@@ -216,11 +216,14 @@ struct AuthView: View {
             errorText = "Enter a valid email address."
             return
         }
-        guard password.count >= 6 else {
-            errorText = "Password must be at least 6 characters."
-            return
-        }
+        // No client-side password-length gate on sign-in: any existing
+        // account must be able to reach the server regardless of its
+        // password length. The server is the authority.
         if mode == .signUp {
+            guard password.count >= 6 else {
+                errorText = "Password must be at least 6 characters."
+                return
+            }
             guard !trimmedFirst.isEmpty, !trimmedLast.isEmpty else {
                 errorText = "Enter your first and last name."
                 return
