@@ -32,29 +32,23 @@ struct PredictView: View {
     var body: some View {
         content
             .onAppear(perform: setup)
-            .sheet(item: Binding(
-                get: { pickingSlot.map { PickerTarget.grid($0) } },
-                set: { pickingSlot = ($0?.gridSlot) }
-            )) { target in
+            .sheet(item: gridPickerBinding) { target in
                 DriverPickerSheet(
                     store: store,
-                    title: "Pick P\(target.gridSlot + 1)",
-                    exclude: pickedIds(excluding: target.gridSlot)
+                    title: gridPickerTitle(target),
+                    exclude: pickedIds(excluding: target.slot)
                 ) { driverId in
-                    topN[target.gridSlot] = driverId
+                    topN[target.slot] = driverId
                     pickingSlot = nil
                 }
             }
-            .sheet(item: Binding(
-                get: { pickingSprintSlot.map { PickerTarget.sprint($0) } },
-                set: { pickingSprintSlot = ($0?.sprintSlot) }
-            )) { target in
+            .sheet(item: sprintPickerBinding) { target in
                 DriverPickerSheet(
                     store: store,
-                    title: "Sprint P\(target.sprintSlot + 1)",
-                    exclude: sprintPickedIds(excluding: target.sprintSlot)
+                    title: sprintPickerTitle(target),
+                    exclude: sprintPickedIds(excluding: target.slot)
                 ) { driverId in
-                    sprintTopN[target.sprintSlot] = driverId
+                    sprintTopN[target.slot] = driverId
                     pickingSprintSlot = nil
                 }
             }
@@ -116,6 +110,28 @@ struct PredictView: View {
                 .navigationTitle("Predict")
             }
         }
+    }
+
+    private var gridPickerBinding: Binding<PickerTarget?> {
+        Binding(
+            get: { pickingSlot.flatMap { PickerTarget(kind: .grid, slot: $0) } },
+            set: { _ in }
+        )
+    }
+
+    private var sprintPickerBinding: Binding<PickerTarget?> {
+        Binding(
+            get: { pickingSprintSlot.flatMap { PickerTarget(kind: .sprint, slot: $0) } },
+            set: { _ in }
+        )
+    }
+
+    private func gridPickerTitle(_ target: PickerTarget) -> String {
+        "Pick P" + String(target.slot + 1)
+    }
+
+    private func sprintPickerTitle(_ target: PickerTarget) -> String {
+        "Sprint P" + String(target.slot + 1)
     }
 
     private func setup() {
@@ -362,9 +378,9 @@ struct PredictView: View {
             .frame(maxWidth: .infinity, alignment: .leading)
             .padding(14)
             .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                     .strokeBorder(theme.border, lineWidth: 1)
             )
     }
@@ -388,7 +404,7 @@ struct PredictView: View {
 // MARK: - Picker targets
 
 private struct PickerTarget: Identifiable {
-    enum Kind { case grid, sprint }
+    enum Kind: String { case grid, sprint }
     let kind: Kind
     let slot: Int
     var id: String { "\(kind.rawValue)-\(slot)" }

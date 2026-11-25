@@ -62,7 +62,7 @@ final class SupabaseService {
 
     // MARK: - Headers / request building
 
-    private func makeRequest(path: String, method: String, body: Data?, auth: Bool, query: [URLQueryItem] = []) -> URLRequest {
+    private func makeRequest(_ path: String, method: String, body: Data?, auth: Bool, query: [URLQueryItem] = []) -> URLRequest {
         var components = URLComponents(url: url.appendingPathComponent(path), resolvingAgainstBaseURL: false)!
         if !query.isEmpty { components.queryItems = query }
         var request = URLRequest(url: components.url!)
@@ -224,7 +224,7 @@ final class SupabaseService {
 
     // MARK: - PostgREST
 
-    func select<T: Decodable>(_ table: String, query: [String: String] = [], limit: Int? = nil) async throws -> [T] {
+    func select<T: Decodable>(_ table: String, query: [String: String] = [String: String](), limit: Int? = nil) async throws -> [T] {
         var items = query.map { URLQueryItem(name: $0.key, value: $0.value) }
         if let limit { items.append(URLQueryItem(name: "limit", value: String(limit))) }
         let request = makeRequest("rest/v1/\(table)", method: "GET", body: nil, auth: true, query: items)
@@ -248,6 +248,12 @@ final class SupabaseService {
         if let onConflict { query.append(URLQueryItem(name: "on_conflict", value: onConflict)) }
         var request = makeRequest("rest/v1/\(table)", method: "POST", body: try JSONSerialization.data(withJSONObject: body), auth: true, query: query)
         request.setValue("return=minimal,resolution=merge-duplicates", forHTTPHeaderField: "Prefer")
+        _ = try await run(request)
+    }
+
+    func insertRaw(_ table: String, body: [String: Any]) async throws {
+        var request = makeRequest("rest/v1/\(table)", method: "POST", body: try JSONSerialization.data(withJSONObject: body), auth: true)
+        request.setValue("return=minimal", forHTTPHeaderField: "Prefer")
         _ = try await run(request)
     }
 

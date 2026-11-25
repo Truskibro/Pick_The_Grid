@@ -26,10 +26,10 @@ const swDriver = (d: any) =>
   `  Driver(id: ${swStr(d.id)}, name: ${swStr(d.name)}, shortName: ${swStr(d.shortName)}, number: ${d.number ?? 0}, teamId: ${swStr(d.teamId)}, championshipPoints: ${d.championshipPoints ?? 0})`;
 
 const swRace = (r: any) =>
-  `  Race(id: ${swStr(r.id)}, round: ${r.round ?? 0}, name: ${swStr(r.name)}, location: ${swStr(r.location)}, country: ${swStr(r.country)}, countryFlag: ${swStr(r.countryFlag)}, raceDate: ${swStr(r.raceDate)}, raceTime: ${swStr(r.raceTime)}, status: ${swStr(r.status ?? "upcoming")}!, hasSprint: ${!!r.hasSprint}, sprintDate: ${swStr(r.sprintDate)}, sprintTime: ${swStr(r.sprintTime)}, winner: ${swStr(r.winner)}, currentLap: ${r.currentLap ?? "nil"}, totalLaps: ${r.totalLaps ?? "nil"}, seriesId: ${swStr(r.seriesId ?? "f1")})`;
+  `  Race(id: ${swStr(r.id)}, round: ${r.round ?? 0}, name: ${swStr(r.name)}, location: ${swStr(r.location)}, country: ${swStr(r.country)}, countryFlag: ${swStr(r.countryFlag)}, raceDate: ${swStr(r.raceDate)}, raceTime: ${swStr(r.raceTime)}, status: ${swStr(r.status ?? "upcoming")}, hasSprint: ${!!r.hasSprint}, sprintDate: ${swStr(r.sprintDate)}, sprintTime: ${swStr(r.sprintTime)}, winner: ${swStr(r.winner)}, currentLap: ${r.currentLap ?? "nil"}, totalLaps: ${r.totalLaps ?? "nil"}, seriesId: ${swStr(r.seriesId ?? "f1")})`;
 
 const swEntry = (e: any) =>
-  `      ClassificationEntry(position: ${e.position}, driverId: ${swStr(e.driverId)}, time: ${swStr(e.time ?? "")}, gap: ${swStr(e.gap ?? "")}, points: ${e.points ?? 0}, status: ${swStr(e.status ?? "finished")}!)`;
+  `      ClassificationEntry(position: ${e.position}, driverId: ${swStr(e.driverId)}, time: ${swStr(e.time ?? "")}, gap: ${swStr(e.gap ?? "")}, points: ${e.points ?? 0}, status: ${swStr(e.status ?? "finished")})`;
 
 const swResult = (r: any) => {
   const cls = r.classification.map(swEntry).join(",\n");

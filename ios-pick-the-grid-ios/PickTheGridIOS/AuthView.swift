@@ -166,7 +166,7 @@ struct AuthView: View {
             .frame(width: 18)
     }
 
-    private func submitButton: some View {
+    private var submitButton: some View {
         Button {
             submit()
         } label: {

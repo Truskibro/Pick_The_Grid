@@ -83,9 +83,9 @@ struct SeriesSelectView: View {
             }
             .frame(maxWidth: .infinity)
             .frame(height: 190)
-            .clipShape(RoundedRectangle(cornerRadius: config.theme.cardRadius, style: config.theme.angular ? .rect : .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: config.theme.cardRadius, style: config.theme.angular ? .circular : .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: config.theme.cardRadius, style: config.theme.angular ? .rect : .continuous)
+                RoundedRectangle(cornerRadius: config.theme.cardRadius, style: config.theme.angular ? .circular : .continuous)
                     .strokeBorder(config.theme.borderLight, lineWidth: 1)
             )
         }

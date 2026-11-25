@@ -80,9 +80,9 @@ struct RankingsView: View {
         }
         .padding(12)
         .background(theme.surfaceElevated)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                 .strokeBorder(theme.highlight.opacity(0.35), lineWidth: 1)
         )
     }
@@ -159,9 +159,9 @@ struct RankingsView: View {
             }
             .padding(.vertical, 6)
             .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                     .strokeBorder(theme.border, lineWidth: 1)
             )
         }
@@ -224,9 +224,9 @@ struct RankingsView: View {
             }
             .padding(.vertical, 6)
             .background(theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+                RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                     .strokeBorder(theme.border, lineWidth: 1)
             )
         }

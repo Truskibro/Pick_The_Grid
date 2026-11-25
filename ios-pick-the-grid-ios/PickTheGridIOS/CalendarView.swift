@@ -122,9 +122,9 @@ struct RaceCard: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                 .strokeBorder(theme.border, lineWidth: 1)
         )
     }
@@ -211,9 +211,9 @@ struct RaceResultView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surfaceElevated)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                 .strokeBorder(theme.borderLight, lineWidth: 1)
         )
     }
@@ -242,9 +242,9 @@ struct RaceResultView: View {
         }
         .padding(.vertical, 8)
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                 .strokeBorder(theme.border, lineWidth: 1)
         )
     }
@@ -383,9 +383,9 @@ struct RaceResultView: View {
         .padding(14)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(theme.surface)
-        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous))
+        .clipShape(RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous))
         .overlay(
-            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .rect : .continuous)
+            RoundedRectangle(cornerRadius: theme.cardRadius, style: theme.angular ? .circular : .continuous)
                 .strokeBorder(theme.border, lineWidth: 1)
         )
     }

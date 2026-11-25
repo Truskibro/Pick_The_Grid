@@ -152,7 +152,11 @@ final class AppStore {
     }
 
     var displayUsername: String {
-        profile?.username ?? user?.email.map { String($0.split(separator: "@").first ?? "") } ?? "racer"
+        if let username = profile?.username { return username }
+        if let email = user?.email {
+            return email.components(separatedBy: "@").first ?? "racer"
+        }
+        return "racer"
     }
 
     var displayName: String {
@@ -209,11 +213,10 @@ final class AppStore {
         var loadedResults: [String: RaceResult] = [:]
 
         do {
-            async let teamsReq: [Team] = supabase.select("teams", query: ["order": "name"])
-            async let driversReq: [Driver] = supabase.select("drivers", query: ["order": "championship_points.desc"])
-            async let racesReq: [Race] = supabase.select("races", query: ["order": "race_date"])
-            async let resultsReq: [RaceResult] = supabase.select("race_results", query: [:])
-            let (t, d, r, res) = try await (teamsReq, driversReq, racesReq, resultsReq)
+            let t: [Team] = try await supabase.select("teams", query: ["order": "name"])
+            let d: [Driver] = try await supabase.select("drivers", query: ["order": "championship_points.desc"])
+            let r: [Race] = try await supabase.select("races", query: ["order": "race_date"])
+            let res: [RaceResult] = try await supabase.select("race_results", query: [String: String]())
 
             if !t.isEmpty { loadedTeams = t }
             if !d.isEmpty { loadedDrivers = d }
@@ -501,10 +504,9 @@ final class AppStore {
             ]
         )
         if let leagueId = created.first?.id {
-            try? await supabase.insert(
+            try? await supabase.insertRaw(
                 "league_members",
-                body: ["league_id": leagueId, "user_id": userId, "role": "owner"],
-                returning: false
+                body: ["league_id": leagueId, "user_id": userId, "role": "owner"]
             )
         }
         await loadLeaguesAndPoints()
@@ -520,7 +522,7 @@ final class AppStore {
         guard let leagueId = matches.first?.id else {
             throw SupabaseError.http(404, "No league found with that code")
         }
-        try await supabase.insert("league_members", body: ["league_id": leagueId, "user_id": userId, "role": "member"], returning: false)
+        try await supabase.insertRaw("league_members", body: ["league_id": leagueId, "user_id": userId, "role": "member"])
         await loadLeaguesAndPoints()
     }
 
@@ -591,7 +593,7 @@ final class AppStore {
     func sendChallenge(to userId: String, in leagueId: String) async throws {
         guard let me = user?.id else { throw SupabaseError.notSignedIn }
         guard userId != me else { throw SupabaseError.http(400, "You cannot challenge yourself") }
-        try await supabase.insert(
+        try await supabase.insertRaw(
             "challenges",
             body: [
                 "challenger_id": me,
@@ -599,8 +601,7 @@ final class AppStore {
                 "league_id": leagueId,
                 "series_id": seriesId,
                 "status": "pending",
-            ],
-            returning: false
+            ]
         )
         await loadChallenges()
     }

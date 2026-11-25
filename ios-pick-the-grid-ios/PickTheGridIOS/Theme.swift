@@ -67,6 +67,8 @@ struct SeriesTheme {
 struct SeriesLabels {
     let competitor: String
     let competitors: String
+    let competitorLower: String
+    let competitorsLower: String
     let team: String
     let dnfLabel: String
     let heroTitle: String
@@ -99,7 +101,9 @@ struct SeriesConfig {
         raceTopN: 10,
         sprintTopN: 8,
         labels: SeriesLabels(
-            competitor: "Driver", competitors: "Drivers", team: "Team",
+            competitor: "Driver", competitors: "Drivers",
+            competitorLower: "driver", competitorsLower: "drivers",
+            team: "Team",
             dnfLabel: "DNF", heroTitle: "Pick The Grid",
             heroSubtitle: "Predict the top 10. Score big. Own the paddock."
         ),
@@ -132,7 +136,9 @@ struct SeriesConfig {
         raceTopN: 15,
         sprintTopN: 9,
         labels: SeriesLabels(
-            competitor: "Rider", competitors: "Riders", team: "Manufacturer",
+            competitor: "Rider", competitors: "Riders",
+            competitorLower: "rider", competitorsLower: "riders",
+            team: "Manufacturer",
             dnfLabel: "Crash/DNF", heroTitle: "Pick Your Race",
             heroSubtitle: "Predict the top 15. Score big. Own the circuit."
         ),
@@ -169,9 +175,9 @@ struct CardStyle: ViewModifier {
         content
             .padding(14)
             .background(store.series.theme.surface)
-            .clipShape(RoundedRectangle(cornerRadius: store.series.theme.cardRadius, style: store.series.theme.angular ? .rect : .continuous))
+            .clipShape(RoundedRectangle(cornerRadius: store.series.theme.cardRadius, style: store.series.theme.angular ? .circular : .continuous))
             .overlay(
-                RoundedRectangle(cornerRadius: store.series.theme.cardRadius, style: store.series.theme.angular ? .rect : .continuous)
+                RoundedRectangle(cornerRadius: store.series.theme.cardRadius, style: store.series.theme.angular ? .circular : .continuous)
                     .strokeBorder(store.series.theme.border, lineWidth: 1)
             )
     }
