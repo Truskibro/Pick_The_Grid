@@ -198,7 +198,7 @@ struct ProfileView: View {
 // MARK: - Edit Profile sheet
 
 /// Mirrors expo/app/settings.tsx's editor: username (3-20 letters/digits/underscores),
-/// display name, first/last name and country. Email is read-only (it is the sign-in).
+/// display name and country. Email is read-only (it is the sign-in).
 struct EditProfileView: View {
     var store: AppStore
 
@@ -206,8 +206,6 @@ struct EditProfileView: View {
 
     @State private var displayName = ""
     @State private var username = ""
-    @State private var firstName = ""
-    @State private var lastName = ""
     @State private var country = ""
     @State private var populated = false
     @State private var saving = false
@@ -227,11 +225,6 @@ struct EditProfileView: View {
                         field("3-20 characters, letters, numbers, underscores", text: $username, autocap: .never)
                             .textInputAutocapitalization(.never)
                             .autocorrectionDisabled()
-                    }
-                    section("NAME") {
-                        field("First name", text: $firstName, autocap: .words)
-                        divider
-                        field("Last name", text: $lastName, autocap: .words)
                     }
                     section("COUNTRY") {
                         field("e.g. United States", text: $country, autocap: .words)
@@ -262,8 +255,6 @@ struct EditProfileView: View {
         populated = true
         displayName = store.profile?.displayName ?? store.displayName
         username = store.displayUsername
-        firstName = store.profile?.firstName ?? ""
-        lastName = store.profile?.lastName ?? ""
         country = store.profile?.country ?? ""
     }
 
@@ -310,12 +301,6 @@ struct EditProfileView: View {
             .foregroundStyle(AppColors.text)
             .textInputAutocapitalization(autocap)
             .padding(12)
-    }
-
-    private var divider: some View {
-        Rectangle()
-            .fill(theme.borderLight)
-            .frame(height: 1)
     }
 
     private func errorBanner(_ message: String) -> some View {
@@ -389,8 +374,6 @@ struct EditProfileView: View {
                 try await store.updateProfile(
                     username: trimmedUsername,
                     displayName: displayName.trimmingCharacters(in: .whitespaces),
-                    firstName: firstName.trimmingCharacters(in: .whitespaces),
-                    lastName: lastName.trimmingCharacters(in: .whitespaces),
                     country: country.trimmingCharacters(in: .whitespaces)
                 )
                 await MainActor.run {
