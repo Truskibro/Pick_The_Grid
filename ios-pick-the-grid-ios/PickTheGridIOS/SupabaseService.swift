@@ -134,12 +134,15 @@ final class SupabaseService {
     }
 
     func signOut() async {
-        if session != nil {
+        // Clear the local session FIRST so sign-out is instant even if the
+        // server logout call hangs; the revoke is best-effort.
+        let hadSession = session != nil
+        session = nil
+        Self.deleteSessionFromKeychain()
+        if hadSession {
             let request = makeRequest("auth/v1/logout", method: "POST", body: Data("{}".utf8), auth: true)
             _ = try? await URLSession.shared.data(for: request)
         }
-        session = nil
-        Self.deleteSessionFromKeychain()
     }
 
     func refreshSession() async throws {

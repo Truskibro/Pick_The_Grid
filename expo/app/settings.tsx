@@ -263,6 +263,11 @@ export default function SettingsScreen() {
     }
     setSignOutArmed(false);
     await signOut();
+    // Close the Settings modal so the user lands back in the tabs and can
+    // see the signed-out state (Sign In banner) instead of a stale screen.
+    if (router.canGoBack()) {
+      router.back();
+    }
   };
 
   return (

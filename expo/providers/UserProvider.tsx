@@ -419,16 +419,20 @@ export const [UserProvider, useUser] = createContextHook(() => {
 
   const signOut = useCallback(async () => {
     console.log('Signing out...');
-    try {
-      await supabase.auth.signOut();
-    } catch (e) {
-      console.log('Sign out error (clearing locally anyway):', e);
-    }
+    // Clear local state FIRST so sign-out is instant even if the server call
+    // hangs or fails — the server revoke is fire-and-forget.
     setProfile(DEFAULT_PROFILE);
     setIsGuest(true);
     setSession(null);
-    await AsyncStorage.removeItem(STORAGE_KEYS.profile);
     queryClient.clear();
+    try {
+      await AsyncStorage.removeItem(STORAGE_KEYS.profile);
+    } catch { }
+    try {
+      await supabase.auth.signOut();
+    } catch (e) {
+      console.log('Sign out server call failed (local session already cleared):', e);
+    }
   }, [queryClient]);
 
   const updateProfile = useCallback(async (updates: Partial<UserProfile>) => {
